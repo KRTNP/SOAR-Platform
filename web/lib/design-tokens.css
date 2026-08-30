@@ -1,0 +1,36 @@
+/*
+ * Single source of truth for the SOAR console's visual tokens — ported 1:1
+ * from the "Calm command center" mockup (published as an Artifact earlier in
+ * this project). Components read only these custom properties, never a raw
+ * oklch value, so the palette can be re-tuned in one place.
+ */
+:root {
+  --color-bg: oklch(15% 0.018 255);
+  --color-bg-glow: oklch(19% 0.026 255);
+  --color-surface: oklch(20% 0.02 255);
+  --color-surface-raised: oklch(24.5% 0.022 255);
+  --color-surface-hover: oklch(27.5% 0.024 255);
+  --color-border: oklch(34% 0.02 255 / 0.55);
+  --color-border-strong: oklch(42% 0.022 255);
+
+  --color-text-primary: oklch(95% 0.008 255);
+  --color-text-secondary: oklch(72% 0.015 255);
+  --color-text-tertiary: oklch(50% 0.015 255);
+
+  --color-accent: oklch(78% 0.12 200);
+  --color-safe: oklch(72% 0.15 150);
+  --color-danger: oklch(68% 0.19 25);
+  --color-warn: oklch(78% 0.14 85);
+
+  --severity-critical: oklch(62% 0.19 25);
+  --severity-high: oklch(70% 0.16 55);
+  --severity-medium: oklch(78% 0.14 85);
+  --severity-low: oklch(68% 0.04 255);
+  --severity-informational: oklch(55% 0.015 255);
+
+  --radius-sm: 4px;
+  --radius-md: 5px;
+
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}

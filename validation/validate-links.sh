@@ -17,6 +17,11 @@ for source in sorted(root.rglob("*.md")):
     # may point to skills that are intentionally not installed in this repo.
     if relative_source.parts[:2] == (".agents", "skills"):
         continue
+    # node_modules/.next are installed/build artifacts (gitignored, never
+    # part of this repo's own content) that ship their own markdown with
+    # upstream-relative links this repo has no reason to satisfy.
+    if "node_modules" in relative_source.parts or ".next" in relative_source.parts:
+        continue
     for raw_target in pattern.findall(source.read_text(encoding="utf-8")):
         target = raw_target.split("#", 1)[0].strip()
         if not target or target.startswith(("http://", "https://", "mailto:")):

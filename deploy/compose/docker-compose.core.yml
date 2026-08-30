@@ -1,0 +1,72 @@
+# M1 "core" profile only: Postgres, the Go API, and the Next.js web app.
+# docs/02-architecture/lab-deployment-profile.md explicitly sanctions
+# starting with a bounded subset of the full lab stack ("core", "workflow",
+# "security", "search", "observability" profiles) without changing the API
+# contract — workflow/security/search/observability are commented below and
+# arrive with the milestones that actually need NATS, Temporal, Keycloak,
+# Vault, OpenSearch, and the observability stack.
+
+services:
+  postgres:
+    image: docker.io/library/postgres:17-alpine
+    profiles: ["core"]
+    environment:
+      POSTGRES_DB: soar
+      POSTGRES_USER: soar
+      POSTGRES_PASSWORD: soar_lab_only
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - soar_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U soar -d soar"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    profiles: ["core"]
+    build:
+      context: ../../services/api
+    environment:
+      ADDR: ":8080"
+      DATABASE_URL: postgres://soar:soar_lab_only@postgres:5432/soar?sslmode=disable
+      DEFAULT_TENANT_ID: lab
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    profiles: ["core"]
+    build:
+      context: ../../web
+    environment:
+      # Server-side only (fetched from Server Components, never the browser),
+      # so this is the container network's api service name, not localhost.
+      API_BASE_URL: http://api:8080
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - api
+
+  # --- workflow profile (M3+: approval waits need durable orchestration) ---
+  # nats: ...
+  # temporal: ...
+
+  # --- security profile (auth/secrets milestone) ---
+  # keycloak: ...
+  # vault: ...
+
+  # --- search profile (derived-search milestone) ---
+  # opensearch: ...
+
+  # --- observability profile ---
+  # otel-collector: ...
+  # prometheus: ...
+  # grafana: ...
+  # loki: ...
+
+volumes:
+  soar_postgres_data:

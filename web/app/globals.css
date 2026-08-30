@@ -1,0 +1,35 @@
+@import "tailwindcss";
+@import "../lib/design-tokens.css";
+
+@theme inline {
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-tertiary: var(--color-text-tertiary);
+
+  --color-accent: var(--color-accent);
+  --color-safe: var(--color-safe);
+  --color-danger: var(--color-danger);
+  --color-warn: var(--color-warn);
+
+  --color-severity-critical: var(--severity-critical);
+  --color-severity-high: var(--severity-high);
+  --color-severity-medium: var(--severity-medium);
+  --color-severity-low: var(--severity-low);
+  --color-severity-informational: var(--severity-informational);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+body {
+  background: radial-gradient(1100px 700px at 18% -8%, var(--color-bg-glow) 0%, var(--color-bg) 55%) fixed;
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}

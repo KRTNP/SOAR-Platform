@@ -939,6 +939,22 @@ components:
         action_refs: {type: array, items: {type: string}}
         task_refs: {type: array, items: {type: string}}
         closure_reason: {type: string}
+        hypothesis: {type: string}
+        facts: {type: array, items: {type: string}}
+        limitations: {type: array, items: {type: string}}
+        correlation_key: {type: string}
+        root_cause: {type: string}
+        lessons_learned: {type: string}
+        observables:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaseObservable'
+    CaseObservable:
+      type: object
+      required: [type, value]
+      properties:
+        type: {type: string}
+        value: {type: string}
     StartExecutionRequest:
       type: object
       required: [playbook_id, case_id, mode]
