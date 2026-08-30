@@ -1,0 +1,17 @@
+{
+  "id": "connector-wazuh-manager-lab",
+  "version": "1.0.0",
+  "owner": "security-operations",
+  "provider": "wazuh-manager",
+  "intents": ["get_agent_context", "get_rule", "health"],
+  "auth": {"method": "vault_ref_jwt_bearer", "scopes": ["agent:read", "rule:read"]},
+  "error_classes": ["validation", "authentication", "authorization", "not_found", "rate_limit", "timeout", "provider_5xx", "policy_denied"],
+  "health_check": {"read_only": true, "timeout_seconds": 10},
+  "dry_run": true,
+  "idempotency": true,
+  "data_classification": "internal",
+  "timeout_seconds": 15,
+  "retry_policy": {"max_attempts": 3, "backoff_seconds": [5, 15, 30]},
+  "rate_limit": {"requests_per_minute": 60},
+  "target_allowlist": ["wazuh-manager-lab"]
+}

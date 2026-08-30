@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://soar-platform.local/schemas/execution.schema.json",
+  "title": "SOAR Execution",
+  "type": "object",
+  "required": ["id", "playbook_id", "playbook_version", "connector_version", "policy_version", "case_id", "status", "mode", "started_at", "steps"],
+  "properties": {
+    "id": {"type": "string"},
+    "playbook_id": {"type": "string"},
+    "playbook_version": {"type": "string"},
+    "connector_version": {"type": "string"},
+    "mode": {"type": "string", "enum": ["dry_run", "execute"]},
+    "case_id": {"type": "string"},
+    "status": {"type": "string", "enum": ["queued", "running", "waiting_approval", "resumed", "succeeded", "dismissed", "failed", "cancelled", "expired", "dead_letter"]},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "policy_version": {"type": "string"},
+    "steps": {"type": "array", "items": {"type": "object", "required": ["id", "status"], "properties": {"id": {"type": "string"}, "status": {"type": "string"}, "attempts": {"type": "integer", "minimum": 0}, "input_ref": {"type": "string"}, "output_ref": {"type": "string"}, "error_class": {"type": "string"}}, "additionalProperties": false}}
+  },
+  "additionalProperties": false
+}

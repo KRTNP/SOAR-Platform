@@ -1,0 +1,98 @@
+id: PB-CISA-MAJOR-001
+name: Major incident coordination and controlled response
+version: 1.0.0
+owner: incident-response-team
+type: notification
+status: draft
+references:
+  - https://www.cisa.gov/sites/default/files/2024-08/Federal_Government_Cybersecurity_Incident_and_Vulnerability_Response_Playbooks_508C.pdf
+  - https://csrc.nist.gov/pubs/sp/800/61/r3/final
+source_basis:
+  - source_id: SRC-NIST-61R3
+    location: "Executive Summary pp. 1-2; Community Profile Tables 2-3 pp. 11-35"
+    adaptation: "Use CSF 2.0-aligned preparation, detection, response, recovery, communication, and lessons learned states."
+  - source_id: SRC-CISA-IRVULN
+    location: "Incident Response Playbook checklist pp. 34-39"
+    adaptation: "Use the checklist pattern for roles, evidence, coordination, decisions, and closure; federal-specific authorities remain local configuration."
+  - source_id: SRC-CISA-TTX
+    location: "Cybersecurity Scenarios and tabletop exercise resources"
+    adaptation: "Exercise the branches with injects before enabling write actions."
+trigger:
+  source: correlated_detection_or_manual_declaration
+  condition: confirmed malicious activity with impact or major-incident threshold not yet ruled out
+scope:
+  tenant: explicit
+  assets: incident-scoped assets only
+  jurisdiction: configured_by_owner
+preconditions:
+  - incident commander or delegated authority is assigned
+  - evidence preservation workflow is active or a documented exception exists
+  - communications, legal, privacy and service-owner contacts resolve
+  - incident threshold and affected-scope confidence are recorded
+steps:
+  - id: declare
+    kind: decision
+    purpose: Record incident declaration, severity, authority, scope and initial uncertainty.
+    on_failure: escalate
+  - id: assign_roles
+    kind: notify
+    purpose: Assign commander, operations, technical, communications, legal/privacy and scribe roles.
+    on_failure: create_manual_task
+  - id: preserve
+    kind: evidence
+    purpose: Start read-only collection and custody recording before disruptive changes.
+    on_failure: stop_and_escalate
+  - id: assess_impact
+    kind: investigate
+    purpose: Map affected services, dependencies, safety thresholds and confidence.
+    on_failure: keep_open_and_escalate
+  - id: coordinate
+    kind: notify
+    purpose: Send approved internal and external coordination notices with source references and next decision time.
+    on_failure: create_manual_communications_task
+  - id: approve_containment
+    kind: approval
+    purpose: Obtain approval for exact targets, action hash, blast radius, expiry and rollback.
+    on_failure: stop
+  - id: execute_containment
+    kind: action
+    purpose: Apply the approved containment actions to the exact approved targets using the approved action hash.
+    on_failure: pause_and_escalate
+  - id: verify
+    kind: verify
+    purpose: Check scope reduction, monitoring visibility, business impact and evidence continuity after containment.
+    on_failure: rollback_or_escalate
+  - id: lessons
+    kind: close
+    purpose: Capture timeline, decisions, quality gaps, owners and improvement actions only after recovery owner sign-off.
+    on_failure: keep_open
+safety:
+  default_mode: dry_run
+  approval_policy: exact target and action approval required for containment or service-impacting change
+  stop_conditions:
+    - authority or target scope is unknown
+    - evidence preservation is unavailable without an approved exception
+    - operational safety threshold would be crossed
+    - communication recipient or legal requirement is unresolved
+    - post-condition cannot be verified
+  rollback: incident-commander-approved compensating action with a new audit record
+evidence:
+  - declaration and severity decision
+  - role assignments and communications log
+  - read-only collection and custody references
+  - operational impact assessment and approval hash
+  - post-condition verification and lessons-learned record
+metrics:
+  - time_to_declare
+  - time_to_assign_commander
+  - time_to_preserve_evidence
+  - approval_wait_duration
+  - containment_postcondition_success
+  - communication_completeness
+tests:
+  - synthetic_major_incident_with_unknown_scope
+  - evidence_store_unavailable
+  - critical_dependency_threshold_branch
+  - expired_containment_approval
+  - tabletop_with_communications_inject
+

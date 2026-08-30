@@ -1,0 +1,66 @@
+id: PB-WAZUH-001
+name: Wazuh alert triage and enrichment
+version: 1.0.0
+owner: security-operations
+type: investigation
+status: draft
+references:
+  - https://documentation.wazuh.com/current/user-manual/manager/integration-with-external-apis.html
+trigger:
+  source: wazuh
+  condition: authenticated webhook payload contains alert and agent metadata
+scope:
+  tenant: payload.tenant_id
+  assets: payload.agent.id
+preconditions:
+  - webhook authentication and replay check pass
+  - payload is within configured size limit
+  - source event timestamp has timezone
+steps:
+  - id: validate
+    kind: validate
+    purpose: Validate Wazuh rule, agent, timestamp and observable fields.
+    on_failure: reject_and_audit
+  - id: normalize
+    kind: investigate
+    purpose: Map Wazuh fields into canonical event-1.0.
+    on_failure: create_manual_task
+  - id: deduplicate
+    kind: deduplicate
+    purpose: Use source_event_id and rule/agent/time key to avoid duplicate cases.
+    on_failure: merge_existing_case
+  - id: enrich
+    kind: enrich
+    purpose: Query approved TI and asset/user context in read-only mode.
+    on_failure: record_partial_and_continue
+  - id: classify
+    kind: decision
+    purpose: Recalculate severity and confidence using rule, sightings and criticality.
+    on_failure: escalate
+  - id: create_case
+    kind: notify
+    purpose: Create or update a case with analyst task and evidence references.
+    on_failure: retry_then_dead_letter
+safety:
+  default_mode: dry_run
+  approval_policy: no containment action is allowed in this playbook
+  stop_conditions:
+    - tenant or agent cannot be resolved
+    - source signature is invalid
+    - timestamp timezone is missing for timeline-critical use
+  rollback: merge or close the generated case with an audited reason
+evidence:
+  - redacted raw payload reference
+  - normalized event
+  - enrichment responses and provider timestamps
+  - execution and mapping versions
+metrics:
+  - ingestion_to_case_latency
+  - duplicate_event_rate
+  - enrichment_completeness
+  - analyst_task_completeness
+tests:
+  - examples/wazuh-alert.json
+  - duplicate Wazuh source event
+  - missing agent identifier
+  - enrichment provider timeout

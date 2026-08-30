@@ -1,0 +1,38 @@
+name: Tessl Tile Publish
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'SKILL.md'
+      - 'tile.json'
+      - 'references/**/*.md'
+      - '.claude-plugin/**'
+      - '.cursor-plugin/**'
+      - '.github/workflows/publish.yml'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Publish tile to Tessl registry
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+    env:
+      TESSL_API_TOKEN: ${{ secrets.TESSL_API_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Publish with automatic patch versioning
+        if: ${{ env.TESSL_API_TOKEN != '' }}
+        uses: tesslio/patch-version-publish@v1
+        with:
+          token: ${{ env.TESSL_API_TOKEN }}
+
+      - name: Skip publish when token is missing
+        if: ${{ env.TESSL_API_TOKEN == '' }}
+        run: echo "TESSL_API_TOKEN is not configured; skipping Tessl tile publish."

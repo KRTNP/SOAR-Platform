@@ -1,0 +1,27 @@
+{
+  "id": "evidence-raw-0001",
+  "case_id": "case-lab-0001",
+  "artifact_type": "redacted_wazuh_alert",
+  "uri": "../dfir/cases/case-lab-0001/work/intake/wazuh-alert-0001.json",
+  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "size": 2048,
+  "source": "wazuh",
+  "acquisition_method": "authenticated_webhook_capture",
+  "collector": "soar-ingestion",
+  "collected_at": "2026-08-30T04:00:02Z",
+  "created_at": "2026-08-30T04:00:00Z",
+  "received_at": "2026-08-30T04:00:02Z",
+  "tool_name": "soar-ingestion-capture",
+  "tool_version": "soar-design-fixture-1.0",
+  "command_ref": "case://case-lab-0001/commands/ingest-0001",
+  "timezone": "UTC",
+  "analyst": "analyst-tier1",
+  "purpose": "Preserve the redacted source event for triage and replay.",
+  "limitations": ["Synthetic lab fixture; not original production evidence."],
+  "sensitivity": "internal",
+  "retention_class": "lab-short",
+  "integrity_status": "verified",
+  "custody_events": [
+    {"event": "collected", "actor": "soar-ingestion", "at": "2026-08-30T04:00:02Z", "to_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+  ]
+}

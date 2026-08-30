@@ -1,0 +1,36 @@
+name: weekly-upstream-digest
+
+# Weekly digest of collector core, operator, proto, and primary SDKs.
+
+on:
+  schedule:
+    - cron: '23 07 * * 1'   # 07:23 UTC every Monday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: weekly-upstream
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build digest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/scripts/build-digest.mjs weekly
+
+      - name: Create or update digest issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node .github/scripts/create-or-update-digest-issue.mjs "Weekly upstream digest" ./digest.md upstream-digest,weekly

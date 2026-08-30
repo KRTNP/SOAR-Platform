@@ -1,0 +1,5 @@
+{
+  "source_id": "SRC-CACAO-20",
+  "location": "§§3-4 and §11",
+  "adaptation": "Use explicit playbook metadata and workflow semantics, then validate local connector and approval requirements."
+}

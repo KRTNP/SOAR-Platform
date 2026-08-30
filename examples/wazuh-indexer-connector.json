@@ -1,0 +1,17 @@
+{
+  "id": "connector-wazuh-indexer-lab",
+  "version": "1.0.0",
+  "owner": "security-operations",
+  "provider": "wazuh-indexer",
+  "intents": ["get_alert", "health"],
+  "auth": {"method": "vault_ref_basic_auth", "scopes": ["read:wazuh-alerts-*"]},
+  "error_classes": ["validation", "authentication", "authorization", "not_found", "rate_limit", "timeout", "provider_5xx", "policy_denied"],
+  "health_check": {"read_only": true, "timeout_seconds": 10},
+  "dry_run": true,
+  "idempotency": true,
+  "data_classification": "internal",
+  "timeout_seconds": 15,
+  "retry_policy": {"max_attempts": 3, "backoff_seconds": [5, 15, 30]},
+  "rate_limit": {"requests_per_minute": 120},
+  "target_allowlist": ["wazuh-indexer-lab", "wazuh-alerts-*"]
+}

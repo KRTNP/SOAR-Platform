@@ -1,0 +1,71 @@
+id: PB-EXFIL-001
+name: Suspected data exfiltration investigation
+version: 1.0.0
+owner: incident-response-team
+type: investigation
+status: draft
+references:
+  - https://csrc.nist.gov/pubs/sp/800/61/r3/final
+  - https://www.cisa.gov/stopransomware/ransomware-guide
+trigger:
+  source: network_dlp_cloud_or_siem
+  condition: unusual transfer volume or sensitive data movement with corroborating identity/endpoint signal
+scope:
+  tenant: explicit
+  assets: correlated source and destination only
+preconditions:
+  - data classification and asset owner are known
+  - network/cloud/mail evidence can be preserved
+steps:
+  - id: preserve
+    kind: evidence
+    purpose: Preserve flow, proxy, DLP, cloud audit and endpoint references.
+    on_failure: stop_and_escalate
+  - id: scope
+    kind: investigate
+    purpose: Establish user, asset, destination, time window and data class.
+    on_failure: create_manual_task
+  - id: correlate
+    kind: investigate
+    purpose: Search related authentication, process, archive and transfer activity.
+    on_failure: record_limitation_and_escalate
+  - id: assess_impact
+    kind: decision
+    purpose: Determine data sensitivity, volume, confidence and notification threshold.
+    on_failure: escalate
+  - id: contain
+    kind: approval
+    purpose: Request scoped session, egress or account control after legal/service review.
+    on_failure: stop
+  - id: execute_containment
+    kind: action
+    purpose: Apply the approved session, egress or account control using an idempotent connector action.
+    on_failure: retry_then_manual
+  - id: verify
+    kind: verify
+    purpose: Confirm the scoped control is active and no continued transfer is observed.
+    on_failure: escalate
+  - id: report
+    kind: notify
+    purpose: Update incident commander, legal and service owner through approved channels.
+    on_failure: create_manual_communications_task
+evidence:
+  - redacted flow, proxy, DLP and cloud audit references
+  - data classification, scope and volume assessment
+  - legal/service review, approval and communication record
+metrics:
+  - time_to_scope_exfiltration
+  - evidence_completeness
+  - notification_timeliness
+safety:
+  default_mode: dry_run
+  approval_policy: data access/egress controls require incident commander and service owner approval
+  stop_conditions:
+    - data classification is unknown
+    - collection scope would expose unrelated users or content
+    - notification obligations are unresolved
+  rollback: restore only scoped controls after incident commander approval
+tests:
+  - synthetic sensitive transfer
+  - approved backup transfer
+  - cloud export with legal hold

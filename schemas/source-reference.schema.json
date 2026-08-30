@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://soar.example.invalid/schemas/source-reference.schema.json",
+  "title": "SOAR source reference",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source_id", "location", "adaptation"],
+  "properties": {
+    "source_id": {
+      "type": "string",
+      "pattern": "^SRC-[A-Z0-9-]+$"
+    },
+    "location": {
+      "type": "string",
+      "minLength": 1
+    },
+    "adaptation": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

@@ -1,0 +1,68 @@
+id: PB-RANSOM-001
+name: Ransomware coordination and containment
+version: 1.0.0
+owner: incident-response-team
+type: mitigation
+status: draft
+references:
+  - https://www.cisa.gov/stopransomware/ransomware-guide
+  - https://csrc.nist.gov/pubs/sp/800/61/r3/final
+trigger:
+  source: correlated_detection
+  condition: ransomware indicators or encryption behavior across multiple assets
+scope:
+  tenant: explicit
+  assets: correlated affected and suspected assets
+preconditions:
+  - incident commander is assigned
+  - communications and legal contacts are available
+  - evidence preservation plan is active
+steps:
+  - id: declare
+    kind: decision
+    purpose: Confirm incident threshold and activate response roles.
+    on_failure: escalate
+  - id: preserve
+    kind: evidence
+    purpose: Preserve logs, memory/disk collection plan and indicators before broad changes.
+    on_failure: stop_and_escalate
+  - id: assess_operations
+    kind: investigate
+    purpose: Map affected assets to critical business dependencies and safety thresholds.
+    on_failure: escalate
+  - id: contain
+    kind: approval
+    purpose: Obtain incident commander approval for segmented containment actions.
+    on_failure: stop
+  - id: execute_containment
+    kind: action
+    purpose: Apply the approved segmented containment actions using idempotent connector calls.
+    on_failure: retry_then_manual
+  - id: coordinate
+    kind: notify
+    purpose: Notify approved internal, legal, vendor and external stakeholders.
+    on_failure: create_manual_communications_task
+  - id: recover
+    kind: verify
+    purpose: Verify eradication, restore order, backups and monitoring before closure.
+    on_failure: keep_open_and_escalate
+evidence:
+  - incident declaration and affected-asset scope
+  - preserved logs, collection references and indicators
+  - containment approval, recovery validation and monitoring record
+metrics:
+  - time_to_preserve_ransomware_evidence
+  - containment_postcondition_success
+  - recovery_validation_success
+safety:
+  default_mode: dry_run
+  approval_policy: every containment action is scoped and approved; no broad shutdown by heuristic
+  stop_conditions:
+    - business dependency or safety impact is unknown
+    - evidence preservation has not started
+    - communication authority is unclear
+  rollback: use incident commander-approved recovery and service restoration plan
+tests:
+  - multi-endpoint synthetic encryption alert
+  - critical dependency branch
+  - SOAR outage during containment

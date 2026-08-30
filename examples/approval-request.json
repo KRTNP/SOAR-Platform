@@ -1,0 +1,13 @@
+{
+  "action_id": "act-lab-0001",
+  "intent": "block_network_indicator",
+  "target": {"type": "ipv4", "value": "198.51.100.10"},
+  "case_id": "case-lab-0001",
+  "risk": "high",
+  "mode": "dry_run",
+  "requested_by": "analyst-tier2",
+  "approval": {"required": true, "status": "pending"},
+  "idempotency_key": "case-lab-0001:block:ipv4:198.51.100.10",
+  "policy_version": "response-policy-1.0",
+  "expires_at": "2026-08-30T04:15:00Z"
+}

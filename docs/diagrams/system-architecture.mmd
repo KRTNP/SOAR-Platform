@@ -1,0 +1,33 @@
+flowchart LR
+  subgraph Sources[Security Sources]
+    wazuh[Wazuh]
+    siem[SIEM]
+    edr[EDR/XDR]
+    ti[Threat Intel]
+  end
+  subgraph Core[SOAR Core]
+    ingress[Ingestion API]
+    normalizer[Normalizer]
+    correlate[Correlation/Dedup]
+    caseSvc[Case Service]
+    engine[Playbook Engine]
+    policy[Policy + Approval]
+    audit[Audit + Evidence]
+  end
+  subgraph Targets[Response Targets]
+    firewall[Firewall]
+    identity[Identity/AD]
+    ticket[Ticketing]
+    dfir[DFIR Tools]
+  end
+  wazuh --> ingress
+  siem --> ingress
+  edr --> ingress
+  ti --> engine
+  ingress --> normalizer --> correlate --> caseSvc --> engine
+  engine --> policy --> firewall
+  policy --> identity
+  engine --> ticket
+  engine --> dfir
+  engine --> audit
+  caseSvc --> audit

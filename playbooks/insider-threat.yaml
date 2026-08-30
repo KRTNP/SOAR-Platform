@@ -1,0 +1,63 @@
+id: PB-INSIDER-001
+name: Insider-threat signal review
+version: 1.0.0
+owner: security-and-insider-risk-team
+type: investigation
+status: draft
+references:
+  - https://csrc.nist.gov/pubs/sp/800/61/r3/final
+  - https://arxiv.org/abs/2208.06075
+trigger:
+  source: dlp_identity_hr_or_siem
+  condition: multiple corroborated signals exceed approved risk threshold
+scope:
+  tenant: explicit
+  identities: minimum necessary scope
+preconditions:
+  - policy, privacy and legal contacts are available
+  - signal sources have documented confidence and retention
+steps:
+  - id: preserve
+    kind: evidence
+    purpose: Preserve source references and access records without broad collection.
+    on_failure: stop_and_escalate
+  - id: minimize
+    kind: investigate
+    purpose: Apply data minimization and role-based access before reviewing content.
+    on_failure: stop
+  - id: corroborate
+    kind: investigate
+    purpose: Correlate access, transfer, privilege and policy events.
+    on_failure: record_inconclusive
+  - id: review
+    kind: decision
+    purpose: Send findings to authorized insider-risk/legal review; do not label intent automatically.
+    on_failure: escalate
+  - id: approve
+    kind: approval
+    purpose: Require authorized decision before any account or employment-impacting action.
+    on_failure: stop
+  - id: document
+    kind: notify
+    purpose: Store restricted case summary, rationale and retention class.
+    on_failure: create_manual_task
+evidence:
+  - minimized source-event and access-record references
+  - privacy/legal review and scope decision
+  - restricted case summary and retention class
+metrics:
+  - corroboration_rate
+  - minimum_necessary_scope_compliance
+  - analyst_override_rate
+safety:
+  default_mode: dry_run
+  approval_policy: legal/privacy and designated insider-risk approver required for sensitive action
+  stop_conditions:
+    - signal is single-source or low-confidence
+    - collection would exceed minimum necessary scope
+    - jurisdiction or authorization is unclear
+  rollback: no automated punitive action; reverse only technical controls through approved procedure
+tests:
+  - synthetic multi-signal case
+  - single-source false positive
+  - legal-hold branch

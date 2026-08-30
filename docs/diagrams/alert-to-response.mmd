@@ -1,0 +1,18 @@
+flowchart TD
+  start[Incoming Alert] --> validate{Input and scope valid?}
+  validate -- no --> reject[Reject and audit]
+  validate -- yes --> dedup{Duplicate or correlated?}
+  dedup -- duplicate --> merge[Merge into existing case]
+  dedup -- new --> enrich[Run bounded enrichment]
+  merge --> enrich
+  enrich --> classify[Classify severity/confidence]
+  classify --> risk{High-impact action?}
+  risk -- no --> low[Run low-risk action]
+  risk -- yes --> approve{Approval granted?}
+  approve -- no --> escalate[Escalate or expire]
+  approve -- yes --> high[Run gated response]
+  low --> verify[Verify post-condition]
+  high --> verify
+  verify --> close[Update case, evidence and metrics]
+  reject --> close
+  escalate --> close

@@ -1,0 +1,18 @@
+{
+  "source": "wazuh",
+  "source_event_id": "wazuh-alert-0001",
+  "tenant_id": "lab",
+  "observed_at": "2026-08-30T04:00:00Z",
+  "received_at": "2026-08-30T04:00:02Z",
+  "event_class": "authentication",
+  "severity": "medium",
+  "confidence": 0.82,
+  "rule": {"id": "5710", "level": 10, "description": "Multiple authentication failures"},
+  "agent": {"id": "001", "name": "lab-endpoint-01"},
+  "observables": [
+    {"type": "ipv4", "value": "198.51.100.10", "normalization": "rfc5737-test-net", "first_seen": "2026-08-30T04:00:00Z", "last_seen": "2026-08-30T04:00:00Z", "confidence": 0.82, "source_refs": ["wazuh-alert-0001"], "sensitivity": "internal"},
+    {"type": "host", "value": "lab-endpoint-01", "normalization": "lowercase-hostname", "first_seen": "2026-08-30T04:00:00Z", "last_seen": "2026-08-30T04:00:00Z", "confidence": 1, "source_refs": ["wazuh-alert-0001"], "sensitivity": "internal"}
+  ],
+  "raw_ref": {"uri": "case://lab/raw/wazuh-alert-0001", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  "schema_version": "event-1.0"
+}

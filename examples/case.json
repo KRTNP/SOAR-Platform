@@ -1,0 +1,20 @@
+{
+  "id": "case-lab-0001",
+  "tenant_id": "lab",
+  "title": "Repeated authentication failures from one source",
+  "category": "account_access",
+  "severity": "medium",
+  "confidence": 0.82,
+  "status": "investigating",
+  "opened_at": "2026-08-30T04:00:03Z",
+  "updated_at": "2026-08-30T04:02:00Z",
+  "owner": "analyst-tier1",
+  "alert_refs": ["alert-lab-0001"],
+  "correlation_key": "ssh-bruteforce:198.51.100.10:lab-endpoint-01",
+  "observable_refs": ["obs-ip-0001", "obs-host-0001"],
+  "evidence_refs": ["evidence-raw-0001"],
+  "action_refs": [],
+  "hypothesis": "A source is attempting repeated authentication against a lab endpoint.",
+  "facts": ["The source generated repeated failures within the configured window."],
+  "limitations": ["No endpoint identity correlation has been performed yet."]
+}

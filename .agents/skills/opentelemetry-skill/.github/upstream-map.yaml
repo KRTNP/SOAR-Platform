@@ -1,0 +1,416 @@
+# Skill-to-upstream mapping.
+#
+# Binds skill reference files in this repository to upstream paths in the
+# OpenTelemetry organization. When the upstream watcher workflows see a change
+# to a path in `watches[].paths`, the corresponding skill entry is flagged for
+# review.
+#
+# Schema:
+#   version:        integer schema version
+#   mappings[]:
+#     skill:        path to the skill reference file (relative to repo root)
+#     topics:       optional free-form tags surfaced in digests
+#     priority:     optional ("critical" elevates into the Tier-0 lane)
+#     watches[]:
+#       repo:       "owner/name" of the upstream repository
+#       paths:      list of glob patterns (minimatch syntax) to match against
+#                   the per-commit compare file list
+#
+# Globs are matched with minimatch defaults plus `matchBase: true` so a pattern
+# like `CHANGELOG.md` matches at any depth.
+
+version: 1
+mappings:
+  - skill: references/sampling.md
+    topics: [sampling, tail_sampling, probabilistic]
+    watches:
+      - repo: open-telemetry/opentelemetry-collector-contrib
+        paths:
+          - "processor/tailsamplingprocessor/**"
+          - "processor/probabilisticsamplerprocessor/**"
+          - "processor/groupbytraceprocessor/**"
+      - repo: open-telemetry/opentelemetry-specification
+        paths:
+          - "specification/trace/sdk.md"
+          - "specification/trace/tracestate-probability-sampling.md"
+
+  - skill: references/ottl.md
+    topics: [ottl, transform, filterprocessor]
+    watches:
+      - repo: open-telemetry/opentelemetry-collector-contrib
+        paths:
+          - "processor/transformprocessor/**"
+          - "processor/filterprocessor/**"
+          - "processor/routingprocessor/**"
+          - "pkg/ottl/**"
+
+  - skill: references/collector.md
+    topics: [collector, pipelines, configuration]
+    watches:
+      - repo: open-telemetry/opentelemetry-collector
+        paths:
+          - "config/**"
+          - "service/**"
+          - "otelcol/**"
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-collector-contrib
+        # Any metadata.yaml diff anywhere in contrib implies a stability/support
+        # change for a named component the skill may reference.
+        paths:
+          - "**/metadata.yaml"
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-collector-releases
+        paths:
+          - "distributions/**"
+          - "CHANGELOG.md"
+
+  - skill: references/connectors.md
+    topics: [connectors, routing]
+    watches:
+      - repo: open-telemetry/opentelemetry-collector-contrib
+        paths:
+          - "connector/**"
+
+  - skill: references/ai-agents.md
+    priority: critical
+    topics: [gen_ai, agents, llm]
+    watches:
+      - repo: open-telemetry/semantic-conventions-genai
+        paths:
+          - "model/**"
+          - "docs/**"
+          - "README.md"
+          - "CHANGELOG.md"
+      - repo: open-telemetry/semantic-conventions
+        paths:
+          - "model/gen-ai/**"
+          - "docs/gen-ai/**"
+          - "CHANGELOG.md"
+      - repo: open-telemetry/community
+        paths:
+          - "projects/gen-ai.md"
+          - "projects/gen-ai/**"
+      - repo: github/copilot-cli
+        paths:
+          - "README.md"
+          - "CHANGELOG.md"
+          - "docs/**"
+          - "src/**"
+      - repo: Aider-AI/aider
+        paths:
+          - "README.md"
+          - "CHANGELOG.md"
+          - "aider/**"
+          - "docs/**"
+      - repo: anysphere/cursor-wiki
+        paths:
+          - "**/*.md"
+          - "docs/**"
+      - repo: anomalyco/opencode
+        paths:
+          - "README.md"
+          - "CHANGELOG.md"
+          - "docs/**"
+          - "src/**"
+          - "package.json"
+      - repo: DEVtheOPS/opencode-plugin-otel
+        paths:
+          - "README.md"
+          - "CHANGELOG.md"
+          - "src/**"
+          - "package.json"
+      - repo: openai/codex
+        paths:
+          - "README.md"
+          - "CHANGELOG.md"
+          - "docs/**"
+          - "src/**"
+          - "Cargo.toml"
+      - repo: google-gemini/gemini-cli
+        paths:
+          - "README.md"
+          - "CHANGELOG.md"
+          - "docs/**"
+          - "src/**"
+          - "package.json"
+      - repo: anthropics/claude-code
+        paths:
+          - "README.md"
+          - "CHANGELOG.md"
+          - "docs/**"
+          - "src/**"
+      - repo: anthropics/skills
+        paths:
+          - "README.md"
+          - "**/*.md"
+          - "skills/**"
+      - repo: QwenLM/qwen-code
+        paths:
+          - "README.md"
+          - "CHANGELOG.md"
+          - "docs/**"
+          - "packages/**"
+          - "package.json"
+      - repo: microsoft/vscode-copilot-chat
+        paths:
+          - "README.md"
+          - "CHANGELOG.md"
+          - "src/**"
+          - "package.json"
+      - repo: badlogic/pi-mono
+        paths:
+          - "packages/coding-agent/**"
+          - "README.md"
+          - "CHANGELOG.md"
+          - "docs/**"
+
+  - skill: references/architecture.md
+    topics: [deployment, operator, k8s, documentation, demo]
+    watches:
+      - repo: open-telemetry/opentelemetry-operator
+        paths:
+          - "apis/**"
+          - "config/crd/bases/**"
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-helm-charts
+        paths:
+          - "charts/opentelemetry-operator/**"
+          - "charts/opentelemetry-collector/values.yaml"
+      - repo: open-telemetry/opentelemetry.io
+        paths:
+          - "README.md"
+          - "CHANGELOG.md"
+          - "docs/**"
+      - repo: open-telemetry/opentelemetry-demo
+        paths:
+          - "README.md"
+          - "CHANGELOG.md"
+          - "docs/**"
+          - "kubernetes/**"
+          - "docker-compose.yml"
+
+  - skill: references/instrumentation.md
+    topics: [instrumentation, sdks, auto-instrumentation, language-sdks]
+    watches:
+      - repo: open-telemetry/opentelemetry-go
+        paths:
+          - "CHANGELOG.md"
+          - "README.md"
+          - "go.opentelemetry.io/**"
+      - repo: open-telemetry/opentelemetry-java
+        paths:
+          - "CHANGELOG.md"
+          - "README.md"
+          - "sdk/**"
+          - "api/**"
+      - repo: open-telemetry/opentelemetry-python
+        paths:
+          - "CHANGELOG.md"
+          - "README.md"
+          - "opentelemetry-sdk/**"
+          - "docs/**"
+      - repo: open-telemetry/opentelemetry-js
+        paths:
+          - "CHANGELOG.md"
+          - "README.md"
+          - "packages/**"
+      - repo: open-telemetry/opentelemetry-dotnet
+        paths:
+          - "CHANGELOG.md"
+          - "README.md"
+          - "src/**"
+          - "docs/**"
+      - repo: open-telemetry/opentelemetry-dotnet-contrib
+        paths:
+          - "CHANGELOG.md"
+          - "README.md"
+          - "src/**"
+      - repo: open-telemetry/opentelemetry-python-contrib
+        paths:
+          - "instrumentation/**"
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-java-instrumentation
+        paths:
+          - "instrumentation/**"
+          - "docs/**"
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-js-contrib
+        paths:
+          - "plugins/**"
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-go-instrumentation
+        paths:
+          - "internal/pkg/instrumentation/**"
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-go-compile-instrumentation
+        paths:
+          - "README.md"
+          - "CHANGELOG.md"
+          - "docs/**"
+          - "rules/**"
+          - "instrumentation/**"
+      - repo: open-telemetry/opentelemetry-rust
+        paths:
+          - "CHANGELOG.md"
+          - "README.md"
+          - "opentelemetry/**"
+      - repo: open-telemetry/opentelemetry-cpp
+        paths:
+          - "CHANGELOG.md"
+          - "README.md"
+          - "sdk/**"
+      - repo: open-telemetry/opentelemetry-ruby
+        paths:
+          - "CHANGELOG.md"
+          - "README.md"
+          - "sdk/**"
+      - repo: open-telemetry/opentelemetry-php
+        paths:
+          - "CHANGELOG.md"
+          - "README.md"
+          - "src/**"
+      - repo: open-telemetry/opentelemetry-swift
+        paths:
+          - "CHANGELOG.md"
+          - "README.md"
+          - "Sources/**"
+      - repo: open-telemetry/opentelemetry-erlang
+        paths:
+          - "CHANGELOG.md"
+          - "README.md"
+          - "apps/**"
+
+  - skill: references/security.md
+    topics: [cve, security, tls, auth]
+    priority: critical
+    watches:
+      - repo: open-telemetry/opentelemetry-java-instrumentation
+        paths:
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-collector
+        paths:
+          - "config/configauth/**"
+          - "config/configtls/**"
+          - "config/confighttp/**"
+          - "config/configgrpc/**"
+
+  - skill: references/monitoring.md
+    topics: [meta-monitoring, collector-telemetry]
+    watches:
+      - repo: open-telemetry/opentelemetry-collector
+        paths:
+          - "service/telemetry/**"
+          - "internal/memorylimiter/**"
+          - "exporter/exporterhelper/**"
+      - repo: open-telemetry/opentelemetry-collector-contrib
+        paths:
+          - "processor/memorylimiterprocessor/**"
+
+  - skill: references/platforms.md
+    topics: [aws, lambda, cloud-runtime]
+    watches:
+      - repo: open-telemetry/opentelemetry-lambda
+        paths:
+          - "collector/**"
+          - "python/**"
+          - "nodejs/**"
+          - "java/**"
+      - repo: open-telemetry/opentelemetry-collector-contrib
+        paths:
+          - "receiver/awsfirehosereceiver/**"
+          - "exporter/awsxrayexporter/**"
+          - "exporter/awsemfexporter/**"
+
+  - skill: references/playbooks.md
+    topics: [incident-response, operations]
+    watches:
+      - repo: open-telemetry/opentelemetry-collector
+        paths:
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-collector-contrib
+        paths:
+          - "CHANGELOG.md"
+
+  - skill: references/setup-kubernetes.md
+    topics: [kubernetes, k8s, daemonset, gateway, sidecar, deployment, helm, operator]
+    watches:
+      - repo: open-telemetry/opentelemetry-operator
+        paths:
+          - "config/crd/bases/**"
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-helm-charts
+        paths:
+          - "charts/opentelemetry-collector/**"
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-collector
+        paths:
+          - "CHANGELOG.md"
+
+  - skill: references/setup-ecs.md
+    topics: [ecs, aws, fargate, ec2, deployment, container]
+    watches:
+      - repo: open-telemetry/opentelemetry-collector-contrib
+        paths:
+          - "receiver/awsfirehosereceiver/**"
+          - "exporter/awsxrayexporter/**"
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-lambda
+        paths:
+          - "collector/**"
+          - "CHANGELOG.md"
+
+  - skill: references/setup-docker.md
+    topics: [docker, container, compose, networking]
+    watches:
+      - repo: open-telemetry/opentelemetry-collector
+        paths:
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-collector-contrib
+        paths:
+          - "CHANGELOG.md"
+
+  - skill: references/setup-vm.md
+    topics: [vm, linux, windows, macos, systemd, standalone, binary]
+    watches:
+      - repo: open-telemetry/opentelemetry-collector
+        paths:
+          - "cmd/otelcontributorscol/main.go"
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-collector-releases
+        paths:
+          - "distributions/**"
+          - "CHANGELOG.md"
+
+  - skill: references/setup-index.md
+    topics: [deployment, architecture, patterns, decision-tree]
+    watches:
+      - repo: open-telemetry/opentelemetry-operator
+        paths:
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-helm-charts
+        paths:
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-collector
+        paths:
+          - "CHANGELOG.md"
+
+  - skill: SKILL.md
+    topics: [overview, specification, protocol]
+    watches:
+      - repo: open-telemetry/oteps
+        paths:
+          - "README.md"
+          - "text/**"
+      - repo: open-telemetry/opentelemetry-specification
+        paths:
+          - "specification/overview.md"
+          - "specification/versioning-and-stability.md"
+          - "CHANGELOG.md"
+      - repo: open-telemetry/opentelemetry-proto
+        paths:
+          - "opentelemetry/proto/**"
+          - "CHANGELOG.md"
+      - repo: open-telemetry/semantic-conventions
+        paths:
+          - "docs/general/**"
+          - "CHANGELOG.md"

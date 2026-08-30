@@ -1,0 +1,67 @@
+id: PB-CLOUD-001
+name: Cloud identity compromise investigation
+version: 1.0.0
+owner: cloud-and-identity-response
+type: investigation
+status: draft
+references:
+  - https://csrc.nist.gov/pubs/sp/800/61/r3/final
+  - https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=922303
+trigger:
+  source: cloud_audit_or_identity
+  condition: anomalous sign-in, access-key use, role assumption or control-plane change
+scope:
+  tenant: explicit
+  accounts: named account and affected resources only
+preconditions:
+  - cloud account/subscription/project is resolved
+  - audit, sign-in and IAM events are available
+steps:
+  - id: preserve
+    kind: evidence
+    purpose: Preserve provider-native exports, query filters, export IDs and timezone.
+    on_failure: stop_and_escalate
+  - id: map_identity
+    kind: investigate
+    purpose: Map principal, source IP, device, role and token/key use.
+    on_failure: escalate
+  - id: inspect_changes
+    kind: investigate
+    purpose: Review privilege, policy, mailbox, storage and network changes.
+    on_failure: record_partial_and_escalate
+  - id: assess
+    kind: decision
+    purpose: Determine affected resources, confidence and blast radius.
+    on_failure: escalate
+  - id: contain
+    kind: approval
+    purpose: Request scoped key disablement, session revocation or role restriction.
+    on_failure: stop
+  - id: execute_containment
+    kind: action
+    purpose: Disable the approved key, revoke the session or restrict the role using an idempotent identity-provider action.
+    on_failure: retry_then_manual
+  - id: verify
+    kind: verify
+    purpose: Confirm control-plane state and absence of new suspicious activity.
+    on_failure: keep_open_and_escalate
+evidence:
+  - provider audit export and query scope
+  - principal, role, key and session correlation
+  - approval, containment result and post-condition
+metrics:
+  - time_to_preserve_cloud_evidence
+  - identity_scope_accuracy
+  - containment_postcondition_success
+safety:
+  default_mode: dry_run
+  approval_policy: production account or privileged role changes require dual approval
+  stop_conditions:
+    - account or jurisdiction is ambiguous
+    - export would include unrelated users/resources
+    - legal/contractual authorization is absent
+  rollback: use provider-native restore procedure with service owner approval
+tests:
+  - anomalous role assumption
+  - key use from unusual location
+  - unrelated tenant access attempt

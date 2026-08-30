@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://soar-platform.local/schemas/alert.schema.json",
+  "title": "SOAR Alert",
+  "type": "object",
+  "required": ["id", "tenant_id", "detection", "status", "severity", "event_refs", "created_at"],
+  "properties": {
+    "id": {"type": "string"},
+    "tenant_id": {"type": "string"},
+    "detection": {"type": "object", "required": ["rule_id", "rule_version", "source"], "properties": {"rule_id": {"type": "string"}, "rule_version": {"type": "string"}, "source": {"type": "string"}}, "additionalProperties": false},
+    "status": {"type": "string", "enum": ["new", "acknowledged", "investigating", "escalated", "resolved", "false_positive"]},
+    "severity": {"type": "string", "enum": ["informational", "low", "medium", "high", "critical"]},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "event_refs": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "observable_refs": {"type": "array", "items": {"type": "string"}},
+    "playbook_refs": {"type": "array", "items": {"type": "string"}},
+    "analyst_notes": {"type": "array", "items": {"type": "object", "required": ["author", "at", "text"], "properties": {"author": {"type": "string"}, "at": {"type": "string", "format": "date-time"}, "text": {"type": "string"}}, "additionalProperties": false}},
+    "related_case_refs": {"type": "array", "items": {"type": "string"}},
+    "duplicate_of": {"type": "string"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "correlation": {"type": "object", "properties": {"key": {"type": "string"}, "window_seconds": {"type": "integer", "minimum": 0}}, "additionalProperties": false},
+    "false_positive_reason": {"type": "string"},
+    "case_ref": {"type": "string"}
+  },
+  "additionalProperties": false
+}

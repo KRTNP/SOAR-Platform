@@ -1,0 +1,40 @@
+{
+  "name": "opentelemetry-skill",
+  "owner": {
+    "name": "o11y.dev"
+  },
+  "version": "1.0.1",
+  "plugins": [
+    {
+      "name": "opentelemetry-skill",
+      "description": "Expert OpenTelemetry observability engineering assistant with progressive disclosure of best practices, deployment architectures, and production-ready configurations across Kubernetes, ECS, serverless, and standalone environments",
+      "source": ".",
+      "files": [
+        "SKILL.md",
+        "references/**/*.md"
+      ]
+    }
+  ],
+  "author": "o11y.dev",
+  "tags": ["opentelemetry", "observability", "telemetry", "monitoring", "tracing", "metrics", "logs", "collector", "kubernetes", "ecs", "docker", "serverless", "codex"],
+  "categories": ["DevOps", "Observability", "Infrastructure"],
+  "license": "Apache-2.0",
+  "homepage": "https://skills.o11y.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/o11y-dev/opentelemetry-skill"
+  },
+  "capabilities": {
+    "progressive_disclosure": true,
+    "context_aware": true,
+    "production_ready": true
+  },
+  "metadata": {
+    "skill_type": "expert_assistant",
+    "domain": "observability_engineering",
+    "expertise_level": "principal",
+    "primary_technology": "opentelemetry",
+    "supported_languages": ["yaml", "go", "python", "java", "javascript", "typescript"],
+    "vendor_agnostic": true
+  }
+}

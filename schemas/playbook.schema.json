@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://soar-platform.local/schemas/playbook.schema.json",
+  "title": "SOAR Playbook Contract",
+  "type": "object",
+  "required": ["id", "name", "version", "owner", "type", "status", "references", "trigger", "scope", "preconditions", "steps", "safety", "evidence", "metrics", "tests"],
+  "properties": {
+    "id": {"type": "string"},
+    "name": {"type": "string"},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "owner": {"type": "string"},
+    "type": {"type": "string"},
+    "status": {"type": "string", "enum": ["draft", "review", "lab_tested", "staged", "approved", "active", "deprecated"]},
+    "scope": {"type": "object", "minProperties": 1},
+    "preconditions": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "trigger": {"type": "object", "required": ["source", "condition"], "properties": {"source": {"type": "string"}, "condition": {"type": "string"}}, "additionalProperties": false},
+    "steps": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["id", "kind", "purpose"], "properties": {"id": {"type": "string"}, "kind": {"type": "string", "enum": ["validate", "deduplicate", "investigate", "enrich", "decision", "approval", "action", "verify", "evidence", "notify", "escalate", "close"]}, "purpose": {"type": "string"}, "on_failure": {"type": "string"}}, "additionalProperties": true}},
+    "safety": {"type": "object", "required": ["default_mode", "stop_conditions", "approval_policy"], "properties": {"default_mode": {"type": "string", "enum": ["dry_run", "execute"]}, "stop_conditions": {"type": "array", "items": {"type": "string"}}, "approval_policy": {"type": "string"}, "rollback": {"type": "string"}}, "additionalProperties": false},
+    "evidence": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "metrics": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "tests": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "references": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "source_basis": {"type": "array", "items": {"type": "object", "required": ["source_id", "location", "adaptation"], "properties": {"source_id": {"type": "string", "pattern": "^SRC-[A-Z0-9-]+$"}, "location": {"type": "string"}, "adaptation": {"type": "string"}}, "additionalProperties": false}}
+  },
+  "additionalProperties": false
+}

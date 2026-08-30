@@ -1,0 +1,17 @@
+{
+  "id": "connector-opnsense-lab",
+  "version": "1.0.0",
+  "owner": "security-operations",
+  "provider": "opnsense",
+  "intents": ["preview_temp_block", "add_temp_block", "remove_temp_block", "health"],
+  "auth": {"method": "vault_ref", "scopes": ["firewall.alias.read", "firewall.alias.write"]},
+  "error_classes": ["authentication", "authorization", "timeout", "rate_limit", "provider_5xx", "postcondition_mismatch"],
+  "health_check": {"read_only": true, "timeout_seconds": 10},
+  "dry_run": true,
+  "idempotency": true,
+  "data_classification": "internal",
+  "timeout_seconds": 15,
+  "retry_policy": {"max_attempts": 3, "backoff_seconds": [5, 15, 30]},
+  "rate_limit": {"requests_per_minute": 30},
+  "target_allowlist": ["opnsense-lab", "SOAR_TEMP_BLOCK"]
+}

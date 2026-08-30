@@ -1,0 +1,22 @@
+sequenceDiagram
+  actor Analyst
+  participant SOAR
+  participant Policy
+  actor Approver
+  participant Connector
+  participant Target
+  Analyst->>SOAR: Request response action
+  SOAR->>Policy: Evaluate scope/risk/criticality
+  Policy-->>SOAR: Approval required
+  SOAR->>Approver: Present exact action hash and evidence
+  alt Approved
+    Approver-->>SOAR: Approve with expiry
+    SOAR->>Connector: Execute with idempotency key
+    Connector->>Target: Provider API call
+    Target-->>Connector: Result
+    Connector-->>SOAR: Normalized result
+    SOAR->>Policy: Verify post-condition
+  else Rejected or expired
+    Approver-->>SOAR: Reject/deny
+    SOAR-->>Analyst: Create escalation task
+  end

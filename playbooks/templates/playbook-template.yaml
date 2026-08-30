@@ -1,0 +1,69 @@
+id: PB-EXAMPLE-001
+name: Example investigation and response playbook
+version: 1.0.0
+owner: security-operations
+type: investigation
+status: draft
+references:
+  - https://docs.oasis-open.org/cacao/security-playbooks/v2.0/security-playbooks-v2.0.html
+trigger:
+  source: approved-event-source
+  condition: event.event_class == "other"
+scope:
+  tenant: explicit
+  assets: authorized-only
+preconditions:
+  - source authentication is verified
+  - tenant and target scope are resolved
+  - case context is available
+steps:
+  - id: validate
+    kind: validate
+    purpose: Validate source, schema, scope and timestamp.
+    on_failure: reject_and_audit
+  - id: deduplicate
+    kind: deduplicate
+    purpose: Prevent repeated processing for the same event and intent.
+    on_failure: create_manual_task
+  - id: investigate
+    kind: investigate
+    purpose: Collect bounded context using read-only connectors.
+    on_failure: record_partial_and_escalate
+  - id: decide
+    kind: decision
+    purpose: Apply confidence, criticality and response policy.
+    on_failure: escalate
+  - id: approval
+    kind: approval
+    purpose: Require human approval for any high-impact action.
+    on_failure: stop
+  - id: execute
+    kind: action
+    purpose: Execute the approved action using an idempotent connector call bound to the approval's action hash.
+    on_failure: retry_then_manual
+  - id: verify
+    kind: verify
+    purpose: Verify post-condition and store normalized result.
+    on_failure: mark_failed_and_escalate
+safety:
+  default_mode: dry_run
+  approval_policy: high-impact actions require an unexpired approval bound to the action hash
+  stop_conditions:
+    - target is outside authorized scope
+    - evidence integrity is unknown or mismatched
+    - asset criticality is unavailable for a high-impact action
+    - provider response cannot be verified
+  rollback: use connector compensation or create a manual recovery task
+evidence:
+  - execution log reference
+  - input and output hashes
+  - query and connector version
+metrics:
+  - execution_duration
+  - action_success_rate
+  - false_positive_rate
+tests:
+  - synthetic valid event
+  - duplicate event
+  - unauthorized target
+  - provider timeout

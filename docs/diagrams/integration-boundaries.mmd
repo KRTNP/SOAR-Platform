@@ -1,0 +1,11 @@
+flowchart LR
+  untrusted[Untrusted payload/email/file] --> gateway[Ingress validation]
+  gateway --> domain[Canonical domain model]
+  domain --> policy[Policy boundary]
+  policy --> investigation[Read-only investigation workers]
+  policy --> approval[Human approval boundary]
+  approval --> response[Response workers]
+  response --> target[External target systems]
+  domain --> evidence[Restricted evidence store]
+  investigation -. no direct destructive access .-> target
+  untrusted -. no direct control-plane access .-> domain

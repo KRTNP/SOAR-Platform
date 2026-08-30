@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://soar-platform.local/schemas/policy.schema.json",
+  "title": "SOAR Response Policy",
+  "type": "object",
+  "required": ["id", "version", "default_decision", "rules", "approval_roles"],
+  "properties": {
+    "id": {"type": "string"},
+    "version": {"type": "string"},
+    "default_decision": {"type": "string", "enum": ["allow_investigation", "require_approval", "deny"]},
+    "rules": {"type": "array", "items": {"type": "object", "required": ["id", "when", "decision"], "properties": {"id": {"type": "string"}, "when": {"type": "string"}, "decision": {"type": "string", "enum": ["allow", "require_approval", "deny", "escalate"]}, "reason": {"type": "string"}}, "additionalProperties": false}},
+    "approval_roles": {"type": "array", "items": {"type": "string"}},
+    "max_blast_radius": {"type": "integer", "minimum": 1},
+    "requires_ttl": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}

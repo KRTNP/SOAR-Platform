@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://soar-platform.local/schemas/action.schema.json",
+  "title": "SOAR Action Intent",
+  "type": "object",
+  "required": ["action_id", "intent", "target", "case_id", "risk", "mode", "requested_by", "approval", "idempotency_key", "policy_version"],
+  "properties": {
+    "action_id": {"type": "string"},
+    "intent": {"type": "string", "enum": ["notify", "create_ticket", "query_siem", "enrich_observable", "collect_artifact", "quarantine_email", "revoke_session", "block_network_indicator", "isolate_host", "disable_account"]},
+    "target": {"type": "object", "required": ["type", "value"], "properties": {"type": {"type": "string"}, "value": {"type": "string"}}, "additionalProperties": false},
+    "case_id": {"type": "string"},
+    "risk": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+    "mode": {"type": "string", "enum": ["dry_run", "execute"]},
+    "requested_by": {"type": "string"},
+    "approval": {"type": "object", "required": ["required", "status"], "properties": {"required": {"type": "boolean"}, "status": {"type": "string", "enum": ["not_required", "pending", "approved", "rejected", "expired"]}, "approval_id": {"type": "string"}}, "additionalProperties": false},
+    "idempotency_key": {"type": "string", "minLength": 8},
+    "policy_version": {"type": "string"},
+    "expires_at": {"type": "string", "format": "date-time"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,63 @@
+id: PB-IOC-001
+name: Suspicious IOC investigation
+version: 1.0.0
+owner: threat-intelligence
+type: investigation
+status: draft
+references:
+  - https://docs.oasis-open.org/cti/taxii/v2.1/taxii-v2.1.html
+  - https://ocsf.io/
+trigger:
+  source: alert_or_analyst
+  condition: alert contains an observable of type ipv4, ipv6, domain, url or hash
+scope:
+  tenant: explicit
+  search_window: configured per case
+preconditions:
+  - observable is normalized
+  - source and sensitivity are known
+steps:
+  - id: validate
+    kind: validate
+    purpose: Validate type, syntax, scope and sensitivity.
+    on_failure: create_manual_task
+  - id: deduplicate
+    kind: deduplicate
+    purpose: Reuse recent enrichment result when provider TTL permits.
+    on_failure: continue_without_cache
+  - id: ti_lookup
+    kind: enrich
+    purpose: Query approved STIX/TAXII or provider APIs.
+    on_failure: partial_result_and_escalate
+  - id: internal_search
+    kind: investigate
+    purpose: Search SIEM, DNS, proxy, email and EDR sightings.
+    on_failure: create_manual_task
+  - id: campaign_correlate
+    kind: decision
+    purpose: Group sightings by observable, host, user and time window.
+    on_failure: mark_inconclusive
+  - id: case_update
+    kind: notify
+    purpose: Attach verdict, confidence and evidence references to the case.
+    on_failure: retry_then_dead_letter
+evidence:
+  - normalized observable and sensitivity decision
+  - provider verdict, timestamp and confidence
+  - internal sightings, correlation result and case annotation
+metrics:
+  - enrichment_latency
+  - verdict_completeness
+  - false_positive_rate
+safety:
+  default_mode: dry_run
+  approval_policy: block action must be a separate approved response playbook
+  stop_conditions:
+    - IOC is on an approved allowlist
+    - provider confidence is missing
+    - query scope would exceed tenant authorization
+  rollback: remove only derived case annotation through a new audited revision
+tests:
+  - examples/normalized-event.json
+  - allowlisted domain
+  - provider unavailable

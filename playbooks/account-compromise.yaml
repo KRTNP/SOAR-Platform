@@ -1,0 +1,63 @@
+id: PB-ACCOUNT-001
+name: Account compromise investigation and containment
+version: 1.0.0
+owner: identity-response
+type: mitigation
+status: draft
+references:
+  - https://csrc.nist.gov/pubs/sp/800/61/r3/final
+  - https://docs.oasis-open.org/cacao/security-playbooks/v2.0/security-playbooks-v2.0.html
+trigger:
+  source: identity_alert
+  condition: suspicious sign-in or privilege change is correlated with user context
+scope:
+  tenant: explicit
+  identities: named user only until scope is expanded
+preconditions:
+  - identity is resolved without ambiguity
+  - sign-in and MFA logs are queryable
+steps:
+  - id: investigate_signin
+    kind: investigate
+    purpose: Correlate IP, device, location, MFA and session activity.
+    on_failure: create_manual_task
+  - id: inspect_privilege
+    kind: investigate
+    purpose: Review group, role, token and mailbox changes.
+    on_failure: escalate
+  - id: assess
+    kind: decision
+    purpose: Determine confidence, impact and required containment.
+    on_failure: escalate
+  - id: approve_revoke
+    kind: approval
+    purpose: Obtain approval for token/session revocation or credential reset.
+    on_failure: stop
+  - id: revoke
+    kind: action
+    purpose: Revoke scoped session/token using idempotent identity action.
+    on_failure: retry_then_manual
+  - id: verify
+    kind: verify
+    purpose: Confirm sessions are revoked and no new suspicious sign-in appears.
+    on_failure: escalate
+evidence:
+  - normalized sign-in, MFA and session event references
+  - privilege and mailbox change audit references
+  - approval, action hash and revocation post-condition
+metrics:
+  - time_to_triage
+  - suspicious_signin_false_positive_rate
+  - approval_wait_duration
+  - revocation_postcondition_success
+safety:
+  default_mode: dry_run
+  approval_policy: privileged, service and break-glass accounts require dual approval
+  stop_conditions:
+    - identity is a service/break-glass account without owner confirmation
+    - action would disable more than the approved identity scope
+  rollback: restore access only after owner verification and new approval
+tests:
+  - suspicious sign-in fixture
+  - normal travel false positive
+  - privileged account branch

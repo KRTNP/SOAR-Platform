@@ -1,0 +1,108 @@
+id: PB-SSHBF-001
+name: SSH brute-force detection and temporary OPNsense block
+version: 1.0.0
+owner: security-operations
+type: mitigation
+status: draft
+references:
+  - https://documentation.wazuh.com/current/user-manual/manager/integration-with-external-apis.html
+  - https://csrc.nist.gov/pubs/sp/800/61/r3/final
+trigger:
+  source: wazuh
+  condition: authenticated webhook payload shows 5 failed SSH logins within 1 minute from one source IP against the designated Ubuntu victim
+scope:
+  tenant: payload.tenant_id
+  assets: lab_ssh_victim_only
+preconditions:
+  - webhook authentication and replay check pass
+  - payload is within configured size limit
+  - source event timestamp has timezone
+  - trusted/management IP allowlist is loaded and current
+steps:
+  - id: validate
+    kind: validate
+    purpose: Validate Wazuh rule, agent, timestamp and observable fields for the failed-login events.
+    on_failure: reject_and_audit
+  - id: preserve
+    kind: evidence
+    purpose: Preserve redacted raw event reference and checksum before correlation.
+    on_failure: stop_and_escalate
+  - id: deduplicate
+    kind: deduplicate
+    purpose: Use source_event_id and rule/agent/time key so duplicate Wazuh events reuse the same idempotency identity.
+    on_failure: merge_existing_case
+  - id: correlate
+    kind: investigate
+    purpose: Group the 5 failed logins within the 1-minute window into one Medium alert against the source IP.
+    on_failure: create_manual_task
+  - id: check_allowlist
+    kind: decision
+    purpose: Stop if the source IP is on the trusted/management allowlist; allowlist changes are audited and expire.
+    on_failure: dismiss_as_trusted
+  - id: enrich
+    kind: enrich
+    purpose: Query Wazuh agent/rule context and approved TI for the source IP, user and asset in read-only mode.
+    on_failure: record_partial_and_continue
+  - id: classify
+    kind: decision
+    purpose: Raise priority above Medium only when the target is a privileged user or critical asset; otherwise remain Medium.
+    on_failure: escalate
+  - id: create_case
+    kind: notify
+    purpose: Create or update the case and analyst task with a 15-minute Medium review SLA.
+    on_failure: retry_then_dead_letter
+  - id: request_block_approval
+    kind: approval
+    purpose: Request approval showing the exact source IP, case, action hash, 10-minute TTL and rollback plan; a repeated submission of the same approval is idempotent.
+    on_failure: stop
+  - id: block_source
+    kind: action
+    purpose: Add the source IP to the OPNsense SOAR_TEMP_BLOCK alias using the approved action hash as the idempotency key.
+    on_failure: retry_then_manual
+  - id: verify_block
+    kind: verify
+    purpose: Confirm alias membership and that SSH test traffic from the source IP is actually blocked.
+    on_failure: escalate
+  - id: rollback
+    kind: action
+    purpose: Remove the source IP from SOAR_TEMP_BLOCK after the 10-minute TTL elapses or on an approved early release.
+    on_failure: retry_then_escalate_retain_block
+  - id: verify_rollback
+    kind: verify
+    purpose: Confirm alias absence and that baseline SSH traffic behavior is restored.
+    on_failure: retry_then_escalate_retain_block
+  - id: close
+    kind: close
+    purpose: Close only after rollback succeeds, no repeated alert is present, and analyst review is recorded.
+    on_failure: keep_open
+safety:
+  default_mode: dry_run
+  approval_policy: one authorized incident commander approval is required per exact source IP, case and action hash before block_source; a repeated approval submission is idempotent and never double-blocks
+  stop_conditions:
+    - source IP is on the trusted/management allowlist
+    - approval is missing, expired, or the action hash does not match the reviewed request
+    - alias/rule state cannot be verified before or after the block
+    - OPNsense API is unreachable beyond the retry budget
+  rollback: remove the IP from SOAR_TEMP_BLOCK after TTL or approved early release; retry rollback at 5, 15 and 30 seconds; retain the block and escalate if all retries fail, and never remove all firewall rules
+evidence:
+  - redacted raw Wazuh event reference and checksum
+  - normalized event, alert and correlation window
+  - enrichment result for source IP, user and asset, including partial results
+  - approval record with action hash, TTL and rollback plan
+  - OPNsense request/response references and alias verification
+  - rollback attempt log and final case state
+metrics:
+  - detection_to_case_latency
+  - approval_wait_duration
+  - block_postcondition_success
+  - rollback_postcondition_success
+  - duplicate_event_rate
+  - trusted_allowlist_dismissal_rate
+tests:
+  - docs/08-testing/lab-scenario-ssh-bruteforce.md
+  - trusted allowlist source is never blocked
+  - expired or mismatched approval is denied
+  - OPNsense API timeout returns provider_5xx, not success
+  - alias verification failure opens escalation
+  - duplicate Wazuh event reuses the same idempotency identity
+  - rollback retries at 5/15/30 seconds then escalates while retaining the block

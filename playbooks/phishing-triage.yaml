@@ -1,0 +1,71 @@
+id: PB-PHISH-001
+name: Phishing triage and mailbox scoping
+version: 1.0.0
+owner: security-operations
+type: investigation
+status: draft
+references:
+  - https://csrc.nist.gov/pubs/sp/800/61/r3/final
+  - https://www.cisa.gov/resources-tools/resources/cybersecurity-scenarios
+trigger:
+  source: email_security_or_report
+  condition: suspicious message has header or message identifier
+scope:
+  tenant: explicit
+  mailboxes: message recipients only until scope is expanded by approval
+preconditions:
+  - message ID and tenant are verified
+  - raw header is preserved in an authorized evidence store
+steps:
+  - id: preserve
+    kind: evidence
+    purpose: Preserve redacted headers, message ID and attachment metadata.
+    on_failure: stop_and_escalate
+  - id: extract
+    kind: investigate
+    purpose: Extract URL, domain, sender, reply-to and attachment hashes.
+    on_failure: create_manual_task
+  - id: authenticate
+    kind: enrich
+    purpose: Check SPF, DKIM and DMARC results and sending infrastructure.
+    on_failure: record_unknown
+  - id: search_mailboxes
+    kind: investigate
+    purpose: Find matching messages only in approved recipient scope.
+    on_failure: partial_result_and_escalate
+  - id: verdict
+    kind: decision
+    purpose: Set verdict and recommend quarantine or account workflow.
+    on_failure: escalate
+  - id: quarantine
+    kind: approval
+    purpose: Require approval before changing mailbox state.
+    on_failure: stop
+  - id: quarantine_execute
+    kind: action
+    purpose: Quarantine the message or mailbox using an idempotent mail-security connector call.
+    on_failure: retry_then_manual
+  - id: verify
+    kind: verify
+    purpose: Confirm mailbox quarantine state and preserve provider result.
+    on_failure: escalate
+evidence:
+  - redacted headers, message IDs and attachment hashes
+  - SPF, DKIM, DMARC and mailbox search references
+  - verdict, recipient scope and quarantine approval
+metrics:
+  - time_to_triage_message
+  - verdict_precision
+  - mailbox_scope_accuracy
+safety:
+  default_mode: dry_run
+  approval_policy: quarantine or token revocation requires mailbox/security owner approval
+  stop_conditions:
+    - recipient scope is ambiguous
+    - legal hold or privacy restriction applies
+    - message evidence cannot be preserved
+  rollback: release quarantine only through a separately approved action
+tests:
+  - synthetic phishing header
+  - benign marketing message
+  - duplicate message ID

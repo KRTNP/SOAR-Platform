@@ -1,0 +1,93 @@
+id: PB-NIST-RECOVERY-001
+name: Evidence-informed service recovery
+version: 1.0.0
+owner: recovery-lead
+type: remediation
+status: draft
+references:
+  - https://csrc.nist.gov/pubs/sp/800/61/r3/final
+  - https://tsapps.nist.gov/publication/get_pdf.cfm?pub_id=922303
+  - https://www.cisa.gov/stopransomware/ransomware-guide
+source_basis:
+  - source_id: SRC-NIST-61R3
+    location: "Executive Summary pp. 1-2; Table 1 p. 6; Community Profile Tables 2-3 pp. 11-35"
+    adaptation: "Treat recovery as part of the incident-response risk-management cycle with validation, communication and lessons learned."
+  - source_id: SRC-NIST-800184
+    location: "Cybersecurity event recovery guidance"
+    adaptation: "Use prioritized services, recovery roles, communications, dependency order and exercise-driven improvement."
+  - source_id: SRC-CISA-RANSOM
+    location: "Ransomware Guide preparation, response and recovery recommendations"
+    adaptation: "Require known-good restore source, isolation/containment coordination and post-recovery monitoring."
+trigger:
+  source: incident_or_service_owner_request
+  condition: containment/eradication owner declares a service eligible for recovery
+scope:
+  tenant: explicit
+  assets: approved recovery set only
+  recovery_order: dependency_graph_then_business_priority
+preconditions:
+  - recovery owner and service owner are assigned
+  - evidence and incident timeline are preserved
+  - known-good backup or rebuild source is identified and integrity checked
+  - dependency, safety and communication thresholds are documented
+steps:
+  - id: gate
+    kind: decision
+    purpose: Confirm service priority, recovery source, dependencies, rollback and approval.
+    on_failure: stop_and_escalate
+  - id: prepare
+    kind: investigate
+    purpose: Validate clean build/restore media, credentials, monitoring and network placement in sandbox first.
+    on_failure: create_manual_task
+  - id: restore
+    kind: approval
+    purpose: Obtain approval for the smallest dependency group, restore source and rollback plan.
+    on_failure: stop_and_escalate
+  - id: execute_restore
+    kind: action
+    purpose: Restore the approved dependency group in dependency order using the validated source.
+    on_failure: pause_and_escalate
+  - id: validate
+    kind: verify
+    purpose: Check integrity, security controls, service health, data consistency and expected functionality.
+    on_failure: rollback_or_isolate
+  - id: monitor
+    kind: investigate
+    purpose: Watch for recurrence, suspicious activity, error rate and business-impact threshold during the observation window.
+    on_failure: keep_open_and_escalate
+  - id: communicate
+    kind: notify
+    purpose: Publish recovery status and residual risk to approved stakeholders.
+    on_failure: create_manual_communications_task
+  - id: close
+    kind: close
+    purpose: Obtain service-owner sign-off and capture lessons learned, backup gaps and follow-up controls.
+    on_failure: keep_open
+safety:
+  default_mode: dry_run
+  approval_policy: recovery order and each service-impacting restore require recovery and service-owner approval
+  stop_conditions:
+    - restore source integrity or provenance is unknown
+    - dependency or safety threshold is unknown
+    - validation cannot distinguish clean recovery from recurrence
+    - evidence would be overwritten or lost
+  rollback: approved rebuild/isolation path with preservation of the failed restore evidence
+evidence:
+  - recovery eligibility decision
+  - backup/source integrity and provenance
+  - dependency and restore order
+  - validation and monitoring observations
+  - service-owner sign-off and residual risk
+metrics:
+  - time_to_recover_by_service_priority
+  - restore_validation_success
+  - recurrence_during_observation
+  - rollback_rate
+  - owner_signoff_latency
+tests:
+  - known_good_restore_in_sandbox
+  - corrupted_backup_stops_execution
+  - dependency_order_failure
+  - recurrence_during_observation
+  - restore_drill_and_after_action_review
+

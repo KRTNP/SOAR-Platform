@@ -1,0 +1,83 @@
+id: PB-DFIR-EVIDENCE-001
+name: Read-only DFIR evidence preservation and custody
+version: 1.0.0
+owner: digital-forensics
+type: investigation
+status: draft
+references:
+  - https://csrc.nist.gov/pubs/sp/800/61/r3/final
+source_basis:
+  - source_id: SRC-LOCAL-DFIR
+    location: "../dfir/AGENTS.md; ../dfir/playbooks/README.md and platform-specific playbooks"
+    adaptation: "Keep originals read-only, write derived material to case work/exports, record hashes/custody, prerequisites, collection order and stop conditions."
+  - source_id: SRC-NIST-61R3
+    location: "Executive Summary pp. 1-2 and response profile"
+    adaptation: "Preservation is a response preparation/control activity that supports detection, response, recovery and lessons learned."
+  - source_id: SRC-CISA-RANSOM
+    location: "Ransomware Guide response recommendations"
+    adaptation: "Preserve relevant evidence before broad disruptive action and coordinate reporting/response."
+trigger:
+  source: incident_or_investigation_task
+  condition: evidence preservation is authorized for an explicitly identified case
+scope:
+  tenant: explicit
+  case: required
+  sources: approved evidence roots only
+preconditions:
+  - case ID, authority and evidence roots resolve
+  - original evidence path is marked read_only
+  - destination work/export path is separate from original evidence
+  - collector, time source, hash algorithm and retention are configured
+steps:
+  - id: authorize
+    kind: validate
+    purpose: Record authority, scope, collector, case and collection order.
+    on_failure: stop_and_escalate
+  - id: inventory
+    kind: evidence
+    purpose: Inventory sources without modifying originals and record metadata.
+    on_failure: create_manual_task
+  - id: acquire
+    kind: evidence
+    purpose: Copy or acquire approved artifacts into derived work storage using a documented method.
+    on_failure: stop_and_escalate
+  - id: hash
+    kind: verify
+    purpose: Hash original/reference and derived artifact, then compare and record custody transition.
+    on_failure: quarantine_artifact_and_escalate
+  - id: validate
+    kind: verify
+    purpose: Validate completeness, timezone, collection tool/version and destination permissions.
+    on_failure: mark_incomplete_and_stop
+  - id: handoff
+    kind: notify
+    purpose: Hand off evidence manifest and analyst task without exposing secrets in notifications.
+    on_failure: create_manual_task
+safety:
+  default_mode: dry_run
+  approval_policy: collection authority and case scope required; no destructive action is permitted
+  stop_conditions:
+    - path is not explicitly approved or read-only state cannot be verified
+    - hash mismatch or incomplete custody transition
+    - destination overlaps original evidence
+    - tool, timestamp or collector metadata is missing
+  rollback: remove only the derived incomplete artifact under case work after preserving the failed custody record
+evidence:
+  - authorization and scope record
+  - source inventory
+  - collection tool/version and timestamps
+  - hash manifest and custody events
+  - completeness validation and analyst handoff
+metrics:
+  - time_to_preserve
+  - hash_match_rate
+  - incomplete_collection_rate
+  - custody_gap_count
+  - original_path_write_attempts
+tests:
+  - approved_read_only_source
+  - unapproved_source_is_rejected
+  - hash_mismatch_is_quarantined
+  - destination_overlap_is_blocked
+  - missing_timezone_creates_manual_task
+

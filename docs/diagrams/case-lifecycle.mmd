@@ -1,0 +1,13 @@
+stateDiagram-v2
+  [*] --> New
+  New --> Triage
+  Triage --> Investigating
+  Triage --> FalsePositive
+  Investigating --> Escalated
+  Investigating --> Contained
+  Contained --> Eradication
+  Eradication --> Recovery
+  Recovery --> Closed
+  Escalated --> Investigating
+  FalsePositive --> Closed
+  Closed --> [*]

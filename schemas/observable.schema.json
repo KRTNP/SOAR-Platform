@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://soar-platform.local/schemas/observable.schema.json",
+  "title": "SOAR Observable",
+  "type": "object",
+  "required": ["type", "value", "normalization", "first_seen", "last_seen", "confidence", "source_refs", "sensitivity"],
+  "properties": {
+    "type": {"type": "string", "enum": ["ipv4", "ipv6", "domain", "url", "hash", "email", "user", "host", "process", "file", "vulnerability"]},
+    "value": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "algorithm": {"type": "string"},
+    "normalization": {"type": "string", "minLength": 1},
+    "first_seen": {"type": "string", "format": "date-time"},
+    "last_seen": {"type": "string", "format": "date-time"},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+    "sensitivity": {"type": "string", "enum": ["public", "internal", "confidential", "restricted"]},
+    "source_refs": {"type": "array", "items": {"type": "string"}},
+    "labels": {"type": "array", "items": {"type": "string"}},
+    "extensions": {"type": "object"}
+  },
+  "additionalProperties": false
+}
