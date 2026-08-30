@@ -19,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"soar-platform/services/api/actions"
 	"soar-platform/services/api/cases"
 	"soar-platform/services/api/config"
 	"soar-platform/services/api/events"
@@ -96,6 +97,7 @@ func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool) *gin.
 
 	eventsH := events.NewHandler(pool)
 	casesH := cases.NewHandler(pool)
+	actionsH := actions.NewHandler(pool)
 
 	v1 := r.Group("/v1")
 	{
@@ -107,6 +109,14 @@ func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool) *gin.
 		v1.GET("/cases/:caseId", casesH.Get)
 		v1.PATCH("/cases/:caseId", casesH.Update)
 		v1.GET("/cases/:caseId/timeline", casesH.Timeline)
+
+		v1.POST("/actions/preview", actionsH.Preview)
+		v1.GET("/actions/:actionId", actionsH.Get)
+		v1.POST("/actions/:actionId/execute", actionsH.Execute)
+
+		v1.GET("/approvals", actionsH.ListApprovals)
+		v1.POST("/approvals/:approvalId/approve", actionsH.Approve)
+		v1.POST("/approvals/:approvalId/reject", actionsH.Reject)
 	}
 
 	return r

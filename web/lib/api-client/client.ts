@@ -72,3 +72,36 @@ export function openTicket(caseId: string): Promise<Case> {
     body: JSON.stringify({ operation: "open_ticket" }),
   });
 }
+
+export function requestBlock(caseId: string, targetValue: string): Promise<Case> {
+  return request<Case>(`/v1/cases/${encodeURIComponent(caseId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ operation: "request_block", target_value: targetValue }),
+  });
+}
+
+// approveAction and executeAction are two separate M3 API calls (the
+// approval gate must be a real HTTP round trip an analyst cannot skip), but
+// the UI only offers one "Approve" action — see approveActionAction in
+// app/cases/[caseId]/actions.ts.
+export function approveAction(approvalId: string): Promise<unknown> {
+  return request(`/v1/approvals/${encodeURIComponent(approvalId)}/approve`, {
+    method: "POST",
+    headers: { "Idempotency-Key": crypto.randomUUID() },
+  });
+}
+
+export function executeAction(actionId: string): Promise<unknown> {
+  return request(`/v1/actions/${encodeURIComponent(actionId)}/execute`, {
+    method: "POST",
+    headers: { "Idempotency-Key": crypto.randomUUID() },
+  });
+}
+
+export function rejectApproval(approvalId: string, reason: string): Promise<unknown> {
+  return request(`/v1/approvals/${encodeURIComponent(approvalId)}/reject`, {
+    method: "POST",
+    headers: { "Idempotency-Key": crypto.randomUUID() },
+    body: JSON.stringify({ reason }),
+  });
+}

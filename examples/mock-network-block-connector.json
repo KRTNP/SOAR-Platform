@@ -1,0 +1,17 @@
+{
+  "id": "connector-mock-network-block",
+  "version": "1.0.0",
+  "owner": "security-operations",
+  "provider": "mock-network-block",
+  "intents": ["block_network_indicator", "health"],
+  "auth": {"method": "none", "scopes": []},
+  "error_classes": ["validation", "not_found", "policy_denied"],
+  "health_check": {"read_only": true, "timeout_seconds": 5},
+  "dry_run": true,
+  "idempotency": true,
+  "data_classification": "internal",
+  "timeout_seconds": 5,
+  "retry_policy": {"max_attempts": 1, "backoff_seconds": [0]},
+  "rate_limit": {"requests_per_minute": 600},
+  "target_allowlist": ["network_blocks"]
+}

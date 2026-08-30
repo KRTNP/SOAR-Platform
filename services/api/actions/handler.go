@@ -1,0 +1,230 @@
+package actions
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"soar-platform/services/api/genapi"
+	"soar-platform/services/api/httpx"
+	"soar-platform/services/api/store"
+)
+
+type Handler struct {
+	pool *pgxpool.Pool
+}
+
+func NewHandler(pool *pgxpool.Pool) *Handler {
+	return &Handler{pool: pool}
+}
+
+// Preview implements POST /v1/actions/preview — a dry-run description of
+// what requesting this intent/target would do. It never writes to the
+// database; the actual action+approval pair is created via the case's
+// request_block operation (cases.Handler.Update).
+func (h *Handler) Preview(c *gin.Context) {
+	var req genapi.PreviewActionJSONRequestBody
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpx.WriteProblem(c, httpx.ErrValidation("invalid_json", "request body is not valid JSON").WithCause(err))
+		return
+	}
+	if strings.TrimSpace(req.Intent) == "" || strings.TrimSpace(req.Target) == "" {
+		httpx.WriteProblem(c, httpx.ErrValidation("missing_field", "intent and target are required"))
+		return
+	}
+	if req.Intent != "block_network_indicator" {
+		httpx.WriteProblem(c, httpx.ErrValidation("unsupported_intent", "only block_network_indicator has a preview in this milestone"))
+		return
+	}
+	msg := fmt.Sprintf("dry_run: %s against %s would require an approved approval before executing; no state was changed", req.Intent, req.Target)
+	c.JSON(http.StatusOK, genapi.StatusResponse{Status: "dry_run", Message: &msg})
+}
+
+// Get implements GET /v1/actions/{actionId}.
+func (h *Handler) Get(c *gin.Context) {
+	tenant := httpx.TenantID(c)
+	a, ap, err := Get(c.Request.Context(), h.pool, tenant, c.Param("actionId"))
+	if err != nil {
+		httpx.WriteProblem(c, mapActionError(err))
+		return
+	}
+	c.JSON(http.StatusOK, ToAPIAction(*a, *ap))
+}
+
+// Execute implements POST /v1/actions/{actionId}/execute — the M3 gate.
+// Execute itself re-verifies the approval inside the transaction; this
+// handler only translates the typed deny reasons to the 403 the openapi
+// contract already declares for this route.
+func (h *Handler) Execute(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenant := httpx.TenantID(c)
+	actionID := c.Param("actionId")
+	if len(c.GetHeader("Idempotency-Key")) < httpx.MinIdempotencyKeyLength {
+		httpx.WriteProblem(c, httpx.ErrValidation("invalid_idempotency_key", "Idempotency-Key header must be at least 8 characters"))
+		return
+	}
+
+	var a Action
+	err := store.WithTx(ctx, h.pool, func(tx pgx.Tx) error {
+		var err error
+		a, err = Execute(ctx, tx, tenant, actionID)
+		return err
+	})
+	if err != nil {
+		httpx.WriteProblem(c, mapExecuteError(err))
+		return
+	}
+	c.JSON(http.StatusAccepted, genapi.ExecutionAccepted{
+		ExecutionId: a.ID,
+		Status:      genapi.ExecutionAcceptedStatusAccepted,
+	})
+}
+
+// ListApprovals implements GET /v1/approvals.
+func (h *Handler) ListApprovals(c *gin.Context) {
+	tenant := httpx.TenantID(c)
+	views, err := ListApprovals(c.Request.Context(), h.pool, tenant)
+	if err != nil {
+		httpx.WriteProblem(c, httpx.ErrInternal("list_approvals_failed", "could not list approvals").WithCause(err))
+		return
+	}
+	items := make([]genapi.Approval, 0, len(views))
+	for _, v := range views {
+		items = append(items, ToAPIApproval(v.Approval))
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
+// Approve implements POST /v1/approvals/{approvalId}/approve.
+func (h *Handler) Approve(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenant := httpx.TenantID(c)
+	if len(c.GetHeader("Idempotency-Key")) < httpx.MinIdempotencyKeyLength {
+		httpx.WriteProblem(c, httpx.ErrValidation("invalid_idempotency_key", "Idempotency-Key header must be at least 8 characters"))
+		return
+	}
+	// There is no auth/RBAC yet (see adr/0011); every approval is recorded
+	// under a fixed "incident-commander" actor until real identity exists.
+	_, ap, err := Approve(ctx, h.pool, tenant, c.Param("approvalId"), "incident-commander")
+	if err != nil {
+		httpx.WriteProblem(c, mapDecisionError(err))
+		return
+	}
+	c.JSON(http.StatusOK, ToAPIApproval(ap))
+}
+
+// Reject implements POST /v1/approvals/{approvalId}/reject.
+func (h *Handler) Reject(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenant := httpx.TenantID(c)
+	if len(c.GetHeader("Idempotency-Key")) < httpx.MinIdempotencyKeyLength {
+		httpx.WriteProblem(c, httpx.ErrValidation("invalid_idempotency_key", "Idempotency-Key header must be at least 8 characters"))
+		return
+	}
+	var req genapi.RejectApprovalJSONRequestBody
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpx.WriteProblem(c, httpx.ErrValidation("invalid_json", "request body is not valid JSON").WithCause(err))
+		return
+	}
+	if strings.TrimSpace(req.Reason) == "" {
+		httpx.WriteProblem(c, httpx.ErrValidation("missing_field", "reason is required to reject an approval"))
+		return
+	}
+	_, ap, err := Reject(ctx, h.pool, tenant, c.Param("approvalId"), req.Reason)
+	if err != nil {
+		httpx.WriteProblem(c, mapDecisionError(err))
+		return
+	}
+	c.JSON(http.StatusOK, ToAPIApproval(ap))
+}
+
+func mapActionError(err error) error {
+	var appErr *httpx.AppError
+	if errors.As(err, &appErr) {
+		return err
+	}
+	if errors.Is(err, ErrNotFound) {
+		return httpx.ErrNotFound("action_not_found", "action does not exist")
+	}
+	return httpx.ErrInternal("action_operation_failed", "action operation failed").WithCause(err)
+}
+
+// mapExecuteError renders every approval-gate denial as 403, matching the
+// executeAction 403 already declared in api/openapi.yaml — "no action
+// before approval" is a permission failure, not a state conflict.
+func mapExecuteError(err error) error {
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return httpx.ErrNotFound("action_not_found", "action does not exist")
+	case errors.Is(err, ErrApprovalRequired):
+		return httpx.ErrForbidden("approval_required", "this action has not been approved yet")
+	case errors.Is(err, ErrApprovalRejected):
+		return httpx.ErrForbidden("approval_rejected", "this action's approval was rejected")
+	case errors.Is(err, ErrApprovalExpired):
+		return httpx.ErrForbidden("approval_expired", "this action's approval has expired")
+	default:
+		var appErr *httpx.AppError
+		if errors.As(err, &appErr) {
+			return err
+		}
+		return httpx.ErrInternal("execute_action_failed", "could not execute action").WithCause(err)
+	}
+}
+
+// mapDecisionError renders a stale decision as 409, matching approveAction
+// and rejectApproval's declared 409 — approving/rejecting is a state
+// conflict, not a permission failure.
+func mapDecisionError(err error) error {
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return httpx.ErrNotFound("approval_not_found", "approval does not exist")
+	case errors.Is(err, ErrApprovalExpired):
+		return httpx.ErrConflict("approval_expired", "this approval has expired")
+	case errors.Is(err, ErrAlreadyDecided):
+		return httpx.ErrConflict("approval_already_decided", "this approval was already decided")
+	default:
+		var appErr *httpx.AppError
+		if errors.As(err, &appErr) {
+			return err
+		}
+		return httpx.ErrInternal("approval_decision_failed", "could not record approval decision").WithCause(err)
+	}
+}
+
+func ToAPIAction(a Action, ap Approval) genapi.Action {
+	approvalID := ap.ID
+	out := genapi.Action{
+		Id:             a.ID,
+		CaseId:         a.CaseID,
+		ApprovalId:     &approvalID,
+		Intent:         a.Intent,
+		Risk:           genapi.ActionRisk(a.Risk),
+		Mode:           genapi.ActionMode(a.Mode),
+		Status:         genapi.ActionStatus(a.Status),
+		RequestedBy:    a.RequestedBy,
+		IdempotencyKey: a.IdempotencyKey,
+		Reason:         ap.Reason,
+	}
+	out.Target.Type = a.TargetType
+	out.Target.Value = a.TargetValue
+	expiresAt := ap.ExpiresAt
+	out.ExpiresAt = &expiresAt
+	return out
+}
+
+func ToAPIApproval(ap Approval) genapi.Approval {
+	return genapi.Approval{
+		Id:         ap.ID,
+		ActionId:   ap.ActionID,
+		Status:     genapi.ApprovalStatus(ap.Status),
+		ApprovedBy: ap.ApprovedBy,
+		Reason:     ap.Reason,
+		DecidedAt:  ap.DecidedAt,
+		ExpiresAt:  ap.ExpiresAt,
+	}
+}

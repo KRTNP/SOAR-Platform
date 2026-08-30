@@ -25,6 +25,102 @@ func (e AcceptedEventStatus) Valid() bool {
 	}
 }
 
+// Defines values for ActionMode.
+const (
+	ActionModeDryRun  ActionMode = "dry_run"
+	ActionModeExecute ActionMode = "execute"
+)
+
+// Valid indicates whether the value is a known member of the ActionMode enum.
+func (e ActionMode) Valid() bool {
+	switch e {
+	case ActionModeDryRun:
+		return true
+	case ActionModeExecute:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ActionRisk.
+const (
+	ActionRiskCritical ActionRisk = "critical"
+	ActionRiskHigh     ActionRisk = "high"
+	ActionRiskLow      ActionRisk = "low"
+	ActionRiskMedium   ActionRisk = "medium"
+)
+
+// Valid indicates whether the value is a known member of the ActionRisk enum.
+func (e ActionRisk) Valid() bool {
+	switch e {
+	case ActionRiskCritical:
+		return true
+	case ActionRiskHigh:
+		return true
+	case ActionRiskLow:
+		return true
+	case ActionRiskMedium:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ActionStatus.
+const (
+	ActionStatusApproved        ActionStatus = "approved"
+	ActionStatusExecuted        ActionStatus = "executed"
+	ActionStatusExpired         ActionStatus = "expired"
+	ActionStatusPendingApproval ActionStatus = "pending_approval"
+	ActionStatusRejected        ActionStatus = "rejected"
+	ActionStatusReleased        ActionStatus = "released"
+)
+
+// Valid indicates whether the value is a known member of the ActionStatus enum.
+func (e ActionStatus) Valid() bool {
+	switch e {
+	case ActionStatusApproved:
+		return true
+	case ActionStatusExecuted:
+		return true
+	case ActionStatusExpired:
+		return true
+	case ActionStatusPendingApproval:
+		return true
+	case ActionStatusRejected:
+		return true
+	case ActionStatusReleased:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ApprovalStatus.
+const (
+	ApprovalStatusApproved ApprovalStatus = "approved"
+	ApprovalStatusExpired  ApprovalStatus = "expired"
+	ApprovalStatusPending  ApprovalStatus = "pending"
+	ApprovalStatusRejected ApprovalStatus = "rejected"
+)
+
+// Valid indicates whether the value is a known member of the ApprovalStatus enum.
+func (e ApprovalStatus) Valid() bool {
+	switch e {
+	case ApprovalStatusApproved:
+		return true
+	case ApprovalStatusExpired:
+		return true
+	case ApprovalStatusPending:
+		return true
+	case ApprovalStatusRejected:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CaseStatus.
 const (
 	CaseStatusClosed        CaseStatus = "closed"
@@ -147,12 +243,13 @@ func (e CaseObservableVerdict) Valid() bool {
 
 // Defines values for CaseUpdateRequestOperation.
 const (
-	Close      CaseUpdateRequestOperation = "close"
-	Merge      CaseUpdateRequestOperation = "merge"
-	OpenTicket CaseUpdateRequestOperation = "open_ticket"
-	Split      CaseUpdateRequestOperation = "split"
-	Transition CaseUpdateRequestOperation = "transition"
-	Update     CaseUpdateRequestOperation = "update"
+	Close        CaseUpdateRequestOperation = "close"
+	Merge        CaseUpdateRequestOperation = "merge"
+	OpenTicket   CaseUpdateRequestOperation = "open_ticket"
+	RequestBlock CaseUpdateRequestOperation = "request_block"
+	Split        CaseUpdateRequestOperation = "split"
+	Transition   CaseUpdateRequestOperation = "transition"
+	Update       CaseUpdateRequestOperation = "update"
 )
 
 // Valid indicates whether the value is a known member of the CaseUpdateRequestOperation enum.
@@ -163,6 +260,8 @@ func (e CaseUpdateRequestOperation) Valid() bool {
 	case Merge:
 		return true
 	case OpenTicket:
+		return true
+	case RequestBlock:
 		return true
 	case Split:
 		return true
@@ -216,25 +315,25 @@ func (e CaseUpdateRequestStatus) Valid() bool {
 
 // Defines values for CreateCaseRequestSeverity.
 const (
-	Critical      CreateCaseRequestSeverity = "critical"
-	High          CreateCaseRequestSeverity = "high"
-	Informational CreateCaseRequestSeverity = "informational"
-	Low           CreateCaseRequestSeverity = "low"
-	Medium        CreateCaseRequestSeverity = "medium"
+	CreateCaseRequestSeverityCritical      CreateCaseRequestSeverity = "critical"
+	CreateCaseRequestSeverityHigh          CreateCaseRequestSeverity = "high"
+	CreateCaseRequestSeverityInformational CreateCaseRequestSeverity = "informational"
+	CreateCaseRequestSeverityLow           CreateCaseRequestSeverity = "low"
+	CreateCaseRequestSeverityMedium        CreateCaseRequestSeverity = "medium"
 )
 
 // Valid indicates whether the value is a known member of the CreateCaseRequestSeverity enum.
 func (e CreateCaseRequestSeverity) Valid() bool {
 	switch e {
-	case Critical:
+	case CreateCaseRequestSeverityCritical:
 		return true
-	case High:
+	case CreateCaseRequestSeverityHigh:
 		return true
-	case Informational:
+	case CreateCaseRequestSeverityInformational:
 		return true
-	case Low:
+	case CreateCaseRequestSeverityLow:
 		return true
-	case Medium:
+	case CreateCaseRequestSeverityMedium:
 		return true
 	default:
 		return false
@@ -282,22 +381,22 @@ func (e ExecutionAcceptedStatus) Valid() bool {
 
 // Defines values for PlaybookPromotionRequestTargetState.
 const (
-	Active    PlaybookPromotionRequestTargetState = "active"
-	Approved  PlaybookPromotionRequestTargetState = "approved"
-	LabTested PlaybookPromotionRequestTargetState = "lab_tested"
-	Staged    PlaybookPromotionRequestTargetState = "staged"
+	PlaybookPromotionRequestTargetStateActive    PlaybookPromotionRequestTargetState = "active"
+	PlaybookPromotionRequestTargetStateApproved  PlaybookPromotionRequestTargetState = "approved"
+	PlaybookPromotionRequestTargetStateLabTested PlaybookPromotionRequestTargetState = "lab_tested"
+	PlaybookPromotionRequestTargetStateStaged    PlaybookPromotionRequestTargetState = "staged"
 )
 
 // Valid indicates whether the value is a known member of the PlaybookPromotionRequestTargetState enum.
 func (e PlaybookPromotionRequestTargetState) Valid() bool {
 	switch e {
-	case Active:
+	case PlaybookPromotionRequestTargetStateActive:
 		return true
-	case Approved:
+	case PlaybookPromotionRequestTargetStateApproved:
 		return true
-	case LabTested:
+	case PlaybookPromotionRequestTargetStateLabTested:
 		return true
-	case Staged:
+	case PlaybookPromotionRequestTargetStateStaged:
 		return true
 	default:
 		return false
@@ -333,13 +432,47 @@ type AcceptedEvent struct {
 // AcceptedEventStatus defines model for AcceptedEvent.Status.
 type AcceptedEventStatus string
 
+// Action defines model for Action.
+type Action struct {
+	ApprovalId     *string      `json:"approval_id,omitempty"`
+	CaseId         string       `json:"case_id"`
+	ExpiresAt      *time.Time   `json:"expires_at,omitempty"`
+	Id             string       `json:"id"`
+	IdempotencyKey string       `json:"idempotency_key"`
+	Intent         string       `json:"intent"`
+	Mode           ActionMode   `json:"mode"`
+	Reason         *string      `json:"reason,omitempty"`
+	RequestedBy    string       `json:"requested_by"`
+	Risk           ActionRisk   `json:"risk"`
+	Status         ActionStatus `json:"status"`
+	Target         struct {
+		Type  string `json:"type"`
+		Value string `json:"value"`
+	} `json:"target"`
+}
+
+// ActionMode defines model for Action.Mode.
+type ActionMode string
+
+// ActionRisk defines model for Action.Risk.
+type ActionRisk string
+
+// ActionStatus defines model for Action.Status.
+type ActionStatus string
+
 // Approval defines model for Approval.
 type Approval struct {
-	ActionId  string    `json:"action_id"`
-	ExpiresAt time.Time `json:"expires_at"`
-	Id        string    `json:"id"`
-	Status    string    `json:"status"`
+	ActionId   string         `json:"action_id"`
+	ApprovedBy *string        `json:"approved_by,omitempty"`
+	DecidedAt  *time.Time     `json:"decided_at,omitempty"`
+	ExpiresAt  time.Time      `json:"expires_at"`
+	Id         string         `json:"id"`
+	Reason     *string        `json:"reason,omitempty"`
+	Status     ApprovalStatus `json:"status"`
 }
+
+// ApprovalStatus defines model for Approval.Status.
+type ApprovalStatus string
 
 // Case defines model for Case.
 type Case struct {
@@ -361,6 +494,7 @@ type Case struct {
 	Observables       *[]CaseObservable `json:"observables,omitempty"`
 	OpenedAt          time.Time         `json:"opened_at"`
 	Owner             string            `json:"owner"`
+	PendingAction     *Action           `json:"pending_action,omitempty"`
 	RootCause         *string           `json:"root_cause,omitempty"`
 	ServiceOwner      *string           `json:"service_owner,omitempty"`
 	Severity          string            `json:"severity"`
@@ -429,6 +563,7 @@ type CaseUpdateRequest struct {
 	Reason        *string                    `json:"reason,omitempty"`
 	Status        *CaseUpdateRequestStatus   `json:"status,omitempty"`
 	TargetCaseId  *string                    `json:"target_case_id,omitempty"`
+	TargetValue   *string                    `json:"target_value,omitempty"`
 	Title         *string                    `json:"title,omitempty"`
 }
 

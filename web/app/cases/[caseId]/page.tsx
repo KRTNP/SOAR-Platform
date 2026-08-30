@@ -3,7 +3,7 @@ import { getCase, getCaseTimeline, ApiProblemError } from "@/lib/api-client/clie
 import { SeverityBadge, StatusBadge, VerdictBadge } from "@/components/badges";
 import { Timeline } from "@/components/Timeline";
 import { ProblemBanner } from "@/components/ProblemBanner";
-import { StatusControl, CloseCaseControl, TicketControl } from "./status-control";
+import { StatusControl, CloseCaseControl, TicketControl, ActionControl } from "./status-control";
 
 export const dynamic = "force-dynamic";
 
@@ -98,6 +98,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
           <StatusControl caseItem={caseItem} />
           <CloseCaseControl caseItem={caseItem} />
           <TicketControl caseItem={caseItem} />
+          <ActionControl caseItem={caseItem} />
 
           {(caseItem.observables?.length ?? 0) > 0 && (
             <section className="rounded-md border border-border bg-surface p-[18px_20px]">

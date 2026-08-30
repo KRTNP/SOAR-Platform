@@ -1,3 +1,4 @@
-h1:FqQlb3dqTwZ58aXjY6J5slesj9phUX2H7ZOq3xPKJdM=
+h1:9RabM85Dmn3GAN32MX4xQgUnkU7OAIYhXqsvQEYLj3c=
 20260830000001_initial_schema.sql h1:+pLGvdTCcGHJ78YiJVSC55kY702b8eXp+OuQ7AGs4kQ=
 20260830000002_m2_enrichment_ticketing.sql h1:a0O//ncYbTxFM1Y2ypFrD3fgCwWPwNXWS4uvXCMAf0Y=
+20260830000003_m3_approval_gated_actions.sql h1:n6T0u79bry9EzOTvPIoeSOGyPrSNvweQmLHh3i2g0e4=

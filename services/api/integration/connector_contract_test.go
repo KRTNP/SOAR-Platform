@@ -11,6 +11,7 @@ import (
 
 	"soar-platform/services/api/connectors"
 	"soar-platform/services/api/enrichment"
+	"soar-platform/services/api/network"
 	"soar-platform/services/api/ticketing"
 )
 
@@ -99,6 +100,62 @@ func TestTicketingConnectorContract(t *testing.T) {
 		},
 	}
 	connectors.RunContractTests(t, newConnector, tc)
+}
+
+// TestNetworkConnectorContract is the network-block half of the same gate.
+func TestNetworkConnectorContract(t *testing.T) {
+	pool := setupPool(t)
+	ctx := context.Background()
+
+	newConnector := func(t *testing.T) connectors.Connector {
+		t.Helper()
+		tx, err := pool.Begin(ctx)
+		if err != nil {
+			t.Fatalf("begin tx: %v", err)
+		}
+		t.Cleanup(func() { _ = tx.Rollback(ctx) })
+		return network.New(tx)
+	}
+
+	caseID := insertCase(t, pool)
+	actionID := insertAction(t, pool, caseID, "198.51.100.10")
+
+	tc := connectors.ContractTestCase{
+		Valid: connectors.Invocation{
+			Intent: "block_network_indicator",
+			Target: "network_blocks",
+			Params: map[string]any{"tenant_id": "lab", "action_id": actionID, "target_value": "198.51.100.10"},
+		},
+		Malformed: connectors.Invocation{
+			Intent: "block_network_indicator",
+			Target: "network_blocks",
+			Params: map[string]any{"tenant_id": "lab"},
+		},
+		OutsideAllowlistTarget: "external-firewall-provider.example.com",
+		CountEffects: func(t *testing.T) int {
+			t.Helper()
+			var n int
+			if err := pool.QueryRow(ctx, `select count(*) from network_blocks`).Scan(&n); err != nil {
+				t.Fatalf("counting network_blocks: %v", err)
+			}
+			return n
+		},
+	}
+	connectors.RunContractTests(t, newConnector, tc)
+}
+
+func insertAction(t *testing.T, pool *pgxpool.Pool, caseID, targetValue string) string {
+	t.Helper()
+	id := "act-" + ulid.Make().String()
+	_, err := pool.Exec(context.Background(), `
+		insert into actions (id, tenant_id, case_id, intent, target_type, target_value, risk, mode, requested_by, status, idempotency_key)
+		values ($1, 'lab', $2, 'block_network_indicator', 'ipv4', $3, 'high', 'execute', 'analyst', 'pending_approval', $1)`,
+		id, caseID, targetValue,
+	)
+	if err != nil {
+		t.Fatalf("inserting action: %v", err)
+	}
+	return id
 }
 
 func insertObservable(t *testing.T, pool *pgxpool.Pool, obsType, value string) int64 {

@@ -63,6 +63,10 @@ func ErrConflict(code, title string) *AppError {
 	return newError(http.StatusConflict, code, title, false)
 }
 
+func ErrForbidden(code, title string) *AppError {
+	return newError(http.StatusForbidden, code, title, false)
+}
+
 func ErrUnsupported(code, title string) *AppError {
 	return newError(http.StatusUnprocessableEntity, code, title, false)
 }

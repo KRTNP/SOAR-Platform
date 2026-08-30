@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/oklog/ulid/v2"
 
+	"soar-platform/services/api/actions"
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
 	"soar-platform/services/api/store"
@@ -169,7 +170,12 @@ func (h *Handler) Get(c *gin.Context) {
 		httpx.WriteProblem(c, httpx.ErrInternal("get_case_ticket_failed", "could not load case ticket").WithCause(err))
 		return
 	}
-	c.JSON(http.StatusOK, toAPICaseDetail(cs, observables, ticket))
+	action, approval, err := actions.GetLatestForCase(ctx, h.pool, tenant, caseID)
+	if err != nil {
+		httpx.WriteProblem(c, httpx.ErrInternal("get_case_action_failed", "could not load case action").WithCause(err))
+		return
+	}
+	c.JSON(http.StatusOK, toAPICaseDetail(cs, observables, ticket, action, approval))
 }
 
 // Update implements PATCH /v1/cases/{caseId}.
@@ -284,6 +290,42 @@ func (h *Handler) Update(c *gin.Context) {
 			httpx.WriteProblem(c, mapCaseError(err))
 			return
 		}
+	case genapi.RequestBlock:
+		if req.TargetValue == nil || strings.TrimSpace(*req.TargetValue) == "" {
+			httpx.WriteProblem(c, httpx.ErrValidation("missing_field", "target_value is required to request a block"))
+			return
+		}
+		targetValue := *req.TargetValue
+		err := store.WithTx(ctx, h.pool, func(tx pgx.Tx) error {
+			observables, err := GetObservables(ctx, tx, tenant, caseID)
+			if err != nil {
+				return err
+			}
+			targetType := ""
+			for _, o := range observables {
+				if o.Value == targetValue {
+					targetType = o.Type
+					break
+				}
+			}
+			if targetType == "" {
+				return httpx.ErrValidation("target_not_on_case", "target_value must match an observable already on this case")
+			}
+			a, _, created, err := actions.RequestBlock(ctx, tx, tenant, caseID, targetType, targetValue, "analyst")
+			if err != nil {
+				return err
+			}
+			if !created {
+				return nil
+			}
+			return AppendTimeline(ctx, tx, caseID, tenant, "block_requested", "analyst", map[string]any{
+				"action_id": a.ID, "target": targetValue,
+			})
+		})
+		if err != nil {
+			httpx.WriteProblem(c, mapCaseError(err))
+			return
+		}
 	default:
 		httpx.WriteProblem(c, httpx.ErrValidation("operation_not_supported",
 			"operation "+string(req.Operation)+" has no case logic yet in this milestone"))
@@ -355,9 +397,10 @@ func toAPICase(c *Case) genapi.Case {
 	return out
 }
 
-// toAPICaseDetail is toAPICase plus the resolved observables and ticket —
-// only the single-case GET pays for those joins (see Handler.Get).
-func toAPICaseDetail(c *Case, observables []ObservableRef, ticket *ticketing.Ticket) genapi.Case {
+// toAPICaseDetail is toAPICase plus the resolved observables, ticket and
+// most recent action — only the single-case GET pays for those joins (see
+// Handler.Get).
+func toAPICaseDetail(c *Case, observables []ObservableRef, ticket *ticketing.Ticket, action *actions.Action, approval *actions.Approval) genapi.Case {
 	out := toAPICase(c)
 	if len(observables) > 0 {
 		apiObs := make([]genapi.CaseObservable, 0, len(observables))
@@ -376,6 +419,10 @@ func toAPICaseDetail(c *Case, observables []ObservableRef, ticket *ticketing.Tic
 		out.TicketRef = &ticket.ExternalRef
 		status := genapi.CaseTicketStatus(ticket.Status)
 		out.TicketStatus = &status
+	}
+	if action != nil {
+		pending := actions.ToAPIAction(*action, *approval)
+		out.PendingAction = &pending
 	}
 	return out
 }

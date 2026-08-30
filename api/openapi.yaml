@@ -606,8 +606,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/Action'
   /v1/evidence/manifests:
     post:
       operationId: createEvidenceManifest
@@ -833,7 +832,7 @@ components:
       properties:
         operation:
           type: string
-          enum: [update, transition, merge, split, close, open_ticket]
+          enum: [update, transition, merge, split, close, open_ticket, request_block]
         title: {type: string}
         owner_id: {type: string}
         status:
@@ -845,6 +844,7 @@ components:
           items: {type: string}
         closure_reason: {type: string}
         reason: {type: string}
+        target_value: {type: string}
     CaseTaskRequest:
       type: object
       required: [title]
@@ -951,6 +951,8 @@ components:
             $ref: '#/components/schemas/CaseObservable'
         ticket_ref: {type: string}
         ticket_status: {type: string, enum: [open, closed]}
+        pending_action:
+          $ref: '#/components/schemas/Action'
     CaseObservable:
       type: object
       required: [type, value]
@@ -997,8 +999,32 @@ components:
       properties:
         id: {type: string}
         action_id: {type: string}
-        status: {type: string}
+        status: {type: string, enum: [pending, approved, rejected, expired]}
+        approved_by: {type: string}
+        reason: {type: string}
+        decided_at: {type: string, format: date-time}
         expires_at: {type: string, format: date-time}
+    Action:
+      type: object
+      required: [id, case_id, intent, target, risk, mode, status, requested_by, idempotency_key]
+      properties:
+        id: {type: string}
+        case_id: {type: string}
+        approval_id: {type: string}
+        intent: {type: string}
+        target:
+          type: object
+          required: [type, value]
+          properties:
+            type: {type: string}
+            value: {type: string}
+        risk: {type: string, enum: [low, medium, high, critical]}
+        mode: {type: string, enum: [dry_run, execute]}
+        status: {type: string, enum: [pending_approval, approved, rejected, expired, executed, released]}
+        requested_by: {type: string}
+        idempotency_key: {type: string}
+        expires_at: {type: string, format: date-time}
+        reason: {type: string}
     Problem:
       type: object
       required: [type, title, status, code, request_id, retryable]

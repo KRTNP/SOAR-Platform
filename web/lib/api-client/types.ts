@@ -41,6 +41,24 @@ export interface Case {
   observables?: CaseObservable[];
   ticket_ref?: string;
   ticket_status?: TicketStatus;
+  pending_action?: PendingAction;
+}
+
+export type ActionStatus = "pending_approval" | "approved" | "rejected" | "expired" | "executed" | "released";
+
+export interface PendingAction {
+  id: string;
+  approval_id?: string;
+  case_id: string;
+  intent: string;
+  target: { type: string; value: string };
+  risk: "low" | "medium" | "high" | "critical";
+  mode: "dry_run" | "execute";
+  status: ActionStatus;
+  requested_by: string;
+  idempotency_key: string;
+  expires_at?: string;
+  reason?: string;
 }
 
 export type TicketStatus = "open" | "closed";

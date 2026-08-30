@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 
+	"soar-platform/services/api/actions"
 	"soar-platform/services/api/cases"
 	"soar-platform/services/api/events"
 	"soar-platform/services/api/genapi"
@@ -86,6 +87,7 @@ func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	r.Use(httpx.RequestIDMiddleware(), httpx.TenantStubMiddleware("lab"))
 	eventsH := events.NewHandler(pool)
 	casesH := cases.NewHandler(pool)
+	actionsH := actions.NewHandler(pool)
 	v1 := r.Group("/v1")
 	v1.POST("/events", eventsH.Ingest)
 	v1.GET("/events", eventsH.List)
@@ -94,6 +96,12 @@ func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	v1.GET("/cases/:caseId", casesH.Get)
 	v1.PATCH("/cases/:caseId", casesH.Update)
 	v1.GET("/cases/:caseId/timeline", casesH.Timeline)
+	v1.POST("/actions/preview", actionsH.Preview)
+	v1.GET("/actions/:actionId", actionsH.Get)
+	v1.POST("/actions/:actionId/execute", actionsH.Execute)
+	v1.GET("/approvals", actionsH.ListApprovals)
+	v1.POST("/approvals/:approvalId/approve", actionsH.Approve)
+	v1.POST("/approvals/:approvalId/reject", actionsH.Reject)
 
 	return httptest.NewServer(r), pool
 }
