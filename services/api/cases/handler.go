@@ -3,6 +3,7 @@ package cases
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -17,6 +18,7 @@ import (
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
 	"soar-platform/services/api/store"
+	"soar-platform/services/api/ticketing"
 )
 
 const createRoute = "createCase"
@@ -162,7 +164,12 @@ func (h *Handler) Get(c *gin.Context) {
 		httpx.WriteProblem(c, httpx.ErrInternal("get_case_observables_failed", "could not load case observables").WithCause(err))
 		return
 	}
-	c.JSON(http.StatusOK, toAPICaseDetail(cs, observables))
+	ticket, err := ticketing.Get(ctx, h.pool, tenant, caseID)
+	if err != nil {
+		httpx.WriteProblem(c, httpx.ErrInternal("get_case_ticket_failed", "could not load case ticket").WithCause(err))
+		return
+	}
+	c.JSON(http.StatusOK, toAPICaseDetail(cs, observables, ticket))
 }
 
 // Update implements PATCH /v1/cases/{caseId}.
@@ -236,8 +243,41 @@ func (h *Handler) Update(c *gin.Context) {
 			if err := Close(ctx, tx, tenant, caseID, *req.ClosureReason); err != nil {
 				return err
 			}
+			if err := ticketing.Close(ctx, tx, tenant, caseID, *req.ClosureReason); err != nil {
+				return err
+			}
 			return AppendTimeline(ctx, tx, caseID, tenant, "case_closed", "analyst", map[string]any{
 				"from": before.Status, "closure_reason": *req.ClosureReason,
+			})
+		})
+		if err != nil {
+			httpx.WriteProblem(c, mapCaseError(err))
+			return
+		}
+	case genapi.OpenTicket:
+		err := store.WithTx(ctx, h.pool, func(tx pgx.Tx) error {
+			cs, err := Get(ctx, tx, tenant, caseID)
+			if err != nil {
+				return err
+			}
+			observables, err := GetObservables(ctx, tx, tenant, caseID)
+			if err != nil {
+				return err
+			}
+			evidenceRefs := make([]string, 0, len(observables))
+			for _, o := range observables {
+				evidenceRefs = append(evidenceRefs, o.Type+":"+o.Value)
+			}
+			summary := fmt.Sprintf("%s (%s severity, owner: %s)", cs.Title, cs.Severity, cs.Owner)
+			ticket, created, err := ticketing.Open(ctx, tx, tenant, caseID, summary, evidenceRefs)
+			if err != nil {
+				return err
+			}
+			if !created {
+				return nil
+			}
+			return AppendTimeline(ctx, tx, caseID, tenant, "ticket_opened", "analyst", map[string]any{
+				"ticket_ref": ticket.ExternalRef,
 			})
 		})
 		if err != nil {
@@ -315,19 +355,45 @@ func toAPICase(c *Case) genapi.Case {
 	return out
 }
 
-// toAPICaseDetail is toAPICase plus the resolved observables — only the
-// single-case GET pays for that join (see Handler.Get).
-func toAPICaseDetail(c *Case, observables []ObservableRef) genapi.Case {
+// toAPICaseDetail is toAPICase plus the resolved observables and ticket —
+// only the single-case GET pays for those joins (see Handler.Get).
+func toAPICaseDetail(c *Case, observables []ObservableRef, ticket *ticketing.Ticket) genapi.Case {
 	out := toAPICase(c)
-	if len(observables) == 0 {
-		return out
+	if len(observables) > 0 {
+		apiObs := make([]genapi.CaseObservable, 0, len(observables))
+		for _, o := range observables {
+			apiObs = append(apiObs, genapi.CaseObservable{
+				Type:              o.Type,
+				Value:             o.Value,
+				Verdict:           verdictPtr(o.Verdict),
+				TiConfidence:      float32Ptr(o.TiConfidence),
+				SourceReliability: o.SourceReliability,
+			})
+		}
+		out.Observables = &apiObs
 	}
-	apiObs := make([]genapi.CaseObservable, 0, len(observables))
-	for _, o := range observables {
-		apiObs = append(apiObs, genapi.CaseObservable{Type: o.Type, Value: o.Value})
+	if ticket != nil {
+		out.TicketRef = &ticket.ExternalRef
+		status := genapi.CaseTicketStatus(ticket.Status)
+		out.TicketStatus = &status
 	}
-	out.Observables = &apiObs
 	return out
+}
+
+func verdictPtr(v *string) *genapi.CaseObservableVerdict {
+	if v == nil {
+		return nil
+	}
+	verdict := genapi.CaseObservableVerdict(*v)
+	return &verdict
+}
+
+func float32Ptr(v *float64) *float32 {
+	if v == nil {
+		return nil
+	}
+	f := float32(*v)
+	return &f
 }
 
 func parseLimit(raw string) int {

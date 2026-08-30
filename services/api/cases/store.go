@@ -196,17 +196,21 @@ func GetTimeline(ctx context.Context, q querier, tenantID, caseID string) ([]Tim
 
 // ObservableRef is the minimal projection a case detail view needs — just
 // enough to render an identifying chip, not the full observable record (see
-// ADR-0009).
+// ADR-0009), plus the M2 mock-TI verdict when one has been recorded.
 type ObservableRef struct {
-	Type  string
-	Value string
+	Type              string
+	Value             string
+	Verdict           *string
+	TiConfidence      *float64
+	SourceReliability *string
 }
 
 func GetObservables(ctx context.Context, q querier, tenantID, caseID string) ([]ObservableRef, error) {
 	rows, err := q.Query(ctx, `
-		select o.type, o.value
+		select o.type, o.value, er.verdict, er.confidence, er.source_reliability
 		from case_observables co
 		join observables o on o.id = co.observable_id
+		left join enrichment_results er on er.observable_id = o.id
 		where co.case_id = $1 and o.tenant_id = $2
 		order by o.id`, caseID, tenantID)
 	if err != nil {
@@ -217,7 +221,7 @@ func GetObservables(ctx context.Context, q querier, tenantID, caseID string) ([]
 	var out []ObservableRef
 	for rows.Next() {
 		var ref ObservableRef
-		if err := rows.Scan(&ref.Type, &ref.Value); err != nil {
+		if err := rows.Scan(&ref.Type, &ref.Value, &ref.Verdict, &ref.TiConfidence, &ref.SourceReliability); err != nil {
 			return nil, err
 		}
 		out = append(out, ref)

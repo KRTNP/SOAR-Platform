@@ -4,7 +4,7 @@
 |---|---|---|---|
 | M0 | design repository พร้อมเอกสาร/diagram/schema | link/schema validation | Done |
 | M1 | synthetic alert เข้า case ได้ | ingestion/replay tests | Done — [`services/api`](../../services/api) (Go/Gin/pgx, no auth/NATS/Temporal yet) + [`web`](../../web) (Next.js Alert Queue and Case Detail); gate proven by `services/api/integration/ingestion_test.go` (Testcontainers) |
-| M2 | enrichment และ ticket mock | connector contract tests | Not started |
+| M2 | enrichment และ ticket mock | connector contract tests | Done — [`services/api/connectors`](../../services/api/connectors) (shared `Connector` interface + reusable contract-test harness), [`enrichment`](../../services/api/enrichment) (mock/local IOC provider) and [`ticketing`](../../services/api/ticketing) (mock ticket connector); gate proven by `services/api/integration/connector_contract_test.go`; see [ADR-0010](../../adr/0010-mock-enrichment-and-ticketing-connectors.md) |
 | M3 | approval/deny/expiry | no-action-before-approval test | Not started |
 | M4 | evidence/audit export | hash/redaction tests | Not started |
 | M5 | lab connector | sandbox + tabletop approval | Not started |

@@ -16,6 +16,7 @@ import (
 
 	"soar-platform/services/api/alerts"
 	"soar-platform/services/api/cases"
+	"soar-platform/services/api/enrichment"
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
 	"soar-platform/services/api/store"
@@ -119,6 +120,9 @@ func (h *Handler) Ingest(c *gin.Context) {
 		alertID := newID("alt")
 		al := alerts.NewFromEvent(alertID, tenant, ev.ID, ev.Source, ev.Severity, ev.Confidence, now)
 		if err := alerts.Insert(ctx, tx, al, observableIDs); err != nil {
+			return err
+		}
+		if err := enrichment.LookupAll(ctx, tx, observableIDs); err != nil {
 			return err
 		}
 

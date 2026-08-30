@@ -192,3 +192,121 @@ func TestCaseTransition_RejectsDirectClose(t *testing.T) {
 		t.Error("case must not have been closed by the rejected transition")
 	}
 }
+
+// TestIngest_RunsEnrichment proves the M2 mock IOC connector actually runs
+// as part of ingestion (not just in isolation): a case whose observable
+// matches a seeded ioc_indicators row carries a verdict on the API response.
+func TestIngest_RunsEnrichment(t *testing.T) {
+	srv, _ := setupServer(t)
+	defer srv.Close()
+
+	// fixtureWithObservables (case_test.go) uses 198.51.100.10, seeded as
+	// "malicious" in migrations/20260830000002_m2_enrichment_ticketing.sql.
+	_, accepted := postEvent(t, srv, "idem-key-enrich-0001", fixtureWithObservables(t, "enrich-test-0001"))
+	if accepted.AlertId == nil {
+		t.Fatal("expected an alert_id from ingestion")
+	}
+
+	resp, err := http.Get(srv.URL + "/v1/cases")
+	if err != nil {
+		t.Fatalf("listing cases: %v", err)
+	}
+	var page struct {
+		Items []genapi.Case `json:"items"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&page)
+	resp.Body.Close()
+	caseID := page.Items[len(page.Items)-1].Id
+
+	detailResp, err := http.Get(srv.URL + "/v1/cases/" + caseID)
+	if err != nil {
+		t.Fatalf("getting case detail: %v", err)
+	}
+	defer detailResp.Body.Close()
+	var detail genapi.Case
+	if err := json.NewDecoder(detailResp.Body).Decode(&detail); err != nil {
+		t.Fatalf("decoding case detail: %v", err)
+	}
+
+	if detail.Observables == nil || len(*detail.Observables) != 1 {
+		t.Fatalf("expected exactly 1 observable, got %+v", detail.Observables)
+	}
+	obs := (*detail.Observables)[0]
+	if obs.Verdict == nil || *obs.Verdict != genapi.Malicious {
+		t.Errorf("expected verdict malicious for a seeded-bad IP, got %v", obs.Verdict)
+	}
+	if obs.TiConfidence == nil || *obs.TiConfidence <= 0 {
+		t.Errorf("expected a positive ti_confidence, got %v", obs.TiConfidence)
+	}
+}
+
+// TestCaseOpenTicket proves the "open_ticket" operation is idempotent per
+// case and that closing the case also closes its ticket with the same
+// closure_reason.
+func TestCaseOpenTicket(t *testing.T) {
+	srv, pool := setupServer(t)
+	defer srv.Close()
+
+	_, accepted := postEvent(t, srv, "idem-key-ticket-0001", fixture(t, "ticket-test-0001"))
+	var caseID string
+	err := pool.QueryRow(context.Background(),
+		"select case_ref from alerts where id = $1", *accepted.AlertId,
+	).Scan(&caseID)
+	if err != nil {
+		t.Fatalf("looking up case for alert: %v", err)
+	}
+
+	openOnce := func() genapi.Case {
+		req, _ := http.NewRequest(http.MethodPatch, srv.URL+"/v1/cases/"+caseID, strings.NewReader(`{"operation":"open_ticket"}`))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("PATCH open_ticket: %v", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected 200 opening a ticket, got %d", resp.StatusCode)
+		}
+		detailResp, err := http.Get(srv.URL + "/v1/cases/" + caseID)
+		if err != nil {
+			t.Fatalf("getting case detail: %v", err)
+		}
+		defer detailResp.Body.Close()
+		var detail genapi.Case
+		_ = json.NewDecoder(detailResp.Body).Decode(&detail)
+		return detail
+	}
+
+	first := openOnce()
+	if first.TicketRef == nil || *first.TicketRef == "" {
+		t.Fatal("expected a ticket_ref after opening a ticket")
+	}
+	if first.TicketStatus == nil || *first.TicketStatus != genapi.CaseTicketStatusOpen {
+		t.Errorf("expected ticket_status open, got %v", first.TicketStatus)
+	}
+
+	second := openOnce()
+	if second.TicketRef == nil || *second.TicketRef != *first.TicketRef {
+		t.Errorf("expected the same ticket_ref on a repeat open_ticket, got %v vs %v", second.TicketRef, first.TicketRef)
+	}
+
+	closeReq, _ := http.NewRequest(http.MethodPatch, srv.URL+"/v1/cases/"+caseID,
+		strings.NewReader(`{"operation":"close","closure_reason":"ticket lifecycle check"}`))
+	closeReq.Header.Set("Content-Type", "application/json")
+	closeResp, err := http.DefaultClient.Do(closeReq)
+	if err != nil {
+		t.Fatalf("PATCH close: %v", err)
+	}
+	closeResp.Body.Close()
+
+	detailResp, err := http.Get(srv.URL + "/v1/cases/" + caseID)
+	if err != nil {
+		t.Fatalf("getting case detail after close: %v", err)
+	}
+	defer detailResp.Body.Close()
+	var afterClose genapi.Case
+	_ = json.NewDecoder(detailResp.Body).Decode(&afterClose)
+	if afterClose.TicketStatus == nil || *afterClose.TicketStatus != genapi.CaseTicketStatusClosed {
+		t.Errorf("expected ticket_status closed after closing the case, got %v", afterClose.TicketStatus)
+	}
+}

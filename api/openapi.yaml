@@ -833,7 +833,7 @@ components:
       properties:
         operation:
           type: string
-          enum: [update, transition, merge, split, close]
+          enum: [update, transition, merge, split, close, open_ticket]
         title: {type: string}
         owner_id: {type: string}
         status:
@@ -949,12 +949,17 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CaseObservable'
+        ticket_ref: {type: string}
+        ticket_status: {type: string, enum: [open, closed]}
     CaseObservable:
       type: object
       required: [type, value]
       properties:
         type: {type: string}
         value: {type: string}
+        verdict: {type: string, enum: [malicious, suspicious, benign, unknown]}
+        ti_confidence: {type: number, minimum: 0, maximum: 1}
+        source_reliability: {type: string}
     StartExecutionRequest:
       type: object
       required: [playbook_id, case_id, mode]

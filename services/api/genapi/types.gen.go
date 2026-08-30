@@ -64,6 +64,24 @@ func (e CaseStatus) Valid() bool {
 	}
 }
 
+// Defines values for CaseTicketStatus.
+const (
+	CaseTicketStatusClosed CaseTicketStatus = "closed"
+	CaseTicketStatusOpen   CaseTicketStatus = "open"
+)
+
+// Valid indicates whether the value is a known member of the CaseTicketStatus enum.
+func (e CaseTicketStatus) Valid() bool {
+	switch e {
+	case CaseTicketStatusClosed:
+		return true
+	case CaseTicketStatusOpen:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CaseExportAcceptedStatus.
 const (
 	CaseExportAcceptedStatusAccepted  CaseExportAcceptedStatus = "accepted"
@@ -103,10 +121,35 @@ func (e CaseExportRequestFormat) Valid() bool {
 	}
 }
 
+// Defines values for CaseObservableVerdict.
+const (
+	Benign     CaseObservableVerdict = "benign"
+	Malicious  CaseObservableVerdict = "malicious"
+	Suspicious CaseObservableVerdict = "suspicious"
+	Unknown    CaseObservableVerdict = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the CaseObservableVerdict enum.
+func (e CaseObservableVerdict) Valid() bool {
+	switch e {
+	case Benign:
+		return true
+	case Malicious:
+		return true
+	case Suspicious:
+		return true
+	case Unknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CaseUpdateRequestOperation.
 const (
 	Close      CaseUpdateRequestOperation = "close"
 	Merge      CaseUpdateRequestOperation = "merge"
+	OpenTicket CaseUpdateRequestOperation = "open_ticket"
 	Split      CaseUpdateRequestOperation = "split"
 	Transition CaseUpdateRequestOperation = "transition"
 	Update     CaseUpdateRequestOperation = "update"
@@ -118,6 +161,8 @@ func (e CaseUpdateRequestOperation) Valid() bool {
 	case Close:
 		return true
 	case Merge:
+		return true
+	case OpenTicket:
 		return true
 	case Split:
 		return true
@@ -322,12 +367,17 @@ type Case struct {
 	Status            CaseStatus        `json:"status"`
 	TaskRefs          *[]string         `json:"task_refs,omitempty"`
 	TenantId          string            `json:"tenant_id"`
+	TicketRef         *string           `json:"ticket_ref,omitempty"`
+	TicketStatus      *CaseTicketStatus `json:"ticket_status,omitempty"`
 	Title             string            `json:"title"`
 	UpdatedAt         *time.Time        `json:"updated_at,omitempty"`
 }
 
 // CaseStatus defines model for Case.Status.
 type CaseStatus string
+
+// CaseTicketStatus defines model for Case.TicketStatus.
+type CaseTicketStatus string
 
 // CaseExportAccepted defines model for CaseExportAccepted.
 type CaseExportAccepted struct {
@@ -350,9 +400,15 @@ type CaseExportRequestFormat string
 
 // CaseObservable defines model for CaseObservable.
 type CaseObservable struct {
-	Type  string `json:"type"`
-	Value string `json:"value"`
+	SourceReliability *string                `json:"source_reliability,omitempty"`
+	TiConfidence      *float32               `json:"ti_confidence,omitempty"`
+	Type              string                 `json:"type"`
+	Value             string                 `json:"value"`
+	Verdict           *CaseObservableVerdict `json:"verdict,omitempty"`
 }
+
+// CaseObservableVerdict defines model for CaseObservable.Verdict.
+type CaseObservableVerdict string
 
 // CasePage defines model for CasePage.
 type CasePage = ResourcePage

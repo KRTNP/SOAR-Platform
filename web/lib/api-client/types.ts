@@ -39,11 +39,20 @@ export interface Case {
   root_cause?: string;
   lessons_learned?: string;
   observables?: CaseObservable[];
+  ticket_ref?: string;
+  ticket_status?: TicketStatus;
 }
+
+export type TicketStatus = "open" | "closed";
+
+export type CaseObservableVerdict = "malicious" | "suspicious" | "benign" | "unknown";
 
 export interface CaseObservable {
   type: string;
   value: string;
+  verdict?: CaseObservableVerdict;
+  ti_confidence?: number;
+  source_reliability?: string;
 }
 
 export interface CasePage {

@@ -26,9 +26,9 @@ import (
 	"soar-platform/services/api/httpx"
 )
 
-// setupServer starts a real Postgres container, applies the initial
-// migration, and returns an httptest server wired to it.
-func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
+// setupPool starts a real Postgres container and applies every migration,
+// for tests that only need direct DB access (no HTTP server).
+func setupPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 	ctx := context.Background()
 
@@ -72,6 +72,14 @@ func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 			t.Fatalf("applying migration %s: %v", e.Name(), err)
 		}
 	}
+	return pool
+}
+
+// setupServer starts a real Postgres container, applies every migration,
+// and returns an httptest server wired to it.
+func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
+	t.Helper()
+	pool := setupPool(t)
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()

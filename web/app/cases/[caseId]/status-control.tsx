@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { Case, CaseStatus } from "@/lib/api-client/types";
-import { transitionCaseAction, closeCaseAction } from "./actions";
+import { transitionCaseAction, closeCaseAction, openTicketAction } from "./actions";
 
 // "closed" is deliberately excluded: reaching it always goes through the
 // dedicated close action below, which enforces a mandatory closure_reason —
@@ -112,6 +112,47 @@ export function CloseCaseControl({ caseItem }: { caseItem: Case }) {
         className="rounded-[4px] border border-danger px-3 py-1.5 text-[13px] font-medium text-danger disabled:cursor-not-allowed disabled:opacity-40"
       >
         {isPending ? "Closing…" : "Close case"}
+      </button>
+      {error && <p className="text-[12px] text-danger">{error}</p>}
+    </div>
+  );
+}
+
+export function TicketControl({ caseItem }: { caseItem: Case }) {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  if (caseItem.ticket_ref) {
+    return (
+      <div className="flex flex-col gap-1 rounded-md border border-border bg-surface p-3.5">
+        <label className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">Ticket</label>
+        <p className="text-[13px] text-text-primary">
+          {caseItem.ticket_ref} <span className="text-text-tertiary capitalize">· {caseItem.ticket_status}</span>
+        </p>
+      </div>
+    );
+  }
+
+  function submit() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await openTicketAction(caseItem.id);
+      } catch {
+        setError("Could not open a ticket. Try again.");
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-border bg-surface p-3.5">
+      <label className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">Ticket</label>
+      <button
+        onClick={submit}
+        disabled={isPending}
+        className="rounded-[4px] border border-border-strong px-3 py-1.5 text-[13px] font-medium text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {isPending ? "Opening…" : "Open ticket"}
       </button>
       {error && <p className="text-[12px] text-danger">{error}</p>}
     </div>

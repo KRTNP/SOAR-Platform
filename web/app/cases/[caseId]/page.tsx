@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { getCase, getCaseTimeline, ApiProblemError } from "@/lib/api-client/client";
-import { SeverityBadge, StatusBadge } from "@/components/badges";
+import { SeverityBadge, StatusBadge, VerdictBadge } from "@/components/badges";
 import { Timeline } from "@/components/Timeline";
 import { ProblemBanner } from "@/components/ProblemBanner";
-import { StatusControl, CloseCaseControl } from "./status-control";
+import { StatusControl, CloseCaseControl, TicketControl } from "./status-control";
 
 export const dynamic = "force-dynamic";
 
@@ -97,15 +97,19 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
         <aside className="flex flex-col gap-4">
           <StatusControl caseItem={caseItem} />
           <CloseCaseControl caseItem={caseItem} />
+          <TicketControl caseItem={caseItem} />
 
           {(caseItem.observables?.length ?? 0) > 0 && (
             <section className="rounded-md border border-border bg-surface p-[18px_20px]">
               <h2 className="mb-3 text-[13px] font-semibold">Observables</h2>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-2">
                 {caseItem.observables!.map((o, i) => (
-                  <span key={i} className="rounded-[3px] border border-border bg-surface-raised px-2.5 py-1 font-mono text-[11.5px] text-text-secondary">
-                    {o.value}
-                  </span>
+                  <div key={i} className="flex items-center justify-between gap-2">
+                    <span className="rounded-[3px] border border-border bg-surface-raised px-2.5 py-1 font-mono text-[11.5px] text-text-secondary">
+                      {o.value}
+                    </span>
+                    {o.verdict && <VerdictBadge verdict={o.verdict} />}
+                  </div>
                 ))}
               </div>
             </section>

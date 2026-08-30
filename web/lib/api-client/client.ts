@@ -65,3 +65,10 @@ export function closeCase(caseId: string, closureReason: string): Promise<Case> 
     body: JSON.stringify({ operation: "close", closure_reason: closureReason }),
   });
 }
+
+export function openTicket(caseId: string): Promise<Case> {
+  return request<Case>(`/v1/cases/${encodeURIComponent(caseId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ operation: "open_ticket" }),
+  });
+}
