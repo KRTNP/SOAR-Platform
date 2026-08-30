@@ -73,6 +73,23 @@ export interface CaseObservable {
   source_reliability?: string;
 }
 
+export type IntegrityStatus = "verified" | "pending" | "mismatch" | "unavailable";
+
+export interface Evidence {
+  id: string;
+  case_id: string;
+  artifact_type: string;
+  source: string;
+  sha256: string;
+  size: number;
+  collected_at: string;
+  integrity_status: IntegrityStatus;
+}
+
+export interface EvidencePage {
+  items: Evidence[];
+}
+
 export interface CasePage {
   items: Case[];
   next_cursor?: string;

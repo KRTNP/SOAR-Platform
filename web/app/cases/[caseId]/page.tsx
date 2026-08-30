@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { getCase, getCaseTimeline, ApiProblemError } from "@/lib/api-client/client";
-import { SeverityBadge, StatusBadge, VerdictBadge } from "@/components/badges";
+import { getCase, getCaseTimeline, getCaseEvidence, ApiProblemError } from "@/lib/api-client/client";
+import { SeverityBadge, StatusBadge, VerdictBadge, IntegrityBadge } from "@/components/badges";
 import { Timeline } from "@/components/Timeline";
 import { ProblemBanner } from "@/components/ProblemBanner";
 import { StatusControl, CloseCaseControl, TicketControl, ActionControl } from "./status-control";
@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
 export default async function CaseDetailPage({ params }: { params: Promise<{ caseId: string }> }) {
   const { caseId } = await params;
 
-  let caseItem, timeline;
+  let caseItem, timeline, evidence;
   try {
-    [caseItem, timeline] = await Promise.all([getCase(caseId), getCaseTimeline(caseId)]);
+    [caseItem, timeline, evidence] = await Promise.all([getCase(caseId), getCaseTimeline(caseId), getCaseEvidence(caseId)]);
   } catch (err) {
     if (err instanceof ApiProblemError) {
       return <ProblemBanner problem={err.problem} fallbackTitle="Could not load this case" />;
@@ -92,6 +92,22 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
             <h2 className="mb-3 text-[13px] font-semibold">Timeline</h2>
             <Timeline entries={timeline.items} />
           </section>
+
+          {evidence.items.length > 0 && (
+            <section className="rounded-md border border-border bg-surface p-[18px_20px]">
+              <h2 className="mb-3 text-[13px] font-semibold">Evidence</h2>
+              <div className="flex flex-col gap-2">
+                {evidence.items.map((e) => (
+                  <div key={e.id} className="flex items-center justify-between gap-2 text-[12.5px]">
+                    <span className="text-text-secondary">
+                      {e.artifact_type} <span className="text-text-tertiary">({e.source})</span>
+                    </span>
+                    <IntegrityBadge status={e.integrity_status} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
 
         <aside className="flex flex-col gap-4">

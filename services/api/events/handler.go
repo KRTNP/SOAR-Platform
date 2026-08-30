@@ -15,8 +15,10 @@ import (
 	"github.com/oklog/ulid/v2"
 
 	"soar-platform/services/api/alerts"
+	"soar-platform/services/api/audit"
 	"soar-platform/services/api/cases"
 	"soar-platform/services/api/enrichment"
+	"soar-platform/services/api/evidence"
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
 	"soar-platform/services/api/store"
@@ -142,6 +144,25 @@ func (h *Handler) Ingest(c *gin.Context) {
 		}
 		if err := cases.AppendTimeline(ctx, tx, caseID, tenant, "case_opened", "system", map[string]any{
 			"alert_id": alertID, "event_id": ev.ID, "source": ev.Source,
+		}); err != nil {
+			return err
+		}
+		if _, err := evidence.RecordFromEvent(ctx, tx, tenant, caseID, ev.ID, ev.Source, ev.RawRef.URI, ev.ObservedAt); err != nil {
+			return err
+		}
+		requestID := httpx.RequestID(c)
+		eventID := ev.ID
+		targetHash := audit.TargetHash(ev.ID)
+		if err := audit.Append(ctx, tx, audit.Record{
+			TenantID:   tenant,
+			EventID:    &eventID,
+			RequestID:  &requestID,
+			Actor:      "soar-ingestion",
+			ActorType:  "system",
+			CaseID:     &caseID,
+			Action:     "event.ingest",
+			TargetHash: &targetHash,
+			Decision:   "completed",
 		}); err != nil {
 			return err
 		}

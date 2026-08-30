@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Case, CasePage, CaseTimelineEntry, CaseStatus, Problem } from "./types";
+import type { Case, CasePage, CaseTimelineEntry, CaseStatus, EvidencePage, Problem } from "./types";
 
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8080";
 
@@ -50,6 +50,10 @@ export function getCase(caseId: string): Promise<Case> {
 
 export function getCaseTimeline(caseId: string): Promise<{ items: CaseTimelineEntry[] }> {
   return request<{ items: CaseTimelineEntry[] }>(`/v1/cases/${encodeURIComponent(caseId)}/timeline`);
+}
+
+export function getCaseEvidence(caseId: string): Promise<EvidencePage> {
+  return request<EvidencePage>(`/v1/cases/${encodeURIComponent(caseId)}/evidence`);
 }
 
 export function transitionCase(caseId: string, status: CaseStatus, reason?: string): Promise<Case> {

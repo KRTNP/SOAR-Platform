@@ -1,4 +1,4 @@
-import type { CaseObservableVerdict, CaseStatus, Severity } from "@/lib/api-client/types";
+import type { CaseObservableVerdict, CaseStatus, IntegrityStatus, Severity } from "@/lib/api-client/types";
 
 // Tailwind's JIT scanner needs literal class strings, not interpolated ones,
 // so severity/status -> class is a lookup table rather than a template.
@@ -53,6 +53,23 @@ export function VerdictBadge({ verdict }: { verdict: CaseObservableVerdict }) {
   return (
     <span className={`inline-block rounded-[3px] border px-2 py-[3px] text-[11px] font-medium whitespace-nowrap capitalize ${VERDICT_CLASSES[verdict]}`}>
       {verdict}
+    </span>
+  );
+}
+
+// M4's evidence.Get re-verifies the recorded hash on every read (ADR-0012);
+// "mismatch" means that re-check just failed, not that it hasn't run yet.
+const INTEGRITY_CLASSES: Record<IntegrityStatus, string> = {
+  verified: "text-safe border-safe/35",
+  pending: "text-text-tertiary border-border-strong",
+  mismatch: "text-danger border-danger/40 bg-danger/[0.08]",
+  unavailable: "text-warn border-warn/40",
+};
+
+export function IntegrityBadge({ status }: { status: IntegrityStatus }) {
+  return (
+    <span className={`inline-block rounded-[3px] border px-2 py-[3px] text-[11px] font-medium whitespace-nowrap capitalize ${INTEGRITY_CLASSES[status]}`}>
+      {status}
     </span>
   );
 }

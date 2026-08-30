@@ -1,8 +1,10 @@
 package actions
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"soar-platform/services/api/audit"
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
 	"soar-platform/services/api/store"
@@ -73,16 +76,57 @@ func (h *Handler) Execute(c *gin.Context) {
 	err := store.WithTx(ctx, h.pool, func(tx pgx.Tx) error {
 		var err error
 		a, err = Execute(ctx, tx, tenant, actionID)
-		return err
+		if err != nil {
+			return err
+		}
+		th := audit.TargetHash(actionID)
+		cv := "connector-mock-network-block@1.0.0"
+		return audit.Append(ctx, tx, audit.Record{
+			TenantID: tenant, Actor: "incident-commander", ActorType: "analyst",
+			CaseID: &a.CaseID, ExecutionID: &a.ID, Action: "action.execute",
+			TargetHash: &th, ConnectorVersion: &cv, Decision: "allowed",
+		})
 	})
 	if err != nil {
-		httpx.WriteProblem(c, mapExecuteError(err))
+		problem := mapExecuteError(err)
+		auditDeniedExecute(ctx, h.pool, tenant, actionID, problem)
+		httpx.WriteProblem(c, problem)
 		return
 	}
 	c.JSON(http.StatusAccepted, genapi.ExecutionAccepted{
 		ExecutionId: a.ID,
 		Status:      genapi.ExecutionAcceptedStatusAccepted,
 	})
+}
+
+// auditDeniedExecute records a denied execute attempt as a second, independent
+// statement against the pool rather than inside the transaction that Execute
+// already rolled back — an audit insert made inside that transaction would
+// vanish along with it. Best-effort: a logging failure here does not change
+// the 403 already decided for the caller, same posture as WriteProblem's own
+// internal-error logging.
+func auditDeniedExecute(ctx context.Context, pool *pgxpool.Pool, tenant, actionID string, problem error) {
+	var appErr *httpx.AppError
+	if !errors.As(problem, &appErr) || appErr.Status != http.StatusForbidden {
+		return
+	}
+	th := audit.TargetHash(actionID)
+	reason := appErr.Code
+	caseID := ""
+	if a, _, err := Get(ctx, pool, tenant, actionID); err == nil {
+		caseID = a.CaseID
+	}
+	var caseIDPtr *string
+	if caseID != "" {
+		caseIDPtr = &caseID
+	}
+	if err := audit.Append(ctx, pool, audit.Record{
+		TenantID: tenant, Actor: "incident-commander", ActorType: "analyst",
+		CaseID: caseIDPtr, ExecutionID: &actionID, Action: "action.execute",
+		TargetHash: &th, Decision: "denied", Reason: &reason,
+	}); err != nil {
+		slog.Default().Error("failed to record denied-execute audit entry", "action_id", actionID, "err", err)
+	}
 }
 
 // ListApprovals implements GET /v1/approvals.
@@ -110,10 +154,18 @@ func (h *Handler) Approve(c *gin.Context) {
 	}
 	// There is no auth/RBAC yet (see adr/0011); every approval is recorded
 	// under a fixed "incident-commander" actor until real identity exists.
-	_, ap, err := Approve(ctx, h.pool, tenant, c.Param("approvalId"), "incident-commander")
+	a, ap, err := Approve(ctx, h.pool, tenant, c.Param("approvalId"), "incident-commander")
 	if err != nil {
 		httpx.WriteProblem(c, mapDecisionError(err))
 		return
+	}
+	th := audit.TargetHash(a.ID)
+	if err := audit.Append(ctx, h.pool, audit.Record{
+		TenantID: tenant, Actor: "incident-commander", ActorType: "analyst",
+		CaseID: &a.CaseID, ExecutionID: &a.ID, Action: "approval.approve",
+		TargetHash: &th, Decision: "completed",
+	}); err != nil {
+		slog.Default().Error("failed to record approval audit entry", "approval_id", ap.ID, "err", err)
 	}
 	c.JSON(http.StatusOK, ToAPIApproval(ap))
 }
@@ -135,10 +187,18 @@ func (h *Handler) Reject(c *gin.Context) {
 		httpx.WriteProblem(c, httpx.ErrValidation("missing_field", "reason is required to reject an approval"))
 		return
 	}
-	_, ap, err := Reject(ctx, h.pool, tenant, c.Param("approvalId"), req.Reason)
+	a, ap, err := Reject(ctx, h.pool, tenant, c.Param("approvalId"), req.Reason)
 	if err != nil {
 		httpx.WriteProblem(c, mapDecisionError(err))
 		return
+	}
+	th := audit.TargetHash(a.ID)
+	if err := audit.Append(ctx, h.pool, audit.Record{
+		TenantID: tenant, Actor: "incident-commander", ActorType: "analyst",
+		CaseID: &a.CaseID, ExecutionID: &a.ID, Action: "approval.reject",
+		TargetHash: &th, Decision: "completed", Reason: &req.Reason,
+	}); err != nil {
+		slog.Default().Error("failed to record rejection audit entry", "approval_id", ap.ID, "err", err)
 	}
 	c.JSON(http.StatusOK, ToAPIApproval(ap))
 }

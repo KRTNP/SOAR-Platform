@@ -217,6 +217,24 @@ func (e CaseExportRequestFormat) Valid() bool {
 	}
 }
 
+// Defines values for CaseExportRequestRedactionProfile.
+const (
+	Full     CaseExportRequestRedactionProfile = "full"
+	Standard CaseExportRequestRedactionProfile = "standard"
+)
+
+// Valid indicates whether the value is a known member of the CaseExportRequestRedactionProfile enum.
+func (e CaseExportRequestRedactionProfile) Valid() bool {
+	switch e {
+	case Full:
+		return true
+	case Standard:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CaseObservableVerdict.
 const (
 	Benign     CaseObservableVerdict = "benign"
@@ -334,6 +352,78 @@ func (e CreateCaseRequestSeverity) Valid() bool {
 	case CreateCaseRequestSeverityLow:
 		return true
 	case CreateCaseRequestSeverityMedium:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvidenceIntegrityStatus.
+const (
+	EvidenceIntegrityStatusMismatch    EvidenceIntegrityStatus = "mismatch"
+	EvidenceIntegrityStatusPending     EvidenceIntegrityStatus = "pending"
+	EvidenceIntegrityStatusUnavailable EvidenceIntegrityStatus = "unavailable"
+	EvidenceIntegrityStatusVerified    EvidenceIntegrityStatus = "verified"
+)
+
+// Valid indicates whether the value is a known member of the EvidenceIntegrityStatus enum.
+func (e EvidenceIntegrityStatus) Valid() bool {
+	switch e {
+	case EvidenceIntegrityStatusMismatch:
+		return true
+	case EvidenceIntegrityStatusPending:
+		return true
+	case EvidenceIntegrityStatusUnavailable:
+		return true
+	case EvidenceIntegrityStatusVerified:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvidenceSensitivity.
+const (
+	EvidenceSensitivityConfidential EvidenceSensitivity = "confidential"
+	EvidenceSensitivityInternal     EvidenceSensitivity = "internal"
+	EvidenceSensitivityPublic       EvidenceSensitivity = "public"
+	EvidenceSensitivityRestricted   EvidenceSensitivity = "restricted"
+)
+
+// Valid indicates whether the value is a known member of the EvidenceSensitivity enum.
+func (e EvidenceSensitivity) Valid() bool {
+	switch e {
+	case EvidenceSensitivityConfidential:
+		return true
+	case EvidenceSensitivityInternal:
+		return true
+	case EvidenceSensitivityPublic:
+		return true
+	case EvidenceSensitivityRestricted:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EvidenceManifestRequestSensitivity.
+const (
+	EvidenceManifestRequestSensitivityConfidential EvidenceManifestRequestSensitivity = "confidential"
+	EvidenceManifestRequestSensitivityInternal     EvidenceManifestRequestSensitivity = "internal"
+	EvidenceManifestRequestSensitivityPublic       EvidenceManifestRequestSensitivity = "public"
+	EvidenceManifestRequestSensitivityRestricted   EvidenceManifestRequestSensitivity = "restricted"
+)
+
+// Valid indicates whether the value is a known member of the EvidenceManifestRequestSensitivity enum.
+func (e EvidenceManifestRequestSensitivity) Valid() bool {
+	switch e {
+	case EvidenceManifestRequestSensitivityConfidential:
+		return true
+	case EvidenceManifestRequestSensitivityInternal:
+		return true
+	case EvidenceManifestRequestSensitivityPublic:
+		return true
+	case EvidenceManifestRequestSensitivityRestricted:
 		return true
 	default:
 		return false
@@ -515,8 +605,11 @@ type CaseTicketStatus string
 
 // CaseExportAccepted defines model for CaseExportAccepted.
 type CaseExportAccepted struct {
-	ExportId string                   `json:"export_id"`
-	Status   CaseExportAcceptedStatus `json:"status"`
+	ExportId         string                   `json:"export_id"`
+	Manifest         *map[string]interface{}  `json:"manifest,omitempty"`
+	ManifestSha256   *string                  `json:"manifest_sha256,omitempty"`
+	RedactionProfile *string                  `json:"redaction_profile,omitempty"`
+	Status           CaseExportAcceptedStatus `json:"status"`
 }
 
 // CaseExportAcceptedStatus defines model for CaseExportAccepted.Status.
@@ -524,13 +617,18 @@ type CaseExportAcceptedStatus string
 
 // CaseExportRequest defines model for CaseExportRequest.
 type CaseExportRequest struct {
-	Format                    CaseExportRequestFormat `json:"format"`
-	IncludeEvidenceReferences *bool                   `json:"include_evidence_references,omitempty"`
-	RedactionProfile          *string                 `json:"redaction_profile,omitempty"`
+	Format                    CaseExportRequestFormat            `json:"format"`
+	IncludeEvidenceReferences *bool                              `json:"include_evidence_references,omitempty"`
+	Purpose                   *string                            `json:"purpose,omitempty"`
+	Recipient                 *string                            `json:"recipient,omitempty"`
+	RedactionProfile          *CaseExportRequestRedactionProfile `json:"redaction_profile,omitempty"`
 }
 
 // CaseExportRequestFormat defines model for CaseExportRequest.Format.
 type CaseExportRequestFormat string
+
+// CaseExportRequestRedactionProfile defines model for CaseExportRequest.RedactionProfile.
+type CaseExportRequestRedactionProfile string
 
 // CaseObservable defines model for CaseObservable.
 type CaseObservable struct {
@@ -591,6 +689,74 @@ type EventIngestRequest struct {
 	Payload    map[string]interface{} `json:"payload"`
 	Source     string                 `json:"source"`
 }
+
+// Evidence defines model for Evidence.
+type Evidence struct {
+	AcquisitionMethod string                  `json:"acquisition_method"`
+	Analyst           string                  `json:"analyst"`
+	ArtifactType      string                  `json:"artifact_type"`
+	CaseId            string                  `json:"case_id"`
+	CollectedAt       time.Time               `json:"collected_at"`
+	Collector         string                  `json:"collector"`
+	CommandRef        string                  `json:"command_ref"`
+	CreatedAt         time.Time               `json:"created_at"`
+	CustodyEvents     *[]EvidenceCustodyEvent `json:"custody_events,omitempty"`
+	DerivedFrom       *[]string               `json:"derived_from,omitempty"`
+	Id                string                  `json:"id"`
+	IntegrityStatus   EvidenceIntegrityStatus `json:"integrity_status"`
+	Limitations       *[]string               `json:"limitations,omitempty"`
+	Purpose           string                  `json:"purpose"`
+	ReceivedAt        time.Time               `json:"received_at"`
+	RetentionClass    string                  `json:"retention_class"`
+	Sensitivity       EvidenceSensitivity     `json:"sensitivity"`
+	Sha256            string                  `json:"sha256"`
+	Size              int                     `json:"size"`
+	Source            string                  `json:"source"`
+	Timezone          string                  `json:"timezone"`
+	ToolName          string                  `json:"tool_name"`
+	ToolVersion       string                  `json:"tool_version"`
+	Uri               string                  `json:"uri"`
+}
+
+// EvidenceIntegrityStatus defines model for Evidence.IntegrityStatus.
+type EvidenceIntegrityStatus string
+
+// EvidenceSensitivity defines model for Evidence.Sensitivity.
+type EvidenceSensitivity string
+
+// EvidenceCustodyEvent defines model for EvidenceCustodyEvent.
+type EvidenceCustodyEvent struct {
+	Actor    string    `json:"actor"`
+	At       time.Time `json:"at"`
+	Event    string    `json:"event"`
+	FromHash *string   `json:"from_hash,omitempty"`
+	ToHash   *string   `json:"to_hash,omitempty"`
+}
+
+// EvidenceManifestRequest defines model for EvidenceManifestRequest.
+type EvidenceManifestRequest struct {
+	AcquisitionMethod string                             `json:"acquisition_method"`
+	Analyst           string                             `json:"analyst"`
+	ArtifactType      string                             `json:"artifact_type"`
+	CaseId            string                             `json:"case_id"`
+	CollectedAt       time.Time                          `json:"collected_at"`
+	Collector         string                             `json:"collector"`
+	CommandRef        string                             `json:"command_ref"`
+	DerivedFrom       *[]string                          `json:"derived_from,omitempty"`
+	Limitations       *[]string                          `json:"limitations,omitempty"`
+	Purpose           string                             `json:"purpose"`
+	RetentionClass    string                             `json:"retention_class"`
+	Sensitivity       EvidenceManifestRequestSensitivity `json:"sensitivity"`
+	Sha256            string                             `json:"sha256"`
+	Size              int                                `json:"size"`
+	Source            string                             `json:"source"`
+	ToolName          string                             `json:"tool_name"`
+	ToolVersion       string                             `json:"tool_version"`
+	Uri               string                             `json:"uri"`
+}
+
+// EvidenceManifestRequestSensitivity defines model for EvidenceManifestRequest.Sensitivity.
+type EvidenceManifestRequestSensitivity string
 
 // Execution defines model for Execution.
 type Execution struct {
@@ -848,9 +1014,6 @@ type IngestEventParams struct {
 	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 }
 
-// CreateEvidenceManifestJSONBody defines parameters for CreateEvidenceManifest.
-type CreateEvidenceManifestJSONBody map[string]interface{}
-
 // CreateEvidenceManifestParams defines parameters for CreateEvidenceManifest.
 type CreateEvidenceManifestParams struct {
 	XRequestID     *RequestId     `json:"X-Request-ID,omitempty"`
@@ -972,7 +1135,7 @@ type CreateCaseTaskJSONRequestBody = CaseTaskRequest
 type IngestEventJSONRequestBody = EventIngestRequest
 
 // CreateEvidenceManifestJSONRequestBody defines body for CreateEvidenceManifest for application/json ContentType.
-type CreateEvidenceManifestJSONRequestBody CreateEvidenceManifestJSONBody
+type CreateEvidenceManifestJSONRequestBody = EvidenceManifestRequest
 
 // StartExecutionJSONRequestBody defines body for StartExecution for application/json ContentType.
 type StartExecutionJSONRequestBody = StartExecutionRequest

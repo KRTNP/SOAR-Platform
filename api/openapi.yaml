@@ -618,16 +618,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties: true
+              $ref: '#/components/schemas/EvidenceManifestRequest'
       responses:
         '201':
           description: Evidence manifest created.
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/Evidence'
   /v1/evidence/{evidenceId}:
     get:
       operationId: getEvidence
@@ -639,8 +637,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                additionalProperties: true
+                $ref: '#/components/schemas/Evidence'
   /v1/connectors:
     get:
       operationId: listConnectors
@@ -858,13 +855,87 @@ components:
       properties:
         format: {type: string, enum: [json, csv]}
         include_evidence_references: {type: boolean, default: true}
-        redaction_profile: {type: string}
+        redaction_profile: {type: string, enum: [standard, full], default: standard}
+        purpose: {type: string}
+        recipient: {type: string}
     CaseExportAccepted:
       type: object
       required: [export_id, status]
       properties:
         export_id: {type: string}
         status: {type: string, enum: [accepted, completed, failed]}
+        manifest_sha256: {type: string}
+        redaction_profile: {type: string}
+        manifest:
+          type: object
+          additionalProperties: true
+    EvidenceManifestRequest:
+      type: object
+      required: [case_id, artifact_type, uri, sha256, size, source, acquisition_method,
+                 collector, collected_at, tool_name, tool_version, command_ref, analyst,
+                 purpose, sensitivity, retention_class]
+      properties:
+        case_id: {type: string}
+        artifact_type: {type: string}
+        uri: {type: string}
+        sha256: {type: string, pattern: '^[a-fA-F0-9]{64}$'}
+        size: {type: integer, minimum: 0}
+        source: {type: string}
+        acquisition_method: {type: string}
+        collector: {type: string}
+        collected_at: {type: string, format: date-time}
+        tool_name: {type: string}
+        tool_version: {type: string}
+        command_ref: {type: string}
+        analyst: {type: string}
+        purpose: {type: string}
+        limitations: {type: array, items: {type: string}}
+        derived_from: {type: array, items: {type: string}}
+        sensitivity: {type: string, enum: [public, internal, confidential, restricted]}
+        retention_class: {type: string}
+    EvidenceCustodyEvent:
+      type: object
+      required: [event, actor, at]
+      properties:
+        event: {type: string}
+        actor: {type: string}
+        at: {type: string, format: date-time}
+        from_hash: {type: string}
+        to_hash: {type: string}
+    Evidence:
+      type: object
+      required: [id, case_id, artifact_type, uri, sha256, size, source, acquisition_method,
+                 collector, collected_at, created_at, received_at, timezone, tool_name,
+                 tool_version, command_ref, analyst, purpose, sensitivity, retention_class,
+                 integrity_status]
+      properties:
+        id: {type: string}
+        case_id: {type: string}
+        artifact_type: {type: string}
+        uri: {type: string}
+        sha256: {type: string}
+        size: {type: integer}
+        source: {type: string}
+        acquisition_method: {type: string}
+        collector: {type: string}
+        collected_at: {type: string, format: date-time}
+        created_at: {type: string, format: date-time}
+        received_at: {type: string, format: date-time}
+        timezone: {type: string}
+        tool_name: {type: string}
+        tool_version: {type: string}
+        command_ref: {type: string}
+        analyst: {type: string}
+        purpose: {type: string}
+        limitations: {type: array, items: {type: string}}
+        derived_from: {type: array, items: {type: string}}
+        sensitivity: {type: string, enum: [public, internal, confidential, restricted]}
+        retention_class: {type: string}
+        integrity_status: {type: string, enum: [verified, pending, mismatch, unavailable]}
+        custody_events:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceCustodyEvent'
     ScheduleRequest:
       type: object
       required: [playbook_id, cron, enabled]

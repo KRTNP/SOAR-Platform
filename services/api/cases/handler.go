@@ -1,6 +1,7 @@
 package cases
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,8 @@ import (
 	"github.com/oklog/ulid/v2"
 
 	"soar-platform/services/api/actions"
+	"soar-platform/services/api/audit"
+	"soar-platform/services/api/evidence"
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
 	"soar-platform/services/api/store"
@@ -109,6 +112,9 @@ func (h *Handler) Create(c *gin.Context) {
 			}
 		}
 		if err := AppendTimeline(ctx, tx, caseID, tenant, "case_opened", "system", map[string]any{"origin": "manual"}); err != nil {
+			return err
+		}
+		if err := auditAppend(ctx, tx, tenant, &caseID, "system", "system", "case.create", "completed", audit.TargetHash(caseID), nil); err != nil {
 			return err
 		}
 		apiCase = toAPICase(cs)
@@ -230,7 +236,10 @@ func (h *Handler) Update(c *gin.Context) {
 			if req.Reason != nil {
 				detail["reason"] = *req.Reason
 			}
-			return AppendTimeline(ctx, tx, caseID, tenant, "status_changed", "analyst", detail)
+			if err := AppendTimeline(ctx, tx, caseID, tenant, "status_changed", "analyst", detail); err != nil {
+				return err
+			}
+			return auditAppend(ctx, tx, tenant, &caseID, "analyst", "analyst", "case.transition", "completed", audit.TargetHash(caseID), req.Reason)
 		})
 		if err != nil {
 			httpx.WriteProblem(c, mapCaseError(err))
@@ -252,9 +261,12 @@ func (h *Handler) Update(c *gin.Context) {
 			if err := ticketing.Close(ctx, tx, tenant, caseID, *req.ClosureReason); err != nil {
 				return err
 			}
-			return AppendTimeline(ctx, tx, caseID, tenant, "case_closed", "analyst", map[string]any{
+			if err := AppendTimeline(ctx, tx, caseID, tenant, "case_closed", "analyst", map[string]any{
 				"from": before.Status, "closure_reason": *req.ClosureReason,
-			})
+			}); err != nil {
+				return err
+			}
+			return auditAppend(ctx, tx, tenant, &caseID, "analyst", "analyst", "case.close", "completed", audit.TargetHash(caseID), req.ClosureReason)
 		})
 		if err != nil {
 			httpx.WriteProblem(c, mapCaseError(err))
@@ -282,9 +294,12 @@ func (h *Handler) Update(c *gin.Context) {
 			if !created {
 				return nil
 			}
-			return AppendTimeline(ctx, tx, caseID, tenant, "ticket_opened", "analyst", map[string]any{
+			if err := AppendTimeline(ctx, tx, caseID, tenant, "ticket_opened", "analyst", map[string]any{
 				"ticket_ref": ticket.ExternalRef,
-			})
+			}); err != nil {
+				return err
+			}
+			return auditAppend(ctx, tx, tenant, &caseID, "analyst", "analyst", "case.open_ticket", "completed", audit.TargetHash(ticket.ExternalRef), nil)
 		})
 		if err != nil {
 			httpx.WriteProblem(c, mapCaseError(err))
@@ -318,9 +333,12 @@ func (h *Handler) Update(c *gin.Context) {
 			if !created {
 				return nil
 			}
-			return AppendTimeline(ctx, tx, caseID, tenant, "block_requested", "analyst", map[string]any{
+			if err := AppendTimeline(ctx, tx, caseID, tenant, "block_requested", "analyst", map[string]any{
 				"action_id": a.ID, "target": targetValue,
-			})
+			}); err != nil {
+				return err
+			}
+			return auditAppend(ctx, tx, tenant, &caseID, "analyst", "analyst", "action.request_block", "completed", audit.TargetHash(targetValue), nil)
 		})
 		if err != nil {
 			httpx.WriteProblem(c, mapCaseError(err))
@@ -349,6 +367,46 @@ func (h *Handler) Timeline(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"items": entries})
+}
+
+// Evidence implements GET /v1/cases/{caseId}/evidence. It does not re-verify
+// each row's hash — that belongs to the single-item evidence.Get gate; see
+// adr/0012-evidence-integrity-and-audit-export.md.
+func (h *Handler) Evidence(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenant := httpx.TenantID(c)
+	caseID := c.Param("caseId")
+
+	if _, err := Get(ctx, h.pool, tenant, caseID); err != nil {
+		httpx.WriteProblem(c, mapCaseError(err))
+		return
+	}
+	items, err := evidence.ListForCase(ctx, h.pool, tenant, caseID)
+	if err != nil {
+		httpx.WriteProblem(c, httpx.ErrInternal("list_case_evidence_failed", "could not list case evidence").WithCause(err))
+		return
+	}
+	apiItems := make([]genapi.Evidence, 0, len(items))
+	for _, ev := range items {
+		apiItems = append(apiItems, evidence.ToAPI(ev))
+	}
+	c.JSON(http.StatusOK, gin.H{"items": apiItems})
+}
+
+// auditAppend is a thin convenience wrapper so every case-mutation branch
+// above stays a one-line addition next to its existing AppendTimeline call.
+func auditAppend(ctx context.Context, tx pgx.Tx, tenant string, caseID *string, actor, actorType, action, decision, targetHash string, reason *string) error {
+	th := targetHash
+	return audit.Append(ctx, tx, audit.Record{
+		TenantID:   tenant,
+		Actor:      actor,
+		ActorType:  actorType,
+		CaseID:     caseID,
+		Action:     action,
+		TargetHash: &th,
+		Decision:   decision,
+		Reason:     reason,
+	})
 }
 
 func mapCaseError(err error) error {

@@ -20,9 +20,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"soar-platform/services/api/actions"
+	"soar-platform/services/api/audit"
 	"soar-platform/services/api/cases"
 	"soar-platform/services/api/config"
 	"soar-platform/services/api/events"
+	"soar-platform/services/api/evidence"
 	"soar-platform/services/api/httpx"
 	"soar-platform/services/api/store"
 )
@@ -98,6 +100,8 @@ func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool) *gin.
 	eventsH := events.NewHandler(pool)
 	casesH := cases.NewHandler(pool)
 	actionsH := actions.NewHandler(pool)
+	evidenceH := evidence.NewHandler(pool)
+	auditH := audit.NewHandler(pool)
 
 	v1 := r.Group("/v1")
 	{
@@ -109,6 +113,8 @@ func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool) *gin.
 		v1.GET("/cases/:caseId", casesH.Get)
 		v1.PATCH("/cases/:caseId", casesH.Update)
 		v1.GET("/cases/:caseId/timeline", casesH.Timeline)
+		v1.GET("/cases/:caseId/evidence", casesH.Evidence)
+		v1.POST("/cases/:caseId/export", casesH.Export)
 
 		v1.POST("/actions/preview", actionsH.Preview)
 		v1.GET("/actions/:actionId", actionsH.Get)
@@ -117,6 +123,11 @@ func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool) *gin.
 		v1.GET("/approvals", actionsH.ListApprovals)
 		v1.POST("/approvals/:approvalId/approve", actionsH.Approve)
 		v1.POST("/approvals/:approvalId/reject", actionsH.Reject)
+
+		v1.POST("/evidence/manifests", evidenceH.CreateManifest)
+		v1.GET("/evidence/:evidenceId", evidenceH.Get)
+
+		v1.GET("/audit", auditH.List)
 	}
 
 	return r
