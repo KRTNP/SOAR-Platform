@@ -704,6 +704,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResourcePage'
+  /v1/metrics:
+    get:
+      operationId: getMetrics
+      responses:
+        '200':
+          description: >-
+            A point-in-time snapshot of the KPIs this system can currently
+            compute from its own recorded data (docs/07-operations/metrics-and-kpis.md);
+            not a time series or a historical baseline. See adr/0015-kpi-snapshot.md
+            for scope and disclosed gaps.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
   /v1/stream:
     get:
       operationId: streamEvents

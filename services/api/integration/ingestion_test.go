@@ -29,6 +29,7 @@ import (
 	"soar-platform/services/api/evidence"
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
+	"soar-platform/services/api/metrics"
 	"soar-platform/services/api/network"
 )
 
@@ -109,6 +110,7 @@ func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	actionsH := actions.NewHandler(pool, mockNetworkConnector())
 	evidenceH := evidence.NewHandler(pool)
 	auditH := audit.NewHandler(pool)
+	metricsH := metrics.NewHandler(pool)
 	v1 := r.Group("/v1")
 	v1.POST("/events", eventsH.Ingest)
 	v1.GET("/events", eventsH.List)
@@ -129,6 +131,7 @@ func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	v1.POST("/evidence/manifests", evidenceH.CreateManifest)
 	v1.GET("/evidence/:evidenceId", evidenceH.Get)
 	v1.GET("/audit", auditH.List)
+	v1.GET("/metrics", metricsH.Get)
 
 	return httptest.NewServer(r), pool
 }
