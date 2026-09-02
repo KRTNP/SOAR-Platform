@@ -170,7 +170,7 @@ func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netCo
 	actionsH := actions.NewHandler(pool, netConn)
 	evidenceH := evidence.NewHandler(pool)
 	auditH := audit.NewHandler(pool)
-	metricsH := metrics.NewHandler(pool)
+	metricsH := metrics.NewHandler(pool, netConn.Target, netConn.Version)
 
 	v1 := r.Group("/v1")
 	{

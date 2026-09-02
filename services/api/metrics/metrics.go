@@ -28,6 +28,8 @@ type ConnectorOutcome struct {
 // historical baseline — just "what the numbers say right now".
 type Snapshot struct {
 	ComputedAt                   time.Time          `json:"computed_at"`
+	ConnectorTarget              string             `json:"connector_target"`
+	ConnectorVersion             string             `json:"connector_version"`
 	ConnectorReliability         []ConnectorOutcome `json:"connector_reliability"`
 	AnalystOverrideCount         int                `json:"analyst_override_count"`
 	AutoReleaseCount             int                `json:"auto_release_count"`
@@ -122,11 +124,20 @@ func Compute(ctx context.Context, pool *pgxpool.Pool, tenantID string) (Snapshot
 }
 
 type Handler struct {
-	pool *pgxpool.Pool
+	pool             *pgxpool.Pool
+	connectorTarget  string
+	connectorVersion string
 }
 
-func NewHandler(pool *pgxpool.Pool) *Handler {
-	return &Handler{pool: pool}
+// NewHandler builds a metrics Handler. connectorTarget/connectorVersion are
+// the currently-wired NetworkConnector's identity (actions.NetworkConnector's
+// Target/Version, e.g. "network_blocks"/"connector-mock-network-block@1.0.0"
+// vs "SOAR_TEMP_BLOCK"/"connector-opnsense-lab@1.0.0") — reported as-is
+// regardless of whether any execution has happened yet, unlike
+// ConnectorReliability below which only reflects connectors that have
+// actually executed something.
+func NewHandler(pool *pgxpool.Pool, connectorTarget, connectorVersion string) *Handler {
+	return &Handler{pool: pool, connectorTarget: connectorTarget, connectorVersion: connectorVersion}
 }
 
 // Get implements GET /v1/metrics.
@@ -140,5 +151,7 @@ func (h *Handler) Get(c *gin.Context) {
 	if snap.ConnectorReliability == nil {
 		snap.ConnectorReliability = []ConnectorOutcome{}
 	}
+	snap.ConnectorTarget = h.connectorTarget
+	snap.ConnectorVersion = h.connectorVersion
 	c.JSON(http.StatusOK, snap)
 }

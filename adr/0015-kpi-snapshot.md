@@ -38,6 +38,15 @@ component — this snapshot is expected to grow as more of
 `metrics-and-kpis.md`'s list becomes computable, and pinning a strict schema
 now would just mean revising it every time.
 
+`Snapshot` also carries `connector_target`/`connector_version` — the
+currently-wired `actions.NetworkConnector`'s identity (`main.go`'s
+`buildNetworkConnector` result), reported unconditionally rather than only
+derived from `connector_reliability` (which is empty until something has
+actually executed). Added alongside the M6 frontend work
+(`web/app/metrics`, a Sidebar connector badge) so the UI has a reliable way
+to show whether the mock or the real OPNsense connector (adr/0013) is
+currently active, without depending on execution history existing yet.
+
 **Not implemented, and disclosed rather than faked:** `metrics-and-kpis.md`
 also lists MTTT (alert-to-triage — no triage timestamp exists anywhere in
 the schema), false-positive harm (needs a manual "this action was wrong"

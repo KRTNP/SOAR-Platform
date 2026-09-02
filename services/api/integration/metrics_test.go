@@ -30,6 +30,8 @@ func TestMetrics_ReturnsASnapshot(t *testing.T) {
 	}
 
 	var snap struct {
+		ConnectorTarget      string `json:"connector_target"`
+		ConnectorVersion     string `json:"connector_version"`
 		ConnectorReliability []struct {
 			ConnectorVersion string `json:"connector_version"`
 			Allowed          int    `json:"allowed"`
@@ -45,5 +47,8 @@ func TestMetrics_ReturnsASnapshot(t *testing.T) {
 	}
 	if len(snap.ConnectorReliability) != 1 || snap.ConnectorReliability[0].Allowed != 1 {
 		t.Errorf("expected exactly one connector_version with 1 allowed execute, got %+v", snap.ConnectorReliability)
+	}
+	if snap.ConnectorTarget == "" || snap.ConnectorVersion == "" {
+		t.Errorf("expected connector_target/connector_version to reflect the wired connector, got %+v", snap)
 	}
 }
