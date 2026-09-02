@@ -104,11 +104,29 @@ call.
 curl -s -X POST http://localhost:8080/v1/events \
   -H 'Content-Type: application/json' \
   -H 'Idempotency-Key: tabletop-ingest-001' \
-  -d @examples/normalized-event.json
+  -d '{
+    "source": "wazuh",
+    "occurred_at": "2026-09-02T04:00:00Z",
+    "payload": {
+      "source_event_id": "wazuh-alert-tabletop-0001",
+      "event_class": "authentication",
+      "severity": "medium",
+      "confidence": 0.82,
+      "observables": [
+        {"type": "ipv4", "value": "<the TEST-NET-3 IP>", "normalization": "rfc5737-test-net",
+         "first_seen": "2026-09-02T04:00:00Z", "last_seen": "2026-09-02T04:00:00Z",
+         "confidence": 0.82, "sensitivity": "internal", "source_refs": ["wazuh-alert-tabletop-0001"]}
+      ]
+    }
+  }'
 ```
-Edit the fixture's `observables[0].value` to your chosen TEST-NET-3 address
-first. Note the returned `event_id`/`case_id` (or read them back via
-`GET /v1/cases`).
+`POST /v1/events` takes this envelope shape (`source`/`occurred_at`/`payload`),
+**not** the internal normalized-event shape `examples/normalized-event.json`
+documents (that fixture is what an event looks like *after* normalization —
+see `services/api/events/event.go`'s `Normalize`, and
+`services/api/integration/ingestion_test.go`'s `fixture` helper for the
+authoritative request shape). Note the returned `event_id`/`case_id` (or read
+them back via `GET /v1/cases`).
 
 **2. Analyst reviews the case and calls preview.**
 
@@ -185,11 +203,16 @@ on this?
 curl -s http://localhost:8080/v1/audit
 curl -s -X POST http://localhost:8080/v1/cases/<case_id>/export \
   -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: tabletop-export-001' \
   -d '{"format":"json","redaction_profile":"standard","purpose":"tabletop exercise review","recipient":"dfir-reviewer"}'
 ```
-Confirm the raw IP never appears in the audit log (only `target_hash`), and
-that the export's `manifest_sha256` matches a hash you can independently
-recompute over the returned manifest.
+Confirm the raw IP never appears in **the audit log** (only `target_hash`) —
+it legitimately *does* appear in this export's own manifest (the case's own
+observable/target values), since `standard` redaction only strips each
+evidence entry's `uri`/`command_ref` per `adr/0012`, not case content itself.
+Confirm the export's `manifest_sha256` matches a hash you can independently
+recompute over the returned manifest (sorted keys, compact separators —
+see `services/api/cases/export.go` if the group wants the exact encoding).
 
 ## Outputs to capture
 
