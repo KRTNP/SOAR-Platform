@@ -125,7 +125,18 @@ func rejectApproval(t *testing.T, srv *httptest.Server, approvalID, reason strin
 // returns its case id, so requestBlock has an observable to target.
 func caseWithBlockTarget(t *testing.T, srv *httptest.Server, sourceEventID string) string {
 	t.Helper()
-	_, accepted := postEvent(t, srv, "idem-key-"+sourceEventID, fixtureWithObservables(t, sourceEventID))
+	return caseWithBlockTargetClass(t, srv, sourceEventID, "authentication")
+}
+
+// caseWithBlockTargetClass is caseWithBlockTarget with the underlying
+// event's class exposed — needed only by
+// TestScheduler_OneFailingCandidateDoesNotBlockTheRest, which needs two
+// independent cases both targeting 198.51.100.10 in the same run; see
+// fixtureWithObservablesAndClass's comment for why the class matters now
+// that adr/0018 correlates same-IP "authentication" events onto one case.
+func caseWithBlockTargetClass(t *testing.T, srv *httptest.Server, sourceEventID, eventClass string) string {
+	t.Helper()
+	_, accepted := postEvent(t, srv, "idem-key-"+sourceEventID, fixtureWithObservablesAndClass(t, sourceEventID, eventClass))
 	if accepted.AlertId == nil {
 		t.Fatal("expected an alert_id from ingestion")
 	}

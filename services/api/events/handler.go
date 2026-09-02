@@ -14,7 +14,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/oklog/ulid/v2"
 
+	"soar-platform/services/api/actions"
 	"soar-platform/services/api/alerts"
+	"soar-platform/services/api/allowlist"
 	"soar-platform/services/api/audit"
 	"soar-platform/services/api/cases"
 	"soar-platform/services/api/enrichment"
@@ -25,6 +27,45 @@ import (
 )
 
 const ingestRoute = "ingestEvent"
+
+// correlationWindowSeconds and autoBlockThreshold implement the one
+// correlated signature adr/0018 covers: repeated authentication-class
+// events sharing a source IP, matching
+// docs/08-testing/lab-scenario-ssh-bruteforce.md's "5 failed SSH logins
+// within 1 minute from one source IP". A second signature needing
+// correlation would pick its own window rather than reusing this constant.
+const (
+	correlationWindowSeconds = 60
+	autoBlockThreshold       = 5
+)
+
+// correlationKeyFor returns "" when eventClass/observables don't match the
+// one signature this package correlates — every other event class keeps
+// M1's original "always open a new case" behavior unchanged.
+func correlationKeyFor(eventClass string, observables []Observable) string {
+	if eventClass != "authentication" {
+		return ""
+	}
+	for _, o := range observables {
+		if o.Type == "ipv4" {
+			return eventClass + ":" + o.Value
+		}
+	}
+	return ""
+}
+
+// sourceIPFor mirrors correlationKeyFor's observable scan, for the
+// allowlist check and the auto-trigger's block target — kept separate from
+// the key itself so a future correlation signature isn't forced to encode
+// "the value to maybe block" into its key format.
+func sourceIPFor(observables []Observable) string {
+	for _, o := range observables {
+		if o.Type == "ipv4" {
+			return o.Value
+		}
+	}
+	return ""
+}
 
 type Handler struct {
 	pool *pgxpool.Pool
@@ -128,27 +169,116 @@ func (h *Handler) Ingest(c *gin.Context) {
 			return err
 		}
 
-		caseID := newID("case")
-		cs := cases.NewFromAlert(caseID, tenant, ev.EventClass, ev.Severity, ev.Confidence, "system", now)
-		if err := cases.Insert(ctx, tx, cs); err != nil {
-			return err
+		// adr/0018: repeated authentication-class events sharing a source IP
+		// attach to the same still-open case instead of each opening a new
+		// one — the correlation step docs/03-domain-model already modeled
+		// (cases.correlation_key) but M1 deliberately deferred. Every other
+		// event class keeps today's "always open a new case" behavior.
+		correlationKey := correlationKeyFor(ev.EventClass, ev.Observables)
+		var caseID string
+		var repeatCount int
+		var existingCase *cases.Case
+		if correlationKey != "" {
+			existingCase, err = cases.FindOpenByCorrelation(ctx, tx, tenant, correlationKey, correlationWindowSeconds, now)
+			if err != nil {
+				return err
+			}
+		}
+		if existingCase != nil {
+			caseID = existingCase.ID
+			repeatCount, err = cases.IncrementRepeatCount(ctx, tx, tenant, caseID, now)
+			if err != nil {
+				return err
+			}
+			if err := cases.AppendTimeline(ctx, tx, caseID, tenant, "alert_linked", "system", map[string]any{
+				"alert_id": alertID, "event_id": ev.ID, "source": ev.Source, "repeat_count": repeatCount,
+			}); err != nil {
+				return err
+			}
+		} else {
+			caseID = newID("case")
+			var windowPtr *int
+			var keyPtr *string
+			if correlationKey != "" {
+				w := correlationWindowSeconds
+				windowPtr = &w
+				keyPtr = &correlationKey
+			}
+			cs := cases.NewFromAlert(caseID, tenant, ev.EventClass, ev.Severity, ev.Confidence, "system", now, keyPtr, windowPtr)
+			if err := cases.Insert(ctx, tx, cs); err != nil {
+				return err
+			}
+			repeatCount = cs.RepeatCount
+			if err := cases.AppendTimeline(ctx, tx, caseID, tenant, "case_opened", "system", map[string]any{
+				"alert_id": alertID, "event_id": ev.ID, "source": ev.Source,
+			}); err != nil {
+				return err
+			}
 		}
 		if err := cases.LinkAlert(ctx, tx, caseID, alertID); err != nil {
 			return err
 		}
-		if err := cases.LinkObservables(ctx, tx, caseID, observableIDs); err != nil {
+		linkIDs := observableIDs
+		if existingCase != nil {
+			// Correlating onto a case that already has this exact
+			// type:value observable — skip relinking it (see
+			// ExistingObservableValues' comment for why this only matters
+			// once a case can receive more than one event's observables).
+			existingValues, err := cases.ExistingObservableValues(ctx, tx, caseID)
+			if err != nil {
+				return err
+			}
+			linkIDs = linkIDs[:0]
+			for i, o := range ev.Observables {
+				if !existingValues[o.Type+":"+o.Value] {
+					linkIDs = append(linkIDs, observableIDs[i])
+				}
+			}
+		}
+		if err := cases.LinkObservables(ctx, tx, caseID, linkIDs); err != nil {
 			return err
 		}
 		if err := alerts.SetCaseRef(ctx, tx, alertID, caseID); err != nil {
 			return err
 		}
-		if err := cases.AppendTimeline(ctx, tx, caseID, tenant, "case_opened", "system", map[string]any{
-			"alert_id": alertID, "event_id": ev.ID, "source": ev.Source,
-		}); err != nil {
-			return err
-		}
 		if _, err := evidence.RecordFromEvent(ctx, tx, tenant, caseID, ev.ID, ev.Source, ev.RawRef.URI, ev.ObservedAt); err != nil {
 			return err
+		}
+
+		// SSH brute-force auto-trigger (adr/0018): once the threshold is hit
+		// for a correlated, non-allowlisted source, request the block
+		// automatically instead of waiting for an analyst to click "Request
+		// block" — everything downstream (approval, execute, scheduled
+		// release) is the same already-built path that manual click uses.
+		if correlationKey != "" && repeatCount >= autoBlockThreshold {
+			sourceIP := sourceIPFor(ev.Observables)
+			trusted, err := allowlist.IsTrusted(ctx, tx, tenant, sourceIP, now)
+			if err != nil {
+				return err
+			}
+			if !trusted {
+				a, _, created, err := actions.RequestBlock(ctx, tx, tenant, caseID, "ipv4", sourceIP, "system")
+				if err != nil {
+					return err
+				}
+				if created {
+					if err := cases.AppendTimeline(ctx, tx, caseID, tenant, "block_requested", "system", map[string]any{
+						"action_id": a.ID, "target": sourceIP, "repeat_count": repeatCount,
+					}); err != nil {
+						return err
+					}
+					_, approvalRoles := actions.EvaluatePolicy(a.Intent, a.Risk)
+					reason := "auto-triggered after " + fmt.Sprintf("%d", repeatCount) + " correlated events; requires approval from: " + strings.Join(approvalRoles, ", ")
+					th := audit.TargetHash(sourceIP)
+					if err := audit.Append(ctx, tx, audit.Record{
+						TenantID: tenant, Actor: "soar-ingestion", ActorType: "system",
+						CaseID: &caseID, Action: "action.request_block",
+						TargetHash: &th, Decision: "completed", Reason: &reason,
+					}); err != nil {
+						return err
+					}
+				}
+			}
 		}
 		requestID := httpx.RequestID(c)
 		eventID := ev.ID

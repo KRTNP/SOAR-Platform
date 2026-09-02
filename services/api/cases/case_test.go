@@ -34,7 +34,7 @@ func TestValidStatus(t *testing.T) {
 
 func TestNewFromAlert(t *testing.T) {
 	opened := time.Date(2026, 8, 30, 4, 0, 3, 0, time.UTC)
-	c := NewFromAlert("case-test-0001", "lab", "account_access", "medium", 0.82, "system", opened)
+	c := NewFromAlert("case-test-0001", "lab", "account_access", "medium", 0.82, "system", opened, nil, nil)
 
 	if c.Status != "new" {
 		t.Errorf("expected initial status 'new', got %q", c.Status)

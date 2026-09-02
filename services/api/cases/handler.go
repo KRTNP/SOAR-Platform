@@ -89,7 +89,7 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	caseID := "case-" + strings.ToLower(ulid.Make().String())
-	cs := NewFromAlert(caseID, tenant, category, string(req.Severity), confidence, "system", time.Now().UTC())
+	cs := NewFromAlert(caseID, tenant, category, string(req.Severity), confidence, "system", time.Now().UTC(), nil, nil)
 	cs.Title = req.Title
 
 	var apiCase genapi.Case
@@ -228,6 +228,9 @@ func (h *Handler) Update(c *gin.Context) {
 			before, err := Get(ctx, tx, tenant, caseID)
 			if err != nil {
 				return err
+			}
+			if before.Status == "closed" {
+				return httpx.ErrConflict("case_already_closed", "a closed case cannot be transitioned; it is a terminal state")
 			}
 			if err := Transition(ctx, tx, tenant, caseID, newStatus); err != nil {
 				return err

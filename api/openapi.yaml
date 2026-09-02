@@ -704,6 +704,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ResourcePage'
+  /v1/allowlist:
+    get:
+      operationId: listTrustedSources
+      responses:
+        '200':
+          description: >-
+            Trusted/management sources that adr/0018's SSH brute-force
+            auto-trigger must never request a block against.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourcePage'
+    post:
+      operationId: addTrustedSource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrustedSourceRequest'
+      responses:
+        '201':
+          description: Trusted source added (or its reason/expiry updated, if the value already existed).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrustedSource'
   /v1/metrics:
     get:
       operationId: getMetrics
@@ -1103,6 +1130,23 @@ components:
         started_at: {type: string, format: date-time}
         finished_at: {type: string, format: date-time}
         steps: {type: array, items: {type: object, additionalProperties: true}}
+    TrustedSourceRequest:
+      type: object
+      required: [value, reason]
+      properties:
+        value: {type: string}
+        reason: {type: string}
+        expires_at: {type: string, format: date-time}
+    TrustedSource:
+      type: object
+      required: [id, value, reason, created_by, created_at]
+      properties:
+        id: {type: string}
+        value: {type: string}
+        reason: {type: string}
+        created_by: {type: string}
+        created_at: {type: string, format: date-time}
+        expires_at: {type: string, format: date-time}
     Approval:
       type: object
       required: [id, action_id, status, expires_at]

@@ -22,6 +22,7 @@ import (
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 
 	"soar-platform/services/api/actions"
+	"soar-platform/services/api/allowlist"
 	"soar-platform/services/api/audit"
 	"soar-platform/services/api/cases"
 	"soar-platform/services/api/connectors"
@@ -112,6 +113,7 @@ func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	evidenceH := evidence.NewHandler(pool)
 	auditH := audit.NewHandler(pool)
 	metricsH := metrics.NewHandler(pool, netConn.Target, netConn.Version)
+	allowlistH := allowlist.NewHandler(pool)
 	v1 := r.Group("/v1")
 	v1.POST("/events", eventsH.Ingest)
 	v1.GET("/events", eventsH.List)
@@ -133,6 +135,8 @@ func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	v1.GET("/evidence/:evidenceId", evidenceH.Get)
 	v1.GET("/audit", auditH.List)
 	v1.GET("/metrics", metricsH.Get)
+	v1.GET("/allowlist", allowlistH.List)
+	v1.POST("/allowlist", allowlistH.Add)
 
 	return httptest.NewServer(r), pool
 }

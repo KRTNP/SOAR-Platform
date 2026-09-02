@@ -35,6 +35,14 @@ export function StatusControl({ caseItem }: { caseItem: Case }) {
 
   const dirty = status !== caseItem.status;
 
+  if (caseItem.status === "closed") {
+    // Closed is a terminal state (services/api/cases/handler.go's Transition
+    // now rejects this with a 409) — matching CloseCaseControl's own
+    // existing closed-state guard below rather than showing a control that
+    // can only ever fail.
+    return null;
+  }
+
   function submit() {
     setError(null);
     startTransition(async () => {

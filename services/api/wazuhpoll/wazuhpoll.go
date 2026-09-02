@@ -4,8 +4,9 @@
 // Wazuh Indexer for new alerts and forward each one into this service's own
 // POST /v1/events over loopback, the same path a manual curl or the
 // existing integration tests already use. See adr/0017 for the design
-// trade-offs (polling vs. a manager-side webhook, no persisted checkpoint,
-// heuristic severity/confidence mapping).
+// trade-offs (polling vs. a manager-side webhook, heuristic severity/
+// confidence mapping) and adr/0018 for the checkpoint persistence this
+// package originally shipped without.
 package wazuhpoll
 
 import (
@@ -14,6 +15,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -21,6 +23,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Config is loaded from WAZUH_* environment variables only — mirrors
@@ -115,14 +120,18 @@ type alertSource struct {
 // Run polls on a ticker until ctx is cancelled, logging and continuing past
 // any single Poll error (matching services/api/scheduler.Run's posture —
 // a transient indexer or ingest failure should not kill the whole loop).
-func Run(ctx context.Context, cfg Config, ingestBaseURL string, logger *slog.Logger) {
+func Run(ctx context.Context, pool *pgxpool.Pool, cfg Config, ingestBaseURL string, logger *slog.Logger) {
 	client := &http.Client{
 		Timeout: 15 * time.Second,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: cfg.InsecureSkipVerify}, //nolint:gosec // lab-only, explicit opt-in
 		},
 	}
-	since := time.Now().UTC()
+	since, err := LoadCheckpoint(ctx, pool)
+	if err != nil {
+		logger.Error("loading wazuh poll checkpoint, starting from now instead", "err", err)
+		since = time.Now().UTC()
+	}
 	ticker := time.NewTicker(time.Duration(cfg.PollIntervalSeconds) * time.Second)
 	defer ticker.Stop()
 
@@ -136,12 +145,36 @@ func Run(ctx context.Context, cfg Config, ingestBaseURL string, logger *slog.Log
 				logger.Error("wazuh poll failed", "err", err)
 				continue
 			}
+			if err := SaveCheckpoint(ctx, pool, newSince); err != nil {
+				logger.Error("saving wazuh poll checkpoint", "err", err)
+			}
 			since = newSince
 			if forwarded > 0 {
 				logger.Info("wazuh poll forwarded alerts", "count", forwarded, "checkpoint", since)
 			}
 		}
 	}
+}
+
+// LoadCheckpoint reads the single wazuhpoll_checkpoint row (adr/0018). No
+// row yet (first-ever run on a fresh database) is not an error — it returns
+// the zero time and lets Run fall back to time.Now(), the exact behavior
+// this package originally always had.
+func LoadCheckpoint(ctx context.Context, pool *pgxpool.Pool) (time.Time, error) {
+	var t time.Time
+	err := pool.QueryRow(ctx, `select last_polled_at from wazuhpoll_checkpoint where id`).Scan(&t)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return time.Now().UTC(), nil
+	}
+	return t, err
+}
+
+// SaveCheckpoint upserts the single wazuhpoll_checkpoint row.
+func SaveCheckpoint(ctx context.Context, pool *pgxpool.Pool, t time.Time) error {
+	_, err := pool.Exec(ctx, `
+		insert into wazuhpoll_checkpoint (id, last_polled_at) values (true, $1)
+		on conflict (id) do update set last_polled_at = excluded.last_polled_at`, t)
+	return err
 }
 
 // Poll runs one pass: fetch alerts newer than since (ascending order, up to

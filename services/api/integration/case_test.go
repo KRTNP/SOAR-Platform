@@ -14,9 +14,21 @@ import (
 
 func fixtureWithObservables(t *testing.T, sourceEventID string) []byte {
 	t.Helper()
+	return fixtureWithObservablesAndClass(t, sourceEventID, "authentication")
+}
+
+// fixtureWithObservablesAndClass exists for the rare test needing two
+// independent cases both targeting 198.51.100.10 in one run (e.g.
+// TestScheduler_OneFailingCandidateDoesNotBlockTheRest): adr/0018's
+// correlation would otherwise merge a second "authentication"-class event
+// for the same IP onto the first case instead of opening a second one — a
+// non-"authentication" class here opts out of that on purpose, the same way
+// most real event classes never correlate at all.
+func fixtureWithObservablesAndClass(t *testing.T, sourceEventID, eventClass string) []byte {
+	t.Helper()
 	payload := map[string]any{
 		"source_event_id": sourceEventID,
-		"event_class":     "authentication",
+		"event_class":     eventClass,
 		"severity":        "medium",
 		"confidence":      0.82,
 		"observables": []any{
@@ -190,6 +202,60 @@ func TestCaseTransition_RejectsDirectClose(t *testing.T) {
 	_ = json.NewDecoder(detailResp.Body).Decode(&detail)
 	if detail.Status == genapi.CaseStatusClosed {
 		t.Error("case must not have been closed by the rejected transition")
+	}
+}
+
+// TestCaseTransition_RejectsOnceClosed proves closed is a terminal state:
+// found during manual testing this session that a closed case could still
+// be transitioned to another status, which should not be possible — see
+// adr/0018.
+func TestCaseTransition_RejectsOnceClosed(t *testing.T) {
+	srv, pool := setupServer(t)
+	defer srv.Close()
+
+	_, accepted := postEvent(t, srv, "idem-key-closed-terminal-0001", fixture(t, "closed-terminal-test-0001"))
+
+	var caseID string
+	err := pool.QueryRow(context.Background(),
+		"select case_ref from alerts where id = $1", *accepted.AlertId,
+	).Scan(&caseID)
+	if err != nil {
+		t.Fatalf("looking up case for alert: %v", err)
+	}
+
+	closeReq, _ := http.NewRequest(http.MethodPatch, srv.URL+"/v1/cases/"+caseID,
+		strings.NewReader(`{"operation":"close","closure_reason":"resolved"}`))
+	closeReq.Header.Set("Content-Type", "application/json")
+	closeResp, err := http.DefaultClient.Do(closeReq)
+	if err != nil {
+		t.Fatalf("PATCH close: %v", err)
+	}
+	closeResp.Body.Close()
+	if closeResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 closing the case, got %d", closeResp.StatusCode)
+	}
+
+	reopenReq, _ := http.NewRequest(http.MethodPatch, srv.URL+"/v1/cases/"+caseID,
+		strings.NewReader(`{"operation":"transition","status":"investigating"}`))
+	reopenReq.Header.Set("Content-Type", "application/json")
+	reopenResp, err := http.DefaultClient.Do(reopenReq)
+	if err != nil {
+		t.Fatalf("PATCH transition after close: %v", err)
+	}
+	defer reopenResp.Body.Close()
+	if reopenResp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected 409 transitioning a closed case, got %d", reopenResp.StatusCode)
+	}
+
+	detailResp, err := http.Get(srv.URL + "/v1/cases/" + caseID)
+	if err != nil {
+		t.Fatalf("getting case detail: %v", err)
+	}
+	defer detailResp.Body.Close()
+	var detail genapi.Case
+	_ = json.NewDecoder(detailResp.Body).Decode(&detail)
+	if detail.Status != genapi.CaseStatusClosed {
+		t.Errorf("expected case to remain closed, got %q", detail.Status)
 	}
 }
 

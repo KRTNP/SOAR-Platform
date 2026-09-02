@@ -3,6 +3,7 @@ package cases
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -16,17 +17,87 @@ func Insert(ctx context.Context, tx pgx.Tx, c *Case) error {
 	_, err := tx.Exec(ctx, `
 		insert into cases (
 			id, tenant_id, title, category, severity, confidence, status,
-			opened_at, updated_at, owner
-		) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+			opened_at, updated_at, owner, correlation_key, correlation_window_seconds, repeat_count
+		) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
 		c.ID, c.TenantID, c.Title, c.Category, c.Severity, c.Confidence, c.Status,
-		c.OpenedAt, c.UpdatedAt, c.Owner,
+		c.OpenedAt, c.UpdatedAt, c.Owner, c.CorrelationKey, c.CorrelationWindowSeconds, c.RepeatCount,
 	)
 	return err
+}
+
+// FindOpenByCorrelation returns the most recently opened, not-yet-closed
+// case sharing correlationKey whose OpenedAt is still within windowSeconds
+// of now — the read side of adr/0018's correlation slice. nil, nil (not
+// ErrNotFound) when nothing matches, since "no existing case to attach to"
+// is the normal, expected outcome for most calls, not an error.
+func FindOpenByCorrelation(ctx context.Context, q querier, tenantID, correlationKey string, windowSeconds int, now time.Time) (*Case, error) {
+	row := q.QueryRow(ctx, `
+		select `+caseColumns+`
+		from cases
+		where tenant_id = $1
+		  and correlation_key = $2
+		  and status <> 'closed'
+		  and opened_at + make_interval(secs => $3) >= $4
+		order by opened_at desc
+		limit 1`,
+		tenantID, correlationKey, windowSeconds, now,
+	)
+	c, err := scanCase(row)
+	if errors.Is(err, ErrNotFound) {
+		return nil, nil
+	}
+	return c, err
+}
+
+// IncrementRepeatCount bumps repeat_count on an existing case that a new
+// correlated alert just attached to, returning the count after the
+// increment — what the SSH brute-force auto-trigger threshold check reads.
+func IncrementRepeatCount(ctx context.Context, tx pgx.Tx, tenantID, caseID string, updatedAt time.Time) (int, error) {
+	var count int
+	err := tx.QueryRow(ctx, `
+		update cases set repeat_count = repeat_count + 1, updated_at = $3
+		where tenant_id = $1 and id = $2
+		returning repeat_count`,
+		tenantID, caseID, updatedAt,
+	).Scan(&count)
+	return count, err
 }
 
 func LinkAlert(ctx context.Context, tx pgx.Tx, caseID, alertID string) error {
 	_, err := tx.Exec(ctx, `insert into case_alerts (case_id, alert_id) values ($1,$2)`, caseID, alertID)
 	return err
+}
+
+// ExistingObservableValues returns "type:value" for every observable
+// already linked to caseID — adr/0018's correlation attaches a new alert's
+// observables onto an existing case, and without this check a case that
+// correlates N events ends up with N near-identical observable rows all
+// showing the same IP (services/api/events' Insert has no dedup of its
+// own; this was invisible before correlation existed, since a case could
+// only ever have one contributing event). The caller filters observableIDs
+// against this before calling LinkObservables — the observable rows
+// themselves still exist (harmless, just unlinked from this case), only
+// the duplicate case_observables link and duplicate render (e.g. web's
+// per-observable "Request block" button) are avoided.
+func ExistingObservableValues(ctx context.Context, q querier, caseID string) (map[string]bool, error) {
+	rows, err := q.Query(ctx, `
+		select o.type, o.value
+		from case_observables co join observables o on o.id = co.observable_id
+		where co.case_id = $1`, caseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := map[string]bool{}
+	for rows.Next() {
+		var t, v string
+		if err := rows.Scan(&t, &v); err != nil {
+			return nil, err
+		}
+		out[t+":"+v] = true
+	}
+	return out, rows.Err()
 }
 
 func LinkObservables(ctx context.Context, tx pgx.Tx, caseID string, observableIDs []int64) error {
@@ -57,6 +128,7 @@ func scanCase(row pgx.Row) (*Case, error) {
 		&c.OpenedAt, &c.UpdatedAt, &c.ClosedAt, &c.Owner, &c.IncidentCommander, &c.ServiceOwner,
 		&c.Hypothesis, &c.Facts, &c.Limitations, &c.ClosureReason,
 		&c.CorrelationKey, &c.RootCause, &c.LessonsLearned,
+		&c.CorrelationWindowSeconds, &c.RepeatCount,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
@@ -70,7 +142,8 @@ func scanCase(row pgx.Row) (*Case, error) {
 const caseColumns = `
 	id, tenant_id, title, category, severity, confidence, status,
 	opened_at, updated_at, closed_at, owner, incident_commander, service_owner,
-	hypothesis, facts, limitations, closure_reason, correlation_key, root_cause, lessons_learned`
+	hypothesis, facts, limitations, closure_reason, correlation_key, root_cause, lessons_learned,
+	correlation_window_seconds, repeat_count`
 
 func Get(ctx context.Context, q querier, tenantID, caseID string) (*Case, error) {
 	row := q.QueryRow(ctx, `select `+caseColumns+` from cases where tenant_id = $1 and id = $2`, tenantID, caseID)

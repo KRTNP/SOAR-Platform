@@ -126,7 +126,10 @@ func TestScheduler_OneFailingCandidateDoesNotBlockTheRest(t *testing.T) {
 	approveApproval(t, srv, findApprovalForAction(t, srv, action1.Id).Id).Body.Close()
 	executeAction(t, srv, action1.Id).Body.Close()
 
-	caseID2 := caseWithBlockTarget(t, srv, "scheduler-partial-fail-0002")
+	// A different event class than case 1's, so adr/0018's correlation
+	// (same-IP "authentication" events) doesn't merge this onto caseID1 —
+	// this test needs two independent cases, not one correlated case.
+	caseID2 := caseWithBlockTargetClass(t, srv, "scheduler-partial-fail-0002", "network")
 	action2 := requestBlock(t, srv, caseID2, "198.51.100.10")
 	approveApproval(t, srv, findApprovalForAction(t, srv, action2.Id).Id).Body.Close()
 	executeAction(t, srv, action2.Id).Body.Close()

@@ -22,6 +22,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"soar-platform/services/api/actions"
+	"soar-platform/services/api/allowlist"
 	"soar-platform/services/api/audit"
 	"soar-platform/services/api/cases"
 	"soar-platform/services/api/config"
@@ -86,7 +87,7 @@ func run(logger *slog.Logger) error {
 		logger.Info("wazuh poller enabled", "indexer", wcfg.IndexerBaseURL, "interval_seconds", wcfg.PollIntervalSeconds)
 		go func() {
 			defer close(wazuhPollDone)
-			wazuhpoll.Run(ctx, wcfg, cfg.WazuhIngestBaseURL, logger)
+			wazuhpoll.Run(ctx, pool, wcfg, cfg.WazuhIngestBaseURL, logger)
 		}()
 	} else {
 		close(wazuhPollDone)
@@ -189,6 +190,7 @@ func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netCo
 	evidenceH := evidence.NewHandler(pool)
 	auditH := audit.NewHandler(pool)
 	metricsH := metrics.NewHandler(pool, netConn.Target, netConn.Version)
+	allowlistH := allowlist.NewHandler(pool)
 
 	v1 := r.Group("/v1")
 	{
@@ -218,6 +220,9 @@ func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netCo
 		v1.GET("/audit", auditH.List)
 
 		v1.GET("/metrics", metricsH.Get)
+
+		v1.GET("/allowlist", allowlistH.List)
+		v1.POST("/allowlist", allowlistH.Add)
 	}
 
 	return r

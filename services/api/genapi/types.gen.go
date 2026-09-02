@@ -872,6 +872,23 @@ type StatusResponse struct {
 	Status  string  `json:"status"`
 }
 
+// TrustedSource defines model for TrustedSource.
+type TrustedSource struct {
+	CreatedAt time.Time  `json:"created_at"`
+	CreatedBy string     `json:"created_by"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	Id        string     `json:"id"`
+	Reason    string     `json:"reason"`
+	Value     string     `json:"value"`
+}
+
+// TrustedSourceRequest defines model for TrustedSourceRequest.
+type TrustedSourceRequest struct {
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	Reason    string     `json:"reason"`
+	Value     string     `json:"value"`
+}
+
 // ActionId defines model for ActionId.
 type ActionId = string
 
@@ -1145,6 +1162,9 @@ type PreviewActionJSONRequestBody PreviewActionJSONBody
 
 // TriageAlertJSONRequestBody defines body for TriageAlert for application/json ContentType.
 type TriageAlertJSONRequestBody TriageAlertJSONBody
+
+// AddTrustedSourceJSONRequestBody defines body for AddTrustedSource for application/json ContentType.
+type AddTrustedSourceJSONRequestBody = TrustedSourceRequest
 
 // RejectApprovalJSONRequestBody defines body for RejectApproval for application/json ContentType.
 type RejectApprovalJSONRequestBody RejectApprovalJSONBody
