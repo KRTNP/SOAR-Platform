@@ -20,10 +20,14 @@ import (
 
 type Handler struct {
 	pool *pgxpool.Pool
+	net  NetworkConnector
 }
 
-func NewHandler(pool *pgxpool.Pool) *Handler {
-	return &Handler{pool: pool}
+// NewHandler wires the actions API to a pool and a NetworkConnector — the
+// mock services/api/network by default, or the real services/api/opnsense
+// when the caller (services/api/main.go) opts in via OPNSENSE_ENABLE_REAL.
+func NewHandler(pool *pgxpool.Pool, net NetworkConnector) *Handler {
+	return &Handler{pool: pool, net: net}
 }
 
 // Preview implements POST /v1/actions/preview — a dry-run description of
@@ -75,12 +79,12 @@ func (h *Handler) Execute(c *gin.Context) {
 	var a Action
 	err := store.WithTx(ctx, h.pool, func(tx pgx.Tx) error {
 		var err error
-		a, err = Execute(ctx, tx, tenant, actionID)
+		a, err = Execute(ctx, tx, tenant, actionID, h.net)
 		if err != nil {
 			return err
 		}
 		th := audit.TargetHash(actionID)
-		cv := "connector-mock-network-block@1.0.0"
+		cv := h.net.Version
 		return audit.Append(ctx, tx, audit.Record{
 			TenantID: tenant, Actor: "incident-commander", ActorType: "analyst",
 			CaseID: &a.CaseID, ExecutionID: &a.ID, Action: "action.execute",

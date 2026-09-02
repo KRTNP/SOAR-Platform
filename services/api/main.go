@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -17,15 +18,19 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"soar-platform/services/api/actions"
 	"soar-platform/services/api/audit"
 	"soar-platform/services/api/cases"
 	"soar-platform/services/api/config"
+	"soar-platform/services/api/connectors"
 	"soar-platform/services/api/events"
 	"soar-platform/services/api/evidence"
 	"soar-platform/services/api/httpx"
+	"soar-platform/services/api/network"
+	"soar-platform/services/api/opnsense"
 	"soar-platform/services/api/store"
 )
 
@@ -52,7 +57,13 @@ func run(logger *slog.Logger) error {
 	}
 	defer pool.Close()
 
-	router := newRouter(logger, cfg, pool)
+	netConn, err := buildNetworkConnector()
+	if err != nil {
+		return err
+	}
+	logger.Info("network connector selected", "provider", netConn.Version)
+
+	router := newRouter(logger, cfg, pool, netConn)
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
@@ -83,7 +94,36 @@ func run(logger *slog.Logger) error {
 	}
 }
 
-func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool) *gin.Engine {
+// buildNetworkConnector picks which connector backs block_network_indicator:
+// the mock services/api/network unless OPNSENSE_ENABLE_REAL=true, in which
+// case the real services/api/opnsense connector against the lab VM is
+// required to configure cleanly or startup fails fast (a bad OPNsense
+// config should never silently fall back to the mock — see
+// adr/0013-real-opnsense-lab-connector.md).
+func buildNetworkConnector() (actions.NetworkConnector, error) {
+	if !opnsense.Enabled() {
+		return actions.NetworkConnector{
+			New:     func(tx pgx.Tx) connectors.Connector { return network.New(tx) },
+			Release: func(ctx context.Context, tx pgx.Tx, actionID, _ string) error { return network.Release(ctx, tx, actionID) },
+			Target:  "network_blocks",
+			Version: "connector-mock-network-block@1.0.0",
+		}, nil
+	}
+
+	ocfg, err := opnsense.LoadConfig()
+	if err != nil {
+		return actions.NetworkConnector{}, fmt.Errorf("OPNSENSE_ENABLE_REAL=true but config is invalid: %w", err)
+	}
+	conn := opnsense.NewWithConfig(ocfg)
+	return actions.NetworkConnector{
+		New:     func(tx pgx.Tx) connectors.Connector { return conn },
+		Release: func(ctx context.Context, tx pgx.Tx, actionID, targetValue string) error { return conn.ReleaseTemp(ctx, targetValue) },
+		Target:  "SOAR_TEMP_BLOCK",
+		Version: "connector-opnsense-lab@1.0.0",
+	}, nil
+}
+
+func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netConn actions.NetworkConnector) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(httpx.RecoveryMiddleware(logger), httpx.RequestIDMiddleware(), httpx.TenantStubMiddleware(cfg.DefaultTenantID), httpx.AccessLogMiddleware(logger))
@@ -99,7 +139,7 @@ func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool) *gin.
 
 	eventsH := events.NewHandler(pool)
 	casesH := cases.NewHandler(pool)
-	actionsH := actions.NewHandler(pool)
+	actionsH := actions.NewHandler(pool, netConn)
 	evidenceH := evidence.NewHandler(pool)
 	auditH := audit.NewHandler(pool)
 

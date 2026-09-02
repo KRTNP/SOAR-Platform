@@ -17,17 +17,32 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 
 	"soar-platform/services/api/actions"
 	"soar-platform/services/api/audit"
 	"soar-platform/services/api/cases"
+	"soar-platform/services/api/connectors"
 	"soar-platform/services/api/events"
 	"soar-platform/services/api/evidence"
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
+	"soar-platform/services/api/network"
 )
+
+// mockNetworkConnector is the same mock-connector wiring services/api/main.go
+// defaults to — tests exercise the approval gate against it, never the real
+// services/api/opnsense connector (see adr/0013-real-opnsense-lab-connector.md).
+func mockNetworkConnector() actions.NetworkConnector {
+	return actions.NetworkConnector{
+		New:     func(tx pgx.Tx) connectors.Connector { return network.New(tx) },
+		Release: func(ctx context.Context, tx pgx.Tx, actionID, _ string) error { return network.Release(ctx, tx, actionID) },
+		Target:  "network_blocks",
+		Version: "connector-mock-network-block@1.0.0",
+	}
+}
 
 // setupPool starts a real Postgres container and applies every migration,
 // for tests that only need direct DB access (no HTTP server).
@@ -89,7 +104,7 @@ func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	r.Use(httpx.RequestIDMiddleware(), httpx.TenantStubMiddleware("lab"))
 	eventsH := events.NewHandler(pool)
 	casesH := cases.NewHandler(pool)
-	actionsH := actions.NewHandler(pool)
+	actionsH := actions.NewHandler(pool, mockNetworkConnector())
 	evidenceH := evidence.NewHandler(pool)
 	auditH := audit.NewHandler(pool)
 	v1 := r.Group("/v1")

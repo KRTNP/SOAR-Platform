@@ -19,8 +19,29 @@ import (
 	"github.com/oklog/ulid/v2"
 
 	"soar-platform/services/api/connectors"
-	"soar-platform/services/api/network"
 )
+
+// NetworkConnector is the seam between this package's approval-gate logic
+// and whichever connector actually performs block_network_indicator — the
+// mock services/api/network (default) or the real services/api/opnsense
+// (env-gated, see adr/0013-real-opnsense-lab-connector.md). The caller
+// (services/api/main.go) picks the implementation once at startup; Execute
+// and Release never import a concrete connector package directly, so
+// swapping providers cannot silently change approval-gate behavior.
+type NetworkConnector struct {
+	// New builds a fresh connectors.Connector bound to tx for one Invoke call.
+	New func(tx pgx.Tx) connectors.Connector
+	// Release performs the rollback for actionID/targetValue outside of the
+	// approval-gate transaction (matching services/api/network.Release's
+	// signature plus the target value a real, stateless connector needs).
+	Release func(ctx context.Context, tx pgx.Tx, actionID, targetValue string) error
+	// Target is the connectors.Invocation.Target passed to Invoke — must be
+	// present in the connector's own manifest target_allowlist.
+	Target string
+	// Version identifies which connector actually ran, for the audit trail
+	// (services/api/actions/handler.go's Execute handler).
+	Version string
+}
 
 var (
 	ErrNotFound         = errors.New("action not found")
@@ -349,8 +370,9 @@ func Reject(ctx context.Context, q querier, tenantID, approvalID, reason string)
 // Execute is the M3 gate: the network connector is invoked only when the
 // freshly-reloaded approval is "approved" — never on the caller's say-so.
 // Repeating execute on an already-executed action is a no-op success (the
-// underlying connector call is separately idempotent per action id).
-func Execute(ctx context.Context, tx pgx.Tx, tenantID, actionID string) (Action, error) {
+// underlying connector call is separately idempotent per action id). net
+// selects which connector actually runs (see NetworkConnector).
+func Execute(ctx context.Context, tx pgx.Tx, tenantID, actionID string, net NetworkConnector) (Action, error) {
 	a, ap, err := getByActionID(ctx, tx, tenantID, actionID)
 	if err != nil {
 		return Action{}, err
@@ -377,9 +399,9 @@ func Execute(ctx context.Context, tx pgx.Tx, tenantID, actionID string) (Action,
 		return Action{}, ErrApprovalRequired
 	}
 
-	if _, err := network.New(tx).Invoke(ctx, connectors.Invocation{
+	if _, err := net.New(tx).Invoke(ctx, connectors.Invocation{
 		Intent: a.Intent,
-		Target: "network_blocks",
+		Target: net.Target,
 		Params: map[string]any{
 			"tenant_id":    tenantID,
 			"action_id":    a.ID,
@@ -401,8 +423,9 @@ func Execute(ctx context.Context, tx pgx.Tx, tenantID, actionID string) (Action,
 
 // Release performs the manual early-rollback path: it is safe to call before
 // a scheduler exists to do this automatically at the block's TTL (deferred
-// to M5/M6 — see adr/0011). No-op-safe if already released.
-func Release(ctx context.Context, tx pgx.Tx, tenantID, actionID string) (Action, error) {
+// to M5/M6 — see adr/0011). No-op-safe if already released. net selects
+// which connector performs the rollback (see NetworkConnector).
+func Release(ctx context.Context, tx pgx.Tx, tenantID, actionID string, net NetworkConnector) (Action, error) {
 	a, _, err := getByActionID(ctx, tx, tenantID, actionID)
 	if err != nil {
 		return Action{}, err
@@ -413,7 +436,7 @@ func Release(ctx context.Context, tx pgx.Tx, tenantID, actionID string) (Action,
 	if a.Status == "released" {
 		return *a, nil
 	}
-	if err := network.Release(ctx, tx, a.ID); err != nil {
+	if err := net.Release(ctx, tx, a.ID, a.TargetValue); err != nil {
 		return Action{}, err
 	}
 	now := nowUTC()

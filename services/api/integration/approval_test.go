@@ -307,7 +307,7 @@ func TestRelease_RollsBackBlock(t *testing.T) {
 	}
 	defer tx.Rollback(ctx)
 
-	released, err := actions.Release(ctx, tx, "lab", action.Id)
+	released, err := actions.Release(ctx, tx, "lab", action.Id, mockNetworkConnector())
 	if err != nil {
 		t.Fatalf("Release: %v", err)
 	}
