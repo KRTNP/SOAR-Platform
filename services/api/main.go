@@ -31,6 +31,7 @@ import (
 	"soar-platform/services/api/httpx"
 	"soar-platform/services/api/network"
 	"soar-platform/services/api/opnsense"
+	"soar-platform/services/api/scheduler"
 	"soar-platform/services/api/store"
 )
 
@@ -63,6 +64,17 @@ func run(logger *slog.Logger) error {
 	}
 	logger.Info("network connector selected", "provider", netConn.Version)
 
+	schedulerDone := make(chan struct{})
+	if cfg.SchedulerEnabled {
+		logger.Info("scheduler enabled", "interval_seconds", cfg.SchedulerIntervalSeconds)
+		go func() {
+			defer close(schedulerDone)
+			scheduler.Run(ctx, pool, netConn, time.Duration(cfg.SchedulerIntervalSeconds)*time.Second, logger)
+		}()
+	} else {
+		close(schedulerDone)
+	}
+
 	router := newRouter(logger, cfg, pool, netConn)
 
 	srv := &http.Server{
@@ -80,18 +92,25 @@ func run(logger *slog.Logger) error {
 		errCh <- srv.ListenAndServe()
 	}()
 
+	var result error
 	select {
 	case err := <-errCh:
 		if err != nil && err != http.ErrServerClosed {
-			return err
+			result = err
 		}
-		return nil
 	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		logger.Info("shutting down")
-		return srv.Shutdown(shutdownCtx)
+		result = srv.Shutdown(shutdownCtx)
 	}
+
+	// Cancel explicitly (not just via the deferred stop()) so the scheduler
+	// goroutine observes ctx.Done() and exits before pool.Close() (deferred
+	// above, runs before the also-deferred stop() on the way out) fires.
+	stop()
+	<-schedulerDone
+	return result
 }
 
 // buildNetworkConnector picks which connector backs block_network_indicator:
