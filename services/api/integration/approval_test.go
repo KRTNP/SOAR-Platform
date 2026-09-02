@@ -129,8 +129,12 @@ func caseWithBlockTarget(t *testing.T, srv *httptest.Server, sourceEventID strin
 	if accepted.AlertId == nil {
 		t.Fatal("expected an alert_id from ingestion")
 	}
+	// GET /v1/cases orders newest-first (cases/store.go: "order by id desc"),
+	// so the just-created case is page[0], not the last element — this only
+	// ever surfaced once a test called this helper more than once against
+	// the same server (see TestScheduler_OneFailingCandidateDoesNotBlockTheRest).
 	page := getCases(t, srv)
-	return page[len(page)-1].Id
+	return page[0].Id
 }
 
 func getCases(t *testing.T, srv *httptest.Server) []genapi.Case {
