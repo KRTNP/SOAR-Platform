@@ -14,5 +14,9 @@ web/next-env.d.ts
 .env.local
 !.env.example
 
+# Local-only compose overrides (real OPNsense/Wazuh lab credentials —
+# see deploy/compose/docker-compose.core.yml's comment; never commit these)
+deploy/compose/docker-compose.override.yml
+
 # OS/editor cruft
 .DS_Store

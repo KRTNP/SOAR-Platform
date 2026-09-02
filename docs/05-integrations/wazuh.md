@@ -6,6 +6,14 @@ Existing Wazuh instance → authenticated webhook/API → SOAR ingestion → nor
 
 Wazuh ระบุแนวทางส่ง alert เข้า Shuffle workflow ผ่าน webhook ในเอกสาร external API integration [Wazuh external API integration](https://documentation.wazuh.com/current/user-manual/manager/integration-with-external-apis.html)
 
+**Implemented (polling, not webhook):** [`services/api/wazuhpoll`](../../services/api/wazuhpoll)
+polls the real Indexer's `wazuh-alerts-*` for new alerts and forwards each to this
+service's own `POST /v1/events` — the "SOAR ingestion" step above, proven end-to-end
+against the lab's real `~/wazuh-docker/single-node` stack. See
+[ADR-0017](../../adr/0017-wazuh-real-alert-polling.md) for why polling was chosen over a
+manager-side webhook, and its disclosed gaps (no persisted checkpoint, lossy
+`event_class` mapping).
+
 ## Mapping
 
 เก็บอย่างน้อย:

@@ -34,6 +34,7 @@ import (
 	"soar-platform/services/api/opnsense"
 	"soar-platform/services/api/scheduler"
 	"soar-platform/services/api/store"
+	"soar-platform/services/api/wazuhpoll"
 )
 
 func main() {
@@ -76,6 +77,21 @@ func run(logger *slog.Logger) error {
 		close(schedulerDone)
 	}
 
+	wazuhPollDone := make(chan struct{})
+	if wazuhpoll.Enabled() {
+		wcfg, err := wazuhpoll.LoadConfig()
+		if err != nil {
+			return fmt.Errorf("WAZUH_POLL_ENABLE_REAL=true but config is invalid: %w", err)
+		}
+		logger.Info("wazuh poller enabled", "indexer", wcfg.IndexerBaseURL, "interval_seconds", wcfg.PollIntervalSeconds)
+		go func() {
+			defer close(wazuhPollDone)
+			wazuhpoll.Run(ctx, wcfg, cfg.WazuhIngestBaseURL, logger)
+		}()
+	} else {
+		close(wazuhPollDone)
+	}
+
 	router := newRouter(logger, cfg, pool, netConn)
 
 	srv := &http.Server{
@@ -107,10 +123,12 @@ func run(logger *slog.Logger) error {
 	}
 
 	// Cancel explicitly (not just via the deferred stop()) so the scheduler
-	// goroutine observes ctx.Done() and exits before pool.Close() (deferred
-	// above, runs before the also-deferred stop() on the way out) fires.
+	// and wazuh-poller goroutines observe ctx.Done() and exit before
+	// pool.Close() (deferred above, runs before the also-deferred stop() on
+	// the way out) fires.
 	stop()
 	<-schedulerDone
+	<-wazuhPollDone
 	return result
 }
 
