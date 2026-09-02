@@ -33,6 +33,15 @@ const NAV_ITEMS = [
     ),
   },
   {
+    href: "/approvals",
+    label: "Approvals",
+    icon: (
+      <>
+        <polyline points="4 12.5 9 17.5 20 6" />
+      </>
+    ),
+  },
+  {
     href: "/metrics",
     label: "Metrics",
     icon: (
@@ -117,7 +126,18 @@ export function Sidebar({ connectorTarget, connectorVersion }: { connectorTarget
             <span className="truncate">{isMockConnector ? "mock connector" : `live: ${connectorTarget}`}</span>
           </span>
         )}
-        <span className="flex items-center gap-1.5 rounded-[4px] border border-warn/25 bg-warn/[0.08] px-2.5 py-1.5 text-[11.5px] text-warn">
+        {/* This used to be a hardcoded "dry-run mode" label — accurate back
+            when no real connector existed at all, but actively misleading
+            once a real one (isMockConnector false) can execute for real:
+            it sat right next to the danger-styled "live: X" badge above,
+            each contradicting the other. An approval is still required
+            either way (adr/0011); only the honesty of what happens *after*
+            approval changes here. */}
+        <span
+          className={`flex items-center gap-1.5 rounded-[4px] border px-2.5 py-1.5 text-[11.5px] ${
+            isMockConnector ? "border-warn/25 bg-warn/[0.08] text-warn" : "border-danger/30 bg-danger/[0.08] text-danger"
+          }`}
+        >
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -127,10 +147,20 @@ export function Sidebar({ connectorTarget, connectorVersion }: { connectorTarget
             strokeLinejoin="round"
             className="h-3 w-3 shrink-0"
           >
-            <rect x="5" y="10" width="14" height="9" rx="1.5" />
-            <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+            {isMockConnector ? (
+              <>
+                <rect x="5" y="10" width="14" height="9" rx="1.5" />
+                <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+              </>
+            ) : (
+              <>
+                <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" />
+                <path d="M12 8v5" />
+                <path d="M12 16.5v.01" />
+              </>
+            )}
           </svg>
-          dry-run mode
+          {isMockConnector ? "dry-run mode" : "live actions — real effects"}
         </span>
       </div>
     </aside>

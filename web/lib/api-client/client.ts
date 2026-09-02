@@ -12,6 +12,8 @@ import type {
   MetricsSnapshot,
   CaseExportRequest,
   CaseExportAccepted,
+  PendingAction,
+  ApprovalPage,
 } from "./types";
 
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8080";
@@ -112,6 +114,19 @@ export function executeAction(actionId: string): Promise<unknown> {
     method: "POST",
     headers: { "Idempotency-Key": crypto.randomUUID() },
   });
+}
+
+// GET /v1/actions/{actionId} — used by the approvals queue page to resolve
+// an Approval's intent/target/risk/case, which the Approval schema itself
+// deliberately does not carry (see the Approval type's comment).
+export function getAction(actionId: string): Promise<PendingAction> {
+  return request<PendingAction>(`/v1/actions/${encodeURIComponent(actionId)}`);
+}
+
+// GET /v1/approvals — every approval visible to the tenant, pending first
+// (services/api/actions.ListApprovals), newest first within each group.
+export function listApprovals(): Promise<ApprovalPage> {
+  return request<ApprovalPage>(`/v1/approvals`);
 }
 
 export function rejectApproval(approvalId: string, reason: string): Promise<unknown> {

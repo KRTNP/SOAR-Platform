@@ -84,6 +84,16 @@ export interface Evidence {
   size: number;
   collected_at: string;
   integrity_status: IntegrityStatus;
+  // Captured by services/api/evidence (schemas/evidence.schema.json) and
+  // already returned by GET /v1/cases/{caseId}/evidence — previously
+  // fetched but not typed or rendered here.
+  tool_name?: string;
+  tool_version?: string;
+  analyst: string;
+  purpose: string;
+  sensitivity: "public" | "internal" | "confidential" | "restricted";
+  retention_class: string;
+  limitations?: string[];
 }
 
 export interface EvidencePage {
@@ -116,6 +126,25 @@ export interface Problem {
 export interface ReleaseAccepted {
   action_id: string;
   status: "released";
+}
+
+export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
+
+// Mirrors services/api/genapi.Approval's JSON shape (GET /v1/approvals,
+// POST .../approve|reject) — deliberately thin (no intent/target/risk):
+// those live on the linked Action, fetched separately via getAction.
+export interface Approval {
+  id: string;
+  action_id: string;
+  status: ApprovalStatus;
+  approved_by?: string;
+  reason?: string;
+  decided_at?: string;
+  expires_at: string;
+}
+
+export interface ApprovalPage {
+  items: Approval[];
 }
 
 // Mirrors services/api/audit.Record's JSON shape (GET /v1/audit). Nullable

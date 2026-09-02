@@ -96,13 +96,32 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
           {evidence.items.length > 0 && (
             <section className="rounded-md border border-border bg-surface p-[18px_20px]">
               <h2 className="mb-3 text-[13px] font-semibold">Evidence</h2>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-3">
                 {evidence.items.map((e) => (
-                  <div key={e.id} className="flex items-center justify-between gap-2 text-[12.5px]">
-                    <span className="text-text-secondary">
-                      {e.artifact_type} <span className="text-text-tertiary">({e.source})</span>
-                    </span>
-                    <IntegrityBadge status={e.integrity_status} />
+                  <div key={e.id} className="flex flex-col gap-1 border-b border-border pb-3 text-[12.5px] last:border-b-0 last:pb-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-text-secondary">
+                        {e.artifact_type} <span className="text-text-tertiary">({e.source})</span>
+                      </span>
+                      <IntegrityBadge status={e.integrity_status} />
+                    </div>
+                    <p className="text-text-tertiary">
+                      {e.tool_name && (
+                        <>
+                          {e.tool_name}
+                          {e.tool_version && ` v${e.tool_version}`} &middot;{" "}
+                        </>
+                      )}
+                      collected by <span className="text-text-secondary">{e.analyst}</span>
+                      <span className="mx-1">&middot;</span>
+                      <span className="capitalize">{e.sensitivity}</span>
+                      <span className="mx-1">&middot;</span>
+                      retention: {e.retention_class}
+                    </p>
+                    {e.purpose && <p className="text-text-tertiary italic">&ldquo;{e.purpose}&rdquo;</p>}
+                    {(e.limitations?.length ?? 0) > 0 && (
+                      <p className="text-text-tertiary">Limitations: {e.limitations!.join("; ")}</p>
+                    )}
                   </div>
                 ))}
               </div>

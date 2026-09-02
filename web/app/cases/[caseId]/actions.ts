@@ -44,11 +44,13 @@ export async function approveActionAction(approvalId: string, actionId: string, 
   await approveAction(approvalId);
   await executeAction(actionId);
   revalidatePath(`/cases/${caseId}`);
+  revalidatePath("/approvals");
 }
 
 export async function rejectActionAction(approvalId: string, reason: string, caseId: string) {
   await rejectApproval(approvalId, reason);
   revalidatePath(`/cases/${caseId}`);
+  revalidatePath("/approvals");
 }
 
 export async function releaseActionAction(actionId: string, caseId: string) {

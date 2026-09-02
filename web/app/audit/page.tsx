@@ -31,11 +31,12 @@ export default async function AuditPage() {
         <EmptyState title="No audit records yet" body="Every approval, execution, release, and export writes an entry here." />
       ) : (
         <div>
-          <p className="mb-1.5 text-[11px] text-text-tertiary md:hidden">Scroll sideways for decision, actor, case, and connector →</p>
+          <p className="mb-1.5 text-[11px] text-text-tertiary md:hidden">Scroll sideways for decision, actor, case, connector, and reason →</p>
           <div className="overflow-x-auto rounded-md border border-border">
-            <table className="w-full min-w-[900px] border-collapse text-[12.5px]">
+            <table className="w-full min-w-[1080px] border-collapse text-[12.5px]">
               <thead>
                 <tr className="border-b border-border bg-surface text-left text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">
+                  <th className="px-3 py-2.5 font-semibold">ID</th>
                   <th className="px-3 py-2.5 font-semibold">Timestamp</th>
                   <th className="px-3 py-2.5 font-semibold">Action</th>
                   <th className="px-3 py-2.5 font-semibold">Decision</th>
@@ -43,13 +44,18 @@ export default async function AuditPage() {
                   <th className="px-3 py-2.5 font-semibold">Case</th>
                   <th className="px-3 py-2.5 font-semibold">Connector</th>
                   <th className="px-3 py-2.5 font-semibold">Integrity</th>
+                  <th className="px-3 py-2.5 font-semibold">Reason</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {page.items.map((r) => (
                   <tr key={r.id} className="bg-surface hover:bg-surface-hover">
-                    <td className="px-3 py-2.5 font-mono text-text-tertiary whitespace-nowrap">
-                      {new Date(r.timestamp).toLocaleString()}
+                    <td className="px-3 py-2.5 font-mono text-text-tertiary whitespace-nowrap" title={r.id}>
+                      {r.id.slice(0, 8)}
+                    </td>
+                    <td className="px-3 py-2.5 font-mono text-text-tertiary whitespace-nowrap" title={new Date(r.timestamp).toLocaleString()}>
+                      {new Date(r.timestamp).toLocaleDateString([], { month: "numeric", day: "numeric" })},{" "}
+                      {new Date(r.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                     </td>
                     <td className="px-3 py-2.5 font-mono text-text-primary whitespace-nowrap">{r.action}</td>
                     <td className="px-3 py-2.5">
@@ -60,17 +66,23 @@ export default async function AuditPage() {
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       {r.case_id ? (
-                        <Link href={`/cases/${r.case_id}`} className="font-mono text-accent hover:underline">
-                          {r.case_id}
+                        <Link href={`/cases/${r.case_id}`} className="font-mono text-accent hover:underline" title={r.case_id}>
+                          {r.case_id.length > 22 ? `${r.case_id.slice(0, 19)}…` : r.case_id}
                         </Link>
                       ) : (
                         <span className="text-text-tertiary">—</span>
                       )}
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-text-tertiary whitespace-nowrap">{r.connector_version ?? "—"}</td>
+                    <td
+                      className="px-3 py-2.5 font-mono text-text-tertiary whitespace-nowrap"
+                      title={r.connector_version ?? undefined}
+                    >
+                      {r.connector_version ? r.connector_version.replace(/^connector-/, "") : "—"}
+                    </td>
                     <td className="px-3 py-2.5">
                       <VerifiedBadge verified={r.verified} />
                     </td>
+                    <td className="max-w-[220px] px-3 py-2.5 text-text-tertiary">{r.reason ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>

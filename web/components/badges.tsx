@@ -1,4 +1,4 @@
-import type { CaseObservableVerdict, CaseStatus, IntegrityStatus, Severity } from "@/lib/api-client/types";
+import type { ApprovalStatus, CaseObservableVerdict, CaseStatus, IntegrityStatus, Severity } from "@/lib/api-client/types";
 
 // Tailwind's JIT scanner needs literal class strings, not interpolated ones,
 // so severity/status -> class is a lookup table rather than a template.
@@ -90,6 +90,23 @@ export function DecisionBadge({ decision }: { decision: string }) {
   return (
     <span className={`inline-block rounded-[3px] border px-2 py-[3px] text-[11px] font-medium whitespace-nowrap capitalize ${cls}`}>
       {decision}
+    </span>
+  );
+}
+
+const APPROVAL_STATUS_CLASSES: Record<ApprovalStatus, string> = {
+  pending: "text-warn border-warn/40",
+  approved: "text-safe border-safe/35",
+  rejected: "text-danger border-danger/40 bg-danger/[0.08]",
+  expired: "text-text-tertiary border-border-strong",
+};
+
+export function ApprovalStatusBadge({ status }: { status: ApprovalStatus }) {
+  return (
+    <span
+      className={`inline-block rounded-[3px] border px-2 py-[3px] text-[11px] font-medium whitespace-nowrap capitalize ${APPROVAL_STATUS_CLASSES[status]}`}
+    >
+      {status}
     </span>
   );
 }
