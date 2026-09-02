@@ -9,6 +9,17 @@ still open. A runnable script for it exists at
 real people in the roles it defines. `docs/10-roadmap/milestones.md`'s M5 row
 stays "Not started" until that happens.
 
+On 2026-09-02 the script was run once, solo, by one engineer working through
+all nine steps and both discussion prompts alone (approving their own
+request) — this is explicitly **not** the tabletop the gate requires (the
+script itself says so), so it does not close M5. What it did prove: every
+step, including the live execute/verify/release round-trip against the real
+OPNsense VM, works end-to-end through the actual HTTP API rather than just
+the Go test suite. It also surfaced one new disclosed gap, recorded below,
+and two inaccuracies in the script itself (wrong ingest request shape in
+step 1, a missing `Idempotency-Key` header in step 9), which were corrected
+in the same change that added this note.
+
 ## Decision
 
 Implement `docs/10-roadmap/milestones.md`'s M5 ("lab connector") real half as
@@ -152,3 +163,13 @@ real certificate instead of setting this flag.
   same lazy, read-path-triggered expiry ADR-0011 already disclosed for the
   mock; `services/api/opnsense` adds no new capability here, it only changes
   which system the eventual scheduled rollback (M5/M6) will call.
+- **`actions.Release` writes no audit record at all**, found during the
+  2026-09-02 solo rehearsal above: unlike `Execute` (audited by
+  `actions.Handler.Execute`, the HTTP layer, after a successful call),
+  nothing in `actions.Release` or any caller of it appends to `audit_log`.
+  Combined with `Release` having no HTTP endpoint yet (its only caller today
+  is a test or a hand-written script calling the Go function directly), a
+  real rollback in this system is currently both unreachable over HTTP and
+  invisible in the audit trail — worth closing both gaps together whenever
+  a `release` endpoint is added, rather than adding the endpoint first and
+  the audit call later.
