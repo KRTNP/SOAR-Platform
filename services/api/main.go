@@ -103,8 +103,10 @@ func run(logger *slog.Logger) error {
 func buildNetworkConnector() (actions.NetworkConnector, error) {
 	if !opnsense.Enabled() {
 		return actions.NetworkConnector{
-			New:     func(tx pgx.Tx) connectors.Connector { return network.New(tx) },
-			Release: func(ctx context.Context, tx pgx.Tx, actionID, _ string) error { return network.Release(ctx, tx, actionID) },
+			New: func(tx pgx.Tx) connectors.Connector { return network.New(tx) },
+			Release: func(ctx context.Context, tx pgx.Tx, actionID, _ string) error {
+				return network.Release(ctx, tx, actionID)
+			},
 			Target:  "network_blocks",
 			Version: "connector-mock-network-block@1.0.0",
 		}, nil
@@ -116,10 +118,16 @@ func buildNetworkConnector() (actions.NetworkConnector, error) {
 	}
 	conn := opnsense.NewWithConfig(ocfg)
 	return actions.NetworkConnector{
-		New:     func(tx pgx.Tx) connectors.Connector { return conn },
-		Release: func(ctx context.Context, tx pgx.Tx, actionID, targetValue string) error { return conn.ReleaseTemp(ctx, targetValue) },
+		New: func(tx pgx.Tx) connectors.Connector { return conn },
+		Release: func(ctx context.Context, tx pgx.Tx, actionID, targetValue string) error {
+			return conn.ReleaseTemp(ctx, targetValue)
+		},
 		Target:  "SOAR_TEMP_BLOCK",
 		Version: "connector-opnsense-lab@1.0.0",
+		Preview: func(ctx context.Context, target string) (bool, error) {
+			r, err := conn.Preview(ctx, target)
+			return r.AlreadyBlocked, err
+		},
 	}, nil
 }
 

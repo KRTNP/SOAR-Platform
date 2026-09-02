@@ -108,12 +108,15 @@ real certificate instead of setting this flag.
   startup (`services/api/main.go`'s `buildNetworkConnector`) rather than
   silently falling back to the mock — a bad OPNsense config should be loud,
   not quietly no-op.
-- **`preview_temp_block` is implemented but not yet wired to an HTTP
-  endpoint.** `opnsense.Connector.Preview` exists and is contract-tested, but
-  `actions.Handler.Preview` still returns its existing static dry-run message
-  regardless of which connector is selected — no acceptance criteria this
-  session required changing that handler, and doing so was judged out of
-  scope for a connector-wiring pass.
+- **`preview_temp_block` is wired to `POST /v1/actions/preview` via the same
+  `NetworkConnector` factory seam as `execute`/`release`.** `actions.
+  NetworkConnector` gained an optional `Preview(ctx, target) (bool, error)`
+  field; `main.go` wires it to `opnsense.Connector.Preview` only for the real
+  connector, leaving it `nil` for the mock (which has no standalone existence
+  query outside of an action row). `actions.Handler.Preview` calls it when
+  present and reports whether the target is already blocked; when absent
+  (the mock, the default) it falls back to the original generic dry-run
+  message, so this is additive and does not change M3's existing behavior.
 - **Idempotency is checked live, not cached.** Unlike `network.block`'s
   `select exists` against Postgres, `opnsense.Connector` calls `list` before
   every add/remove to decide whether it would have an effect — correct, but

@@ -37,8 +37,10 @@ import (
 // services/api/opnsense connector (see adr/0013-real-opnsense-lab-connector.md).
 func mockNetworkConnector() actions.NetworkConnector {
 	return actions.NetworkConnector{
-		New:     func(tx pgx.Tx) connectors.Connector { return network.New(tx) },
-		Release: func(ctx context.Context, tx pgx.Tx, actionID, _ string) error { return network.Release(ctx, tx, actionID) },
+		New: func(tx pgx.Tx) connectors.Connector { return network.New(tx) },
+		Release: func(ctx context.Context, tx pgx.Tx, actionID, _ string) error {
+			return network.Release(ctx, tx, actionID)
+		},
 		Target:  "network_blocks",
 		Version: "connector-mock-network-block@1.0.0",
 	}

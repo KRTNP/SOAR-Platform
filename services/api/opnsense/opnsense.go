@@ -46,11 +46,11 @@ var manifest = connectors.Manifest{
 // specific to a connector with a real network target and match
 // manifest.ErrorClasses above.
 const (
-	ErrClassAuthentication      connectors.ErrorClass = "authentication"
-	ErrClassAuthorization       connectors.ErrorClass = "authorization"
-	ErrClassTimeout             connectors.ErrorClass = "timeout"
-	ErrClassRateLimit           connectors.ErrorClass = "rate_limit"
-	ErrClassProvider5xx         connectors.ErrorClass = "provider_5xx"
+	ErrClassAuthentication        connectors.ErrorClass = "authentication"
+	ErrClassAuthorization         connectors.ErrorClass = "authorization"
+	ErrClassTimeout               connectors.ErrorClass = "timeout"
+	ErrClassRateLimit             connectors.ErrorClass = "rate_limit"
+	ErrClassProvider5xx           connectors.ErrorClass = "provider_5xx"
 	ErrClassPostconditionMismatch connectors.ErrorClass = "postcondition_mismatch"
 )
 

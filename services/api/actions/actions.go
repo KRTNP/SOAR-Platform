@@ -41,6 +41,12 @@ type NetworkConnector struct {
 	// Version identifies which connector actually ran, for the audit trail
 	// (services/api/actions/handler.go's Execute handler).
 	Version string
+	// Preview answers "would target already be in effect right now", for a
+	// live dry-run in services/api/actions/handler.go's Preview handler. nil
+	// when the connector has no live state to check (the mock, which has no
+	// standalone existence query outside of an action row) — the handler
+	// falls back to its existing generic message in that case.
+	Preview func(ctx context.Context, target string) (alreadyInEffect bool, err error)
 }
 
 var (

@@ -33,7 +33,11 @@ func NewHandler(pool *pgxpool.Pool, net NetworkConnector) *Handler {
 // Preview implements POST /v1/actions/preview — a dry-run description of
 // what requesting this intent/target would do. It never writes to the
 // database; the actual action+approval pair is created via the case's
-// request_block operation (cases.Handler.Update).
+// request_block operation (cases.Handler.Update). When the wired connector
+// exposes a live state check (h.net.Preview — currently only the real
+// services/api/opnsense connector, see adr/0013), the message also reports
+// whether the target is already in effect; the mock connector has no such
+// check, so its preview stays the generic message it always was.
 func (h *Handler) Preview(c *gin.Context) {
 	var req genapi.PreviewActionJSONRequestBody
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -49,6 +53,16 @@ func (h *Handler) Preview(c *gin.Context) {
 		return
 	}
 	msg := fmt.Sprintf("dry_run: %s against %s would require an approved approval before executing; no state was changed", req.Intent, req.Target)
+	if h.net.Preview != nil {
+		alreadyInEffect, err := h.net.Preview(c.Request.Context(), req.Target)
+		if err != nil {
+			httpx.WriteProblem(c, httpx.ErrInternal("preview_failed", "could not check connector state").WithCause(err))
+			return
+		}
+		if alreadyInEffect {
+			msg = fmt.Sprintf("dry_run: %s target %s is already blocked; executing this action would have no additional effect", req.Intent, req.Target)
+		}
+	}
 	c.JSON(http.StatusOK, genapi.StatusResponse{Status: "dry_run", Message: &msg})
 }
 
