@@ -1,8 +1,17 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { Case, CaseStatus } from "@/lib/api-client/types";
-import { transitionCaseAction, closeCaseAction, openTicketAction, requestBlockAction, approveActionAction, rejectActionAction } from "./actions";
+import type { Case, CaseStatus, RedactionProfile } from "@/lib/api-client/types";
+import {
+  transitionCaseAction,
+  closeCaseAction,
+  openTicketAction,
+  requestBlockAction,
+  approveActionAction,
+  rejectActionAction,
+  releaseActionAction,
+  exportCaseAction,
+} from "./actions";
 
 // "closed" is deliberately excluded: reaching it always goes through the
 // dedicated close action below, which enforces a mandatory closure_reason —
@@ -220,6 +229,18 @@ export function ActionControl({ caseItem }: { caseItem: Case }) {
     });
   }
 
+  function submitRelease() {
+    if (!action) return;
+    setError(null);
+    startTransition(async () => {
+      try {
+        await releaseActionAction(action.id, caseItem.id);
+      } catch {
+        setError("Could not release the block. Try again.");
+      }
+    });
+  }
+
   if (!action) {
     const targets = (caseItem.observables ?? []).filter((o) => BLOCKABLE_TYPES.has(o.type));
     if (targets.length === 0) return null;
@@ -272,7 +293,101 @@ export function ActionControl({ caseItem }: { caseItem: Case }) {
           </button>
         </>
       )}
+      {action.status === "executed" && (
+        // Manual early rollback (adr/0014) — the in-process scheduler also
+        // releases this automatically once block_ttl_seconds elapses; this
+        // button just lets an analyst do it sooner without waiting on a tick.
+        <button
+          onClick={submitRelease}
+          disabled={isPending}
+          className="rounded-[4px] border border-warn px-3 py-1.5 text-[13px] font-medium text-warn disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {isPending ? "Releasing…" : "Release now"}
+        </button>
+      )}
       {error && <p className="text-[12px] text-danger">{error}</p>}
+    </div>
+  );
+}
+
+const REDACTION_PROFILES: RedactionProfile[] = ["standard", "full"];
+
+// ExportControl surfaces M4's redacted case manifest export (adr/0012).
+// Only format=json is offered — csv is spec'd in api/openapi.yaml but the
+// server rejects it (services/api/cases/export.go), so there is no working
+// csv option to show.
+export function ExportControl({ caseItem }: { caseItem: Case }) {
+  const [profile, setProfile] = useState<RedactionProfile>("standard");
+  const [purpose, setPurpose] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{ exportId: string; sha256?: string; manifest?: Record<string, unknown> } | null>(null);
+  const [showManifest, setShowManifest] = useState(false);
+
+  function submit() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const accepted = await exportCaseAction(caseItem.id, profile, purpose);
+        setResult({ exportId: accepted.export_id, sha256: accepted.manifest_sha256, manifest: accepted.manifest });
+        setShowManifest(false);
+      } catch {
+        setError("Could not export this case. Try again.");
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-border bg-surface p-3.5">
+      <label className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">Export case</label>
+      <select
+        value={profile}
+        onChange={(e) => setProfile(e.target.value as RedactionProfile)}
+        className="rounded-[4px] border border-border-strong bg-surface-raised px-2.5 py-1.5 text-[13px] text-text-primary capitalize"
+      >
+        {REDACTION_PROFILES.map((p) => (
+          <option key={p} value={p}>
+            {p} redaction
+          </option>
+        ))}
+      </select>
+      <input
+        value={purpose}
+        onChange={(e) => setPurpose(e.target.value)}
+        placeholder="Purpose (optional)"
+        className="rounded-[4px] border border-border-strong bg-surface-raised px-2.5 py-1.5 text-[13px] text-text-primary placeholder:text-text-tertiary"
+      />
+      <button
+        onClick={submit}
+        disabled={isPending}
+        className="rounded-[4px] border border-border-strong px-3 py-1.5 text-[13px] font-medium text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {isPending ? "Exporting…" : "Export manifest"}
+      </button>
+      {error && <p className="text-[12px] text-danger">{error}</p>}
+      {result && (
+        <div className="flex flex-col gap-1.5 border-t border-border pt-2">
+          <p className="text-[12px] text-text-secondary">
+            {result.exportId} <span className="text-text-tertiary">· completed</span>
+          </p>
+          {result.sha256 && <p className="truncate font-mono text-[10.5px] text-text-tertiary">sha256:{result.sha256}</p>}
+          {result.manifest && (
+            <>
+              <button
+                onClick={() => setShowManifest((v) => !v)}
+                className="w-fit text-[11.5px] font-medium text-accent"
+              >
+                {showManifest ? "Hide manifest" : "View manifest"}
+              </button>
+              {showManifest && (
+                <pre className="max-h-64 overflow-auto rounded-[4px] border border-border bg-surface-raised p-2.5 font-mono text-[10.5px] text-text-secondary">
+                  {JSON.stringify(result.manifest, null, 2)}
+                </pre>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

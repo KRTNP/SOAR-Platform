@@ -32,10 +32,32 @@ const NAV_ITEMS = [
       </>
     ),
   },
+  {
+    href: "/metrics",
+    label: "Metrics",
+    icon: (
+      <>
+        <line x1="5" y1="19" x2="5" y2="11" />
+        <line x1="12" y1="19" x2="12" y2="5" />
+        <line x1="19" y1="19" x2="19" y2="14" />
+      </>
+    ),
+  },
+  {
+    href: "/audit",
+    label: "Audit",
+    icon: (
+      <>
+        <rect x="5" y="4" width="14" height="16" rx="1.5" />
+        <polyline points="8.5 11.5 11 14 15.5 8.5" />
+      </>
+    ),
+  },
 ];
 
-export function Sidebar() {
+export function Sidebar({ connectorTarget, connectorVersion }: { connectorTarget?: string; connectorVersion?: string }) {
   const pathname = usePathname();
+  const isMockConnector = connectorVersion?.includes("mock") ?? true;
 
   return (
     <aside className="flex w-[236px] shrink-0 flex-col border-r border-border bg-surface p-[22px_16px]">
@@ -79,6 +101,17 @@ export function Sidebar() {
         <span className="px-2.5 font-mono text-[10.5px] tracking-wider text-text-tertiary">
           TENANT &middot; LAB
         </span>
+        {connectorTarget && (
+          <span
+            title={connectorVersion}
+            className={`flex items-center gap-1.5 rounded-[4px] border px-2.5 py-1.5 text-[11.5px] ${
+              isMockConnector ? "border-border-strong text-text-secondary" : "border-danger/30 bg-danger/[0.06] text-danger"
+            }`}
+          >
+            <span className={`h-[7px] w-[7px] shrink-0 rounded-full ${isMockConnector ? "bg-text-tertiary" : "bg-danger"}`} />
+            <span className="truncate">{isMockConnector ? "mock connector" : `live: ${connectorTarget}`}</span>
+          </span>
+        )}
         <span className="flex items-center gap-1.5 rounded-[4px] border border-warn/25 bg-warn/[0.08] px-2.5 py-1.5 text-[11.5px] text-warn">
           <svg
             viewBox="0 0 24 24"

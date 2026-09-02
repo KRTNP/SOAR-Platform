@@ -3,7 +3,7 @@ import { getCase, getCaseTimeline, getCaseEvidence, ApiProblemError } from "@/li
 import { SeverityBadge, StatusBadge, VerdictBadge, IntegrityBadge } from "@/components/badges";
 import { Timeline } from "@/components/Timeline";
 import { ProblemBanner } from "@/components/ProblemBanner";
-import { StatusControl, CloseCaseControl, TicketControl, ActionControl } from "./status-control";
+import { StatusControl, CloseCaseControl, TicketControl, ActionControl, ExportControl } from "./status-control";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +115,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
           <CloseCaseControl caseItem={caseItem} />
           <TicketControl caseItem={caseItem} />
           <ActionControl caseItem={caseItem} />
+          <ExportControl caseItem={caseItem} />
 
           {(caseItem.observables?.length ?? 0) > 0 && (
             <section className="rounded-md border border-border bg-surface p-[18px_20px]">

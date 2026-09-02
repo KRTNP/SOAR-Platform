@@ -73,3 +73,38 @@ export function IntegrityBadge({ status }: { status: IntegrityStatus }) {
     </span>
   );
 }
+
+// Audit records carry a free-text "decision" (services/api/audit's
+// auditAppend callers use "allowed"/"denied"/"completed" today, per
+// services/api/cases/handler.go and services/api/actions/handler.go) rather
+// than a closed enum, so this falls back to a neutral style for anything
+// else instead of assuming the vocabulary is exhaustive.
+const DECISION_CLASSES: Record<string, string> = {
+  allowed: "text-safe border-safe/35",
+  completed: "text-safe border-safe/35",
+  denied: "text-danger border-danger/40 bg-danger/[0.08]",
+};
+
+export function DecisionBadge({ decision }: { decision: string }) {
+  const cls = DECISION_CLASSES[decision] ?? "text-text-tertiary border-border-strong";
+  return (
+    <span className={`inline-block rounded-[3px] border px-2 py-[3px] text-[11px] font-medium whitespace-nowrap capitalize ${cls}`}>
+      {decision}
+    </span>
+  );
+}
+
+// Reflects audit.Record.Verified — a read-time recomputation of the row's
+// own result_hash (services/api/audit's List), not a persisted flag. false
+// means this specific row's hash no longer matches its stored content.
+export function VerifiedBadge({ verified }: { verified: boolean }) {
+  return (
+    <span
+      className={`inline-block rounded-[3px] border px-2 py-[3px] text-[11px] font-medium whitespace-nowrap ${
+        verified ? "text-safe border-safe/35" : "text-danger border-danger/40 bg-danger/[0.08]"
+      }`}
+    >
+      {verified ? "verified" : "tampered"}
+    </span>
+  );
+}

@@ -1,6 +1,18 @@
 import "server-only";
 
-import type { Case, CasePage, CaseTimelineEntry, CaseStatus, EvidencePage, Problem } from "./types";
+import type {
+  Case,
+  CasePage,
+  CaseTimelineEntry,
+  CaseStatus,
+  EvidencePage,
+  Problem,
+  ReleaseAccepted,
+  AuditPage,
+  MetricsSnapshot,
+  CaseExportRequest,
+  CaseExportAccepted,
+} from "./types";
 
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8080";
 
@@ -107,5 +119,39 @@ export function rejectApproval(approvalId: string, reason: string): Promise<unkn
     method: "POST",
     headers: { "Idempotency-Key": crypto.randomUUID() },
     body: JSON.stringify({ reason }),
+  });
+}
+
+// M6's rollback endpoint (adr/0014) — same manual path the TTL scheduler
+// itself uses automatically once block_ttl_seconds elapses; this lets an
+// analyst release a still-executed block early instead of waiting on it.
+export function releaseAction(actionId: string): Promise<ReleaseAccepted> {
+  return request<ReleaseAccepted>(`/v1/actions/${encodeURIComponent(actionId)}/release`, {
+    method: "POST",
+    headers: { "Idempotency-Key": crypto.randomUUID() },
+  });
+}
+
+// GET /v1/audit — restricted audit records, newest first. No auth/RBAC
+// exists yet (see adr/0011), so this is not actually access-restricted in
+// this lab build, only in the design intent it implements.
+export function getAudit(): Promise<AuditPage> {
+  return request<AuditPage>(`/v1/audit`);
+}
+
+// GET /v1/metrics — a point-in-time KPI snapshot (adr/0015), not a
+// historical baseline or time series.
+export function getMetrics(): Promise<MetricsSnapshot> {
+  return request<MetricsSnapshot>(`/v1/metrics`);
+}
+
+// csv is spec'd (api/openapi.yaml) but not implemented server-side yet
+// (services/api/cases/export.go rejects it with a Problem), so the request
+// type here is narrowed to "json" only rather than offering a dead option.
+export function exportCase(caseId: string, req: CaseExportRequest): Promise<CaseExportAccepted> {
+  return request<CaseExportAccepted>(`/v1/cases/${encodeURIComponent(caseId)}/export`, {
+    method: "POST",
+    headers: { "Idempotency-Key": crypto.randomUUID() },
+    body: JSON.stringify(req),
   });
 }

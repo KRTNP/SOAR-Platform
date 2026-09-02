@@ -1,8 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { transitionCase, closeCase, openTicket, requestBlock, approveAction, executeAction, rejectApproval } from "@/lib/api-client/client";
-import type { CaseStatus } from "@/lib/api-client/types";
+import {
+  transitionCase,
+  closeCase,
+  openTicket,
+  requestBlock,
+  approveAction,
+  executeAction,
+  rejectApproval,
+  releaseAction,
+  exportCase,
+} from "@/lib/api-client/client";
+import type { CaseStatus, CaseExportAccepted, RedactionProfile } from "@/lib/api-client/types";
 
 export async function transitionCaseAction(caseId: string, status: CaseStatus, reason: string) {
   await transitionCase(caseId, status, reason || undefined);
@@ -39,4 +49,24 @@ export async function approveActionAction(approvalId: string, actionId: string, 
 export async function rejectActionAction(approvalId: string, reason: string, caseId: string) {
   await rejectApproval(approvalId, reason);
   revalidatePath(`/cases/${caseId}`);
+}
+
+export async function releaseActionAction(actionId: string, caseId: string) {
+  await releaseAction(actionId);
+  revalidatePath(`/cases/${caseId}`);
+  revalidatePath("/metrics");
+}
+
+export async function exportCaseAction(
+  caseId: string,
+  redactionProfile: RedactionProfile,
+  purpose: string,
+): Promise<CaseExportAccepted> {
+  const result = await exportCase(caseId, {
+    format: "json",
+    redaction_profile: redactionProfile,
+    purpose: purpose || undefined,
+  });
+  revalidatePath(`/cases/${caseId}`);
+  return result;
 }
