@@ -6,10 +6,11 @@ Accepted — implemented (`services/api/metrics`, `GET /v1/metrics`). This
 covers the "KPI baseline" third of M6's gate
 (`docs/10-roadmap/milestones.md`: "controlled production pilot", gate
 "owner sign-off, rollback, KPI baseline"), alongside ADR-0014's rollback
-scheduler. `milestones.md`'s M6 row stays "Not started" — owner sign-off is
-organizational and not something this endpoint can produce, and a real
-*baseline* needs numbers accumulated from real usage over time, not a fresh
-lab database.
+scheduler. The owner (KRTNP) gave sign-off for this project's own lab scope
+on 2026-09-02, closing `milestones.md`'s M6 row as Done (lab scope) —
+explicitly not a claim that a real, time-accumulated KPI baseline exists
+yet, only that the *capability* to compute one from recorded data is built
+and the owner accepts that as sufficient for a personal lab.
 
 ## Decision
 

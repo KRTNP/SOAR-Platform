@@ -2,13 +2,13 @@
 
 ## Status
 
-Accepted — implemented (`services/api/scheduler`). This covers only the
-"rollback" third of M6's gate (`docs/10-roadmap/milestones.md`: "controlled
-production pilot", gate "owner sign-off, rollback, KPI baseline"). KPI
-baseline reporting is a separate, later piece and is not addressed here;
-owner sign-off is organizational evidence this repository's own
-`docs/10-roadmap/definition-of-complete.md` already says code cannot
-produce. `milestones.md`'s M6 row stays "Not started".
+Accepted — implemented (`services/api/scheduler`), covering the "rollback"
+third of M6's gate (`docs/10-roadmap/milestones.md`: "controlled production
+pilot", gate "owner sign-off, rollback, KPI baseline"). KPI baseline
+reporting (`adr/0015`) and owner sign-off followed the same day; see
+`milestones.md`'s M6 row, now Done (lab scope) as of 2026-09-02 — that
+closure is explicitly not a claim of production readiness, only of this
+repository's own narrower M6 gate for a personal-lab project.
 
 ## Decision
 

@@ -240,9 +240,17 @@ steps 4 and 8's discussion prompts.
 - Update `docs/10-roadmap/milestones.md`'s M5 row to "Done" only once this
   script (or an equivalent) has actually been run with the roles staffed by
   real people and the decision log above completed — a solo dry run by one
-  engineer clicking through the API does not satisfy "tabletop approval."
-  Include the exercise date and participants in the commit/PR that flips it.
-  Ownership of the sign-off is not this document's or Claude Code's to give.
+  engineer clicking through the API does not satisfy "tabletop approval" for
+  any project where multiple real stakeholders exist. Include the exercise
+  date and participants in the commit/PR that flips it. Ownership of the
+  sign-off is not this document's or Claude Code's to give.
+  **Exception, recorded rather than silently assumed:** for a single-person
+  personal lab with no other analyst/IT-owner/DFIR stakeholders to staff the
+  roles above, the owner may explicitly accept a solo rehearsal as
+  sufficient — see `adr/0013`'s 2026-09-02 closure note for this project's
+  own instance of that decision. This exception exists because the roles
+  genuinely cannot be staffed, not because running the real exercise would
+  be inconvenient.
 - File newly identified gaps as follow-up work rather than fixing them inline
   during a real, multi-person exercise — the point of a tabletop is to find
   gaps under realistic conditions, not to close them mid-session. (The

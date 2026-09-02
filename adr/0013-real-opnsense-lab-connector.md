@@ -3,16 +3,20 @@
 ## Status
 
 Accepted — connector code implemented and proven against the real lab VM
-(`services/api/opnsense`); M5's other gate condition (tabletop exercise) is
-still open. A runnable script for it exists at
-`docs/08-testing/tabletop-m5-lab-connector.md`, but has not yet been run with
-real people in the roles it defines. `docs/10-roadmap/milestones.md`'s M5 row
-stays "Not started" until that happens.
+(`services/api/opnsense`). `docs/10-roadmap/milestones.md`'s M5 row is now
+Done: on 2026-09-02 the owner (KRTNP) explicitly accepted the solo rehearsal
+below as sufficient tabletop sign-off for this specific project — a
+single-person personal lab with no other analyst/IT-owner/DFIR stakeholders
+to actually staff the roles the script defines. This is a deliberate,
+recorded exception to the general rule below, not a silent lowering of it:
+a project with real stakeholders should still run the multi-person exercise
+`docs/08-testing/tabletop-m5-lab-connector.md` describes.
 
 On 2026-09-02 the script was run once, solo, by one engineer working through
 all nine steps and both discussion prompts alone (approving their own
-request) — this is explicitly **not** the tabletop the gate requires (the
-script itself says so), so it does not close M5. What it did prove: every
+request) — this is explicitly **not** a substitute for a real multi-person
+tabletop in general (the script itself says so, for any project where one
+is possible). What it did prove: every
 step, including the live execute/verify/release round-trip against the real
 OPNsense VM, works end-to-end through the actual HTTP API rather than just
 the Go test suite. It also surfaced one new disclosed gap, recorded below,
