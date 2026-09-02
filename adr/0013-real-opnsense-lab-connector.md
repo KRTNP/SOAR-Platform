@@ -163,13 +163,17 @@ real certificate instead of setting this flag.
   same lazy, read-path-triggered expiry ADR-0011 already disclosed for the
   mock; `services/api/opnsense` adds no new capability here, it only changes
   which system the eventual scheduled rollback (M5/M6) will call.
-- **`actions.Release` writes no audit record at all**, found during the
-  2026-09-02 solo rehearsal above: unlike `Execute` (audited by
-  `actions.Handler.Execute`, the HTTP layer, after a successful call),
-  nothing in `actions.Release` or any caller of it appends to `audit_log`.
-  Combined with `Release` having no HTTP endpoint yet (its only caller today
-  is a test or a hand-written script calling the Go function directly), a
-  real rollback in this system is currently both unreachable over HTTP and
-  invisible in the audit trail — worth closing both gaps together whenever
-  a `release` endpoint is added, rather than adding the endpoint first and
-  the audit call later.
+- **Fixed the same day it was found:** the 2026-09-02 solo rehearsal above
+  surfaced that `actions.Release` wrote no audit record at all, and had no
+  HTTP endpoint — a real rollback was both unreachable over HTTP and
+  invisible in the audit trail. Both were closed together in the same
+  change: `POST /v1/actions/{actionId}/release` (`api/openapi.yaml`,
+  `actions.Handler.Release`) now performs the release and writes an
+  `action.release` audit record (connector version, target hash, no raw
+  value) inside the same transaction, mirroring `Execute`'s own pattern.
+  `actions.Release` also now rejects releasing an action that was never
+  executed (`ErrNotExecuted`, mapped to 409) instead of silently no-op'ing
+  a connector call against something that was never applied — a real
+  correctness gap the HTTP exposure made newly reachable. Covered by
+  `services/api/integration/approval_test.go`'s `TestReleaseAction_*` suite,
+  run for real against Testcontainers this session.

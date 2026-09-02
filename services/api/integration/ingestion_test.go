@@ -122,6 +122,7 @@ func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	v1.POST("/actions/preview", actionsH.Preview)
 	v1.GET("/actions/:actionId", actionsH.Get)
 	v1.POST("/actions/:actionId/execute", actionsH.Execute)
+	v1.POST("/actions/:actionId/release", actionsH.Release)
 	v1.GET("/approvals", actionsH.ListApprovals)
 	v1.POST("/approvals/:approvalId/approve", actionsH.Approve)
 	v1.POST("/approvals/:approvalId/reject", actionsH.Reject)

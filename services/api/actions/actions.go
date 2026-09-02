@@ -55,6 +55,7 @@ var (
 	ErrApprovalRejected = errors.New("approval was rejected")
 	ErrApprovalExpired  = errors.New("approval has expired")
 	ErrAlreadyDecided   = errors.New("approval was already decided")
+	ErrNotExecuted      = errors.New("action has not been executed yet, nothing to release")
 )
 
 const (
@@ -429,8 +430,10 @@ func Execute(ctx context.Context, tx pgx.Tx, tenantID, actionID string, net Netw
 
 // Release performs the manual early-rollback path: it is safe to call before
 // a scheduler exists to do this automatically at the block's TTL (deferred
-// to M5/M6 — see adr/0011). No-op-safe if already released. net selects
-// which connector performs the rollback (see NetworkConnector).
+// to M5/M6 — see adr/0011). No-op-safe if already released; returns
+// ErrNotExecuted if called before the action has ever been executed (the
+// connector never no-op-safely "releasing" something it never applied).
+// net selects which connector performs the rollback (see NetworkConnector).
 func Release(ctx context.Context, tx pgx.Tx, tenantID, actionID string, net NetworkConnector) (Action, error) {
 	a, _, err := getByActionID(ctx, tx, tenantID, actionID)
 	if err != nil {
@@ -441,6 +444,9 @@ func Release(ctx context.Context, tx pgx.Tx, tenantID, actionID string, net Netw
 	}
 	if a.Status == "released" {
 		return *a, nil
+	}
+	if a.Status != "executed" {
+		return Action{}, ErrNotExecuted
 	}
 	if err := net.Release(ctx, tx, a.ID, a.TargetValue); err != nil {
 		return Action{}, err

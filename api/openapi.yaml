@@ -572,6 +572,24 @@ paths:
                 $ref: '#/components/schemas/ExecutionAccepted'
         '403':
           $ref: '#/components/responses/Problem'
+  /v1/actions/{actionId}/release:
+    post:
+      operationId: releaseAction
+      parameters:
+        - $ref: '#/components/parameters/ActionId'
+        - $ref: '#/components/parameters/RequestId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Action released (network/connector state rolled back). Idempotent if already released.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReleaseAccepted'
+        '404':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
   /v1/actions/preview:
     post:
       operationId: previewAction
@@ -1049,6 +1067,12 @@ components:
       properties:
         execution_id: {type: string}
         status: {type: string, enum: [accepted, waiting_approval, running]}
+    ReleaseAccepted:
+      type: object
+      required: [action_id, status]
+      properties:
+        action_id: {type: string}
+        status: {type: string, enum: [released]}
     Execution:
       type: object
       required: [id, playbook_id, playbook_version, connector_version, policy_version, case_id, status, mode, started_at, steps]

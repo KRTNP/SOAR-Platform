@@ -117,6 +117,45 @@ func (h *Handler) Execute(c *gin.Context) {
 	})
 }
 
+// Release implements POST /v1/actions/{actionId}/release — the manual
+// early-rollback path (see adr/0011, adr/0013's disclosed gap that this
+// endpoint did not exist until now). Unlike a denied Execute, there is no
+// approval gate to re-check here: releasing early is always allowed once
+// something has actually been executed.
+func (h *Handler) Release(c *gin.Context) {
+	ctx := c.Request.Context()
+	tenant := httpx.TenantID(c)
+	actionID := c.Param("actionId")
+	if len(c.GetHeader("Idempotency-Key")) < httpx.MinIdempotencyKeyLength {
+		httpx.WriteProblem(c, httpx.ErrValidation("invalid_idempotency_key", "Idempotency-Key header must be at least 8 characters"))
+		return
+	}
+
+	var a Action
+	err := store.WithTx(ctx, h.pool, func(tx pgx.Tx) error {
+		var err error
+		a, err = Release(ctx, tx, tenant, actionID, h.net)
+		if err != nil {
+			return err
+		}
+		th := audit.TargetHash(actionID)
+		cv := h.net.Version
+		return audit.Append(ctx, tx, audit.Record{
+			TenantID: tenant, Actor: "incident-commander", ActorType: "analyst",
+			CaseID: &a.CaseID, ExecutionID: &a.ID, Action: "action.release",
+			TargetHash: &th, ConnectorVersion: &cv, Decision: "allowed",
+		})
+	})
+	if err != nil {
+		httpx.WriteProblem(c, mapReleaseError(err))
+		return
+	}
+	c.JSON(http.StatusOK, genapi.ReleaseAccepted{
+		ActionId: a.ID,
+		Status:   genapi.ReleaseAcceptedStatusReleased,
+	})
+}
+
 // auditDeniedExecute records a denied execute attempt as a second, independent
 // statement against the pool rather than inside the transaction that Execute
 // already rolled back — an audit insert made inside that transaction would
@@ -251,6 +290,24 @@ func mapExecuteError(err error) error {
 			return err
 		}
 		return httpx.ErrInternal("execute_action_failed", "could not execute action").WithCause(err)
+	}
+}
+
+// mapReleaseError renders "nothing to release yet" as 409, matching
+// releaseAction's declared 409 — releasing before execute is a state
+// conflict, not a permission failure (there is no approval gate on release).
+func mapReleaseError(err error) error {
+	switch {
+	case errors.Is(err, ErrNotFound):
+		return httpx.ErrNotFound("action_not_found", "action does not exist")
+	case errors.Is(err, ErrNotExecuted):
+		return httpx.ErrConflict("action_not_executed", "action has not been executed yet, nothing to release")
+	default:
+		var appErr *httpx.AppError
+		if errors.As(err, &appErr) {
+			return err
+		}
+		return httpx.ErrInternal("release_action_failed", "could not release action").WithCause(err)
 	}
 }
 

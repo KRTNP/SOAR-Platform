@@ -493,6 +493,21 @@ func (e PlaybookPromotionRequestTargetState) Valid() bool {
 	}
 }
 
+// Defines values for ReleaseAcceptedStatus.
+const (
+	ReleaseAcceptedStatusReleased ReleaseAcceptedStatus = "released"
+)
+
+// Valid indicates whether the value is a known member of the ReleaseAcceptedStatus enum.
+func (e ReleaseAcceptedStatus) Valid() bool {
+	switch e {
+	case ReleaseAcceptedStatusReleased:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StartExecutionRequestMode.
 const (
 	StartExecutionRequestModeDryRun  StartExecutionRequestMode = "dry_run"
@@ -806,6 +821,15 @@ type Problem struct {
 	Type      string  `json:"type"`
 }
 
+// ReleaseAccepted defines model for ReleaseAccepted.
+type ReleaseAccepted struct {
+	ActionId string                `json:"action_id"`
+	Status   ReleaseAcceptedStatus `json:"status"`
+}
+
+// ReleaseAcceptedStatus defines model for ReleaseAccepted.Status.
+type ReleaseAcceptedStatus string
+
 // ResourcePage defines model for ResourcePage.
 type ResourcePage struct {
 	Items      []interface{} `json:"items"`
@@ -901,6 +925,12 @@ type PreviewActionParams struct {
 
 // ExecuteActionParams defines parameters for ExecuteAction.
 type ExecuteActionParams struct {
+	XRequestID     *RequestId     `json:"X-Request-ID,omitempty"`
+	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
+}
+
+// ReleaseActionParams defines parameters for ReleaseAction.
+type ReleaseActionParams struct {
 	XRequestID     *RequestId     `json:"X-Request-ID,omitempty"`
 	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 }

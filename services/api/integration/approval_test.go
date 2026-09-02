@@ -97,6 +97,17 @@ func approveApproval(t *testing.T, srv *httptest.Server, approvalID string) *htt
 	return resp
 }
 
+func releaseAction(t *testing.T, srv *httptest.Server, actionID string) *http.Response {
+	t.Helper()
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/v1/actions/"+actionID+"/release", nil)
+	req.Header.Set("Idempotency-Key", "release-key-"+actionID)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("POST release: %v", err)
+	}
+	return resp
+}
+
 func rejectApproval(t *testing.T, srv *httptest.Server, approvalID, reason string) *http.Response {
 	t.Helper()
 	body := fmt.Sprintf(`{"reason":%q}`, reason)
@@ -324,5 +335,94 @@ func TestRelease_RollsBackBlock(t *testing.T) {
 	}
 	if blockStatus != "released" {
 		t.Errorf("expected network_blocks status released, got %q", blockStatus)
+	}
+}
+
+// TestReleaseAction_ConflictBeforeExecute: releasing an approved-but-not-yet-
+// executed action is a 409, not a silent no-op — see adr/0013's disclosed
+// gap and actions.ErrNotExecuted.
+func TestReleaseAction_ConflictBeforeExecute(t *testing.T) {
+	srv, _ := setupServer(t)
+	defer srv.Close()
+
+	caseID := caseWithBlockTarget(t, srv, "release-before-execute-0001")
+	action := requestBlock(t, srv, caseID, "198.51.100.10")
+	approval := findApprovalForAction(t, srv, action.Id)
+	approveApproval(t, srv, approval.Id).Body.Close()
+
+	resp := releaseAction(t, srv, action.Id)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected 409 releasing an approved-but-not-executed action, got %d", resp.StatusCode)
+	}
+}
+
+// TestReleaseAction_SucceedsAndAudits: POST /release after a real execute
+// rolls back network_blocks and writes an action.release audit record with
+// the connector's own version, not a raw target value.
+func TestReleaseAction_SucceedsAndAudits(t *testing.T) {
+	srv, pool := setupServer(t)
+	defer srv.Close()
+
+	caseID := caseWithBlockTarget(t, srv, "release-http-success-0001")
+	action := requestBlock(t, srv, caseID, "198.51.100.10")
+	approval := findApprovalForAction(t, srv, action.Id)
+	approveApproval(t, srv, approval.Id).Body.Close()
+	executeAction(t, srv, action.Id).Body.Close()
+
+	resp := releaseAction(t, srv, action.Id)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 releasing an executed action, got %d", resp.StatusCode)
+	}
+	var body genapi.ReleaseAccepted
+	_ = json.NewDecoder(resp.Body).Decode(&body)
+	if body.Status != genapi.ReleaseAcceptedStatusReleased || body.ActionId != action.Id {
+		t.Errorf("unexpected release response: %+v", body)
+	}
+
+	var blockStatus string
+	if err := pool.QueryRow(context.Background(),
+		`select status from network_blocks where action_id = $1`, action.Id,
+	).Scan(&blockStatus); err != nil {
+		t.Fatalf("checking network_blocks status: %v", err)
+	}
+	if blockStatus != "released" {
+		t.Errorf("expected network_blocks status released, got %q", blockStatus)
+	}
+
+	var auditCount int
+	if err := pool.QueryRow(context.Background(),
+		`select count(*) from audit_log where execution_id = $1 and action = 'action.release'`, action.Id,
+	).Scan(&auditCount); err != nil {
+		t.Fatalf("checking audit_log: %v", err)
+	}
+	if auditCount != 1 {
+		t.Errorf("expected exactly one action.release audit record, got %d", auditCount)
+	}
+}
+
+// TestReleaseAction_IsIdempotent: releasing twice is safe — the second call
+// returns 200 again rather than erroring, matching Release's no-op-safe
+// "already released" branch.
+func TestReleaseAction_IsIdempotent(t *testing.T) {
+	srv, _ := setupServer(t)
+	defer srv.Close()
+
+	caseID := caseWithBlockTarget(t, srv, "release-idempotent-0001")
+	action := requestBlock(t, srv, caseID, "198.51.100.10")
+	approval := findApprovalForAction(t, srv, action.Id)
+	approveApproval(t, srv, approval.Id).Body.Close()
+	executeAction(t, srv, action.Id).Body.Close()
+
+	first := releaseAction(t, srv, action.Id)
+	first.Body.Close()
+	if first.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 on first release, got %d", first.StatusCode)
+	}
+	second := releaseAction(t, srv, action.Id)
+	second.Body.Close()
+	if second.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 on repeat release, got %d", second.StatusCode)
 	}
 }

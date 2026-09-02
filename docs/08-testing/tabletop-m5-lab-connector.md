@@ -36,12 +36,12 @@ disclosed gaps to discuss, not implementation bugs to fix during the exercise:
   actually clicked. Separation of duties in this exercise is enforced by the
   participants' discipline, not by the system — say out loud whose "turn" it
   is rather than relying on the API to stop the wrong person.
-- **No scheduler drives TTL expiry or rollback.** `actions.Release` (the
-  manual early-rollback function) exists and is unit-tested, but has **no
-  HTTP endpoint** — `api/openapi.yaml` declares no `release` route today. A
-  live rollback in this exercise means removing the IP from `SOAR_TEMP_BLOCK`
-  directly via the OPNsense UI/API, not through this system. Record this as a
-  gap (see below), don't paper over it.
+- **No scheduler drives TTL expiry or rollback.** `POST /v1/actions/{id}/release`
+  exists (added after this script's first solo rehearsal surfaced it as a
+  gap — see `adr/0013`) so a rollback in this exercise now goes through the
+  real API and gets audited, but nothing calls it automatically at the
+  approval's TTL — a human (or a future scheduler, M5/M6) still has to
+  decide to release.
 - **No automatic Wazuh-to-SOAR ingestion.** M1 only ever proved a *synthetic*
   alert reaching a case. This script POSTs a hand-built event to
   `/v1/events` that mimics a Wazuh alert shape
@@ -189,12 +189,18 @@ Confirm the TEST-NET-3 IP is present. This is the same call
 point: an approver or auditor should be able to independently confirm a claim
 this system makes, not just trust its response.
 
-**8. Manual rollback (the documented gap).** There is no HTTP endpoint for
-this. Either call `actions.Release` directly (e.g. from a short Go program or
-`go test -run` against the real connector, mirroring
-`opnsense_lab_test.go`'s cleanup step) or remove the IP via the OPNsense UI/API
-directly. *Discussion:* is "no self-service rollback endpoint" acceptable for
-a lab, and what would need to exist before a production pilot (M6) could rely
+**8. Release.**
+
+```bash
+curl -s -X POST http://localhost:8080/v1/actions/<action_id>/release \
+  -H 'Idempotency-Key: tabletop-release-001'
+```
+Expect `200` with `{"action_id": "...", "status": "released"}`. Calling it
+again is safe (still `200`) — releasing before the action was ever executed
+is a `409` instead (`actions.ErrNotExecuted`). *Discussion:* nothing calls
+this automatically at the approval's TTL — a human has to remember to. Is
+that acceptable for a lab, and what would need to exist (a scheduler, an
+alert on stale unreleased blocks) before a production pilot (M6) could rely
 on this?
 
 **9. DFIR reviewer checks the trail.**
@@ -224,10 +230,10 @@ design content):
 |---|---|---|---|---|
 | e.g. step 4 approval review | ... | "no asset-criticality lookup exists" | ... | ... |
 
-At minimum, expect to log the two gaps this script already calls out (no
-release/rollback HTTP endpoint; most of the ten safe-response-controls gates
-are still human-trusted, not code-enforced) plus whatever the group surfaces
-during steps 4 and 8's discussion prompts.
+At minimum, expect to log the gap this script already calls out (most of the
+ten safe-response-controls gates are still human-trusted, not code-enforced;
+release has no automatic TTL trigger) plus whatever the group surfaces during
+steps 4 and 8's discussion prompts.
 
 ## After the exercise
 
@@ -237,10 +243,13 @@ during steps 4 and 8's discussion prompts.
   engineer clicking through the API does not satisfy "tabletop approval."
   Include the exercise date and participants in the commit/PR that flips it.
   Ownership of the sign-off is not this document's or Claude Code's to give.
-- File the identified gaps (e.g., the missing manual-release endpoint) as
-  follow-up work rather than fixing them inline during the exercise — the
-  point of a tabletop is to find gaps under realistic conditions, not to close
-  them mid-session.
+- File newly identified gaps as follow-up work rather than fixing them inline
+  during a real, multi-person exercise — the point of a tabletop is to find
+  gaps under realistic conditions, not to close them mid-session. (The
+  missing release endpoint was the exception: found and fixed the same day,
+  during a solo rehearsal with no other participants waiting on the outcome
+  — see `adr/0013`. That shortcut is not available once real people are in
+  the room.)
 - If the group decides an ADR-0013 assumption no longer holds (for example,
   the double-NAT masking caveat turns out to matter more than expected for
   M6), record that as a new ADR or an amendment, not a silent edit to
