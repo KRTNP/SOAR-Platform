@@ -4,8 +4,10 @@
 
 Accepted — connector code implemented and proven against the real lab VM
 (`services/api/opnsense`); M5's other gate condition (tabletop exercise) is
-still open. `docs/10-roadmap/milestones.md`'s M5 row stays "Not started"
-until that happens.
+still open. A runnable script for it exists at
+`docs/08-testing/tabletop-m5-lab-connector.md`, but has not yet been run with
+real people in the roles it defines. `docs/10-roadmap/milestones.md`'s M5 row
+stays "Not started" until that happens.
 
 ## Decision
 

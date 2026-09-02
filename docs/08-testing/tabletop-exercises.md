@@ -10,3 +10,6 @@
 
 ผู้เข้าร่วมต้องครอบคลุม analyst, incident commander, IT/service owner, legal/communications, DFIR และ vendor ที่เกี่ยวข้อง ผลลัพธ์ต้องมี decision log, gap, owner, due date และ playbook revision
 
+สำหรับ M5 ("lab connector") มี script ที่รันได้จริงกับ API และ OPNsense VM ของ lab แล้ว ดู
+[`tabletop-m5-lab-connector.md`](tabletop-m5-lab-connector.md).
+
