@@ -29,6 +29,7 @@ import (
 	"soar-platform/services/api/events"
 	"soar-platform/services/api/evidence"
 	"soar-platform/services/api/httpx"
+	"soar-platform/services/api/metrics"
 	"soar-platform/services/api/network"
 	"soar-platform/services/api/opnsense"
 	"soar-platform/services/api/scheduler"
@@ -169,6 +170,7 @@ func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netCo
 	actionsH := actions.NewHandler(pool, netConn)
 	evidenceH := evidence.NewHandler(pool)
 	auditH := audit.NewHandler(pool)
+	metricsH := metrics.NewHandler(pool)
 
 	v1 := r.Group("/v1")
 	{
@@ -196,6 +198,8 @@ func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netCo
 		v1.GET("/evidence/:evidenceId", evidenceH.Get)
 
 		v1.GET("/audit", auditH.List)
+
+		v1.GET("/metrics", metricsH.Get)
 	}
 
 	return r
