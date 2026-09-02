@@ -1,0 +1,19 @@
+{
+  "id": "policy-default",
+  "version": "policy-1.0",
+  "default_decision": "require_approval",
+  "rules": [
+    {"id": "allow-notify", "when": "intent == 'notify'", "decision": "allow", "reason": "read-only, no side effects"},
+    {"id": "allow-query-siem", "when": "intent == 'query_siem'", "decision": "allow", "reason": "read-only, no side effects"},
+    {"id": "allow-create-ticket", "when": "intent == 'create_ticket'", "decision": "allow", "reason": "reversible, low blast radius"},
+    {"id": "allow-enrich-observable", "when": "intent == 'enrich_observable'", "decision": "allow", "reason": "read-only, no side effects"},
+    {"id": "approve-collect-artifact", "when": "intent == 'collect_artifact'", "decision": "require_approval", "reason": "touches a live host, but only to read"},
+    {"id": "approve-quarantine-email", "when": "intent == 'quarantine_email'", "decision": "require_approval", "reason": "reversible but affects a user's mailbox"},
+    {"id": "approve-revoke-session", "when": "intent == 'revoke_session'", "decision": "require_approval", "reason": "disrupts an active user session"},
+    {"id": "approve-block-network-indicator", "when": "intent == 'block_network_indicator'", "decision": "require_approval", "reason": "adr/0011 gate; TTL-bound, auto-released by adr/0014's scheduler"},
+    {"id": "approve-isolate-host", "when": "intent == 'isolate_host'", "decision": "require_approval", "reason": "disrupts a whole host, potentially production"},
+    {"id": "approve-disable-account", "when": "intent == 'disable_account'", "decision": "require_approval", "reason": "disrupts a user's access entirely"}
+  ],
+  "approval_roles": ["incident-commander", "service-owner", "analyst"],
+  "requires_ttl": true
+}

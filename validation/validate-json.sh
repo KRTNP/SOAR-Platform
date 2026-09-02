@@ -27,6 +27,7 @@ checks = {
     "normalized-event.json": ("event.schema.json", load_example("normalized-event.json")),
     "evidence.json": ("evidence.schema.json", load_example("evidence.json")),
     "alert.json": ("alert.schema.json", load_example("alert.json")),
+    "policy.default.json": ("policy.schema.json", load_example("policy.default.json")),
 }
 for example_name, (schema_name, instance) in checks.items():
     missing = required(schema_name) - set(instance)

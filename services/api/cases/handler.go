@@ -338,7 +338,13 @@ func (h *Handler) Update(c *gin.Context) {
 			}); err != nil {
 				return err
 			}
-			return auditAppend(ctx, tx, tenant, &caseID, "analyst", "analyst", "action.request_block", "completed", audit.TargetHash(targetValue), nil)
+			// adr/0016: the approval_roles this intent's policy rule names
+			// is descriptive (no RBAC exists yet to enforce it) but is worth
+			// recording on the audit trail rather than only ever writing a
+			// nil reason, so it's visible to whoever reviews this decision.
+			_, approvalRoles := actions.EvaluatePolicy(a.Intent, a.Risk)
+			reason := "requires approval from: " + strings.Join(approvalRoles, ", ")
+			return auditAppend(ctx, tx, tenant, &caseID, "analyst", "analyst", "action.request_block", "completed", audit.TargetHash(targetValue), &reason)
 		})
 		if err != nil {
 			httpx.WriteProblem(c, mapCaseError(err))

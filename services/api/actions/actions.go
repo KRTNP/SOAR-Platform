@@ -149,7 +149,7 @@ func RequestBlock(ctx context.Context, q querier, tenantID, caseID, targetType, 
 		RequestedBy:     requestedBy,
 		Status:          "pending_approval",
 		IdempotencyKey:  key,
-		PolicyVersion:   "policy-1.0",
+		PolicyVersion:   DefaultPolicyVersion,
 		BlockTTLSeconds: blockTTLSeconds,
 		CreatedAt:       now,
 	}
