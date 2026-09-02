@@ -30,8 +30,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
           Alert Queue
         </Link>
 
-        <div className="mb-2.5 flex items-center gap-3">
-          <span className="font-mono text-[13px] text-text-tertiary">{caseItem.id}</span>
+        <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <span className="font-mono text-[13px] whitespace-nowrap text-text-tertiary">{caseItem.id}</span>
           <SeverityBadge severity={caseItem.severity} size="lg" />
           <StatusBadge status={caseItem.status} />
         </div>
@@ -57,13 +57,13 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
         </div>
       </div>
 
-      <div className="grid grid-cols-[1fr_320px] gap-5">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-[1fr_320px]">
         <div className="flex flex-col gap-[18px]">
           {(caseItem.hypothesis || (caseItem.facts?.length ?? 0) > 0 || (caseItem.limitations?.length ?? 0) > 0) && (
             <section className="rounded-md border border-border bg-surface p-[18px_20px]">
               <h2 className="mb-3 text-[13px] font-semibold">Summary</h2>
               {caseItem.hypothesis && <p className="mb-3.5 text-[13.5px] text-text-secondary italic">&ldquo;{caseItem.hypothesis}&rdquo;</p>}
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 {(caseItem.facts?.length ?? 0) > 0 && (
                   <div>
                     <h3 className="mb-1.5 text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">Facts</h3>

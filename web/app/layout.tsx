@@ -37,9 +37,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
 
   return (
     <html lang="en" className={`${plexSans.variable} ${plexMono.variable} h-full antialiased`}>
-      <body className="flex h-full min-h-screen">
+      <body className="flex h-full min-h-screen flex-col md:flex-row">
         <Sidebar connectorTarget={connectorTarget} connectorVersion={connectorVersion} />
-        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto px-[34px] pt-[26px] pb-8">{children}</div>
+        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto px-4 pt-5 pb-8 md:px-[34px] md:pt-[26px]">{children}</div>
       </body>
     </html>
   );

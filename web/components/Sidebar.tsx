@@ -55,13 +55,18 @@ const NAV_ITEMS = [
   },
 ];
 
+// Below md this recomposes into a compact top bar (logo + nav only — the
+// tenant/connector/dry-run status block is secondary information and is
+// dropped rather than shrunk, per gridgeist's "recompose, don't shrink"
+// rule) so the app is usable on a phone instead of rendering a squeezed
+// 236px column beside the content. md and up keeps the original side rail.
 export function Sidebar({ connectorTarget, connectorVersion }: { connectorTarget?: string; connectorVersion?: string }) {
   const pathname = usePathname();
   const isMockConnector = connectorVersion?.includes("mock") ?? true;
 
   return (
-    <aside className="flex w-[236px] shrink-0 flex-col border-r border-border bg-surface p-[22px_16px]">
-      <div className="mb-[22px] flex items-center gap-2.5 px-2 pt-1">
+    <aside className="flex w-full shrink-0 flex-row items-center gap-3 border-b border-border bg-surface p-[10px_16px] md:w-[236px] md:flex-col md:items-stretch md:gap-0 md:border-r md:border-b-0 md:p-[22px_16px]">
+      <div className="flex items-center gap-2.5 px-0 md:mb-[22px] md:px-2 md:pt-1">
         <svg
           viewBox="0 0 24 24"
           fill="none"
@@ -69,16 +74,16 @@ export function Sidebar({ connectorTarget, connectorVersion }: { connectorTarget
           strokeWidth={1.6}
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="h-5 w-5 text-accent"
+          className="h-5 w-5 shrink-0 text-accent"
         >
           <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" />
         </svg>
-        <span className="text-sm font-semibold tracking-tight">
+        <span className="hidden text-sm font-semibold tracking-tight sm:inline">
           SOAR <span className="font-normal text-text-tertiary">/ lab</span>
         </span>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-0.5">
+      <nav className="flex flex-1 flex-row gap-0.5 md:flex-col">
         {NAV_ITEMS.map((item) => {
           const current = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
           return (
@@ -91,13 +96,13 @@ export function Sidebar({ connectorTarget, connectorVersion }: { connectorTarget
               }`}
             >
               <NavIcon>{item.icon}</NavIcon>
-              {item.label}
+              <span className="hidden md:inline">{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div className="flex flex-col gap-2 border-t border-border pt-3.5">
+      <div className="hidden flex-col gap-2 border-t border-border pt-3.5 md:flex">
         <span className="px-2.5 font-mono text-[10.5px] tracking-wider text-text-tertiary">
           TENANT &middot; LAB
         </span>

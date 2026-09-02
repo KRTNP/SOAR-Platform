@@ -55,7 +55,7 @@ export default async function MetricsPage() {
         </div>
       </section>
 
-      <div className="grid grid-cols-4 gap-[18px]">
+      <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 xl:grid-cols-4">
         <StatTile label="Total cases" value={String(snap.total_cases)} />
         <StatTile
           label="Evidence verified"

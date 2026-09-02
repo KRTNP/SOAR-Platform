@@ -33,3 +33,24 @@ body {
   color: var(--color-text-primary);
   font-family: var(--font-sans);
 }
+
+/*
+ * Applied once, globally, rather than threaded through every button/input/
+ * select/link className: every interactive element in this app gets the
+ * same accent-colored keyboard focus ring, and every animate-pulse skeleton
+ * (app/loading.tsx, app/cases/[caseId]/loading.tsx) respects reduced motion.
+ * A per-component class would be easy to miss on the next new control; this
+ * can't be missed because it isn't opted into.
+ */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse {
+    animation: none;
+    opacity: 0.6;
+  }
+}

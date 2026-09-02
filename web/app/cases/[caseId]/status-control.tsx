@@ -50,10 +50,11 @@ export function StatusControl({ caseItem }: { caseItem: Case }) {
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border bg-surface p-3.5">
-      <label className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">
+      <label htmlFor="status-transition-select" className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">
         Transition status
       </label>
       <select
+        id="status-transition-select"
         value={status}
         onChange={(e) => setStatus(e.target.value as CaseStatus)}
         className="rounded-[4px] border border-border-strong bg-surface-raised px-2.5 py-1.5 text-[13px] text-text-primary capitalize"
@@ -69,6 +70,7 @@ export function StatusControl({ caseItem }: { caseItem: Case }) {
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder="Reason (optional)"
+          aria-label="Status transition reason"
           className="rounded-[4px] border border-border-strong bg-surface-raised px-2.5 py-1.5 text-[13px] text-text-primary placeholder:text-text-tertiary"
         />
       )}
@@ -106,13 +108,14 @@ export function CloseCaseControl({ caseItem }: { caseItem: Case }) {
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border bg-surface p-3.5">
-      <label className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">
+      <span className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">
         Close case
-      </label>
+      </span>
       <input
         value={closureReason}
         onChange={(e) => setClosureReason(e.target.value)}
         placeholder="Closure reason (required)"
+        aria-label="Closure reason (required)"
         className="rounded-[4px] border border-border-strong bg-surface-raised px-2.5 py-1.5 text-[13px] text-text-primary placeholder:text-text-tertiary"
       />
       <button
@@ -134,7 +137,7 @@ export function TicketControl({ caseItem }: { caseItem: Case }) {
   if (caseItem.ticket_ref) {
     return (
       <div className="flex flex-col gap-1 rounded-md border border-border bg-surface p-3.5">
-        <label className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">Ticket</label>
+        <span className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">Ticket</span>
         <p className="text-[13px] text-text-primary">
           {caseItem.ticket_ref} <span className="text-text-tertiary capitalize">· {caseItem.ticket_status}</span>
         </p>
@@ -155,7 +158,7 @@ export function TicketControl({ caseItem }: { caseItem: Case }) {
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border bg-surface p-3.5">
-      <label className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">Ticket</label>
+      <span className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">Ticket</span>
       <button
         onClick={submit}
         disabled={isPending}
@@ -246,7 +249,7 @@ export function ActionControl({ caseItem }: { caseItem: Case }) {
     if (targets.length === 0) return null;
     return (
       <div className="flex flex-col gap-2 rounded-md border border-border bg-surface p-3.5">
-        <label className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">Network block</label>
+        <span className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">Network block</span>
         {targets.map((o) => (
           <button
             key={o.value}
@@ -264,7 +267,7 @@ export function ActionControl({ caseItem }: { caseItem: Case }) {
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border bg-surface p-3.5">
-      <label className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">Network block</label>
+      <span className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">Network block</span>
       <p className="text-[13px] text-text-primary">
         {action.target.value} <span className="text-text-tertiary">· {ACTION_STATUS_LABEL[action.status] ?? action.status}</span>
       </p>
@@ -282,6 +285,7 @@ export function ActionControl({ caseItem }: { caseItem: Case }) {
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Rejection reason (required to reject)"
+            aria-label="Rejection reason (required to reject)"
             className="rounded-[4px] border border-border-strong bg-surface-raised px-2.5 py-1.5 text-[13px] text-text-primary placeholder:text-text-tertiary"
           />
           <button
@@ -339,10 +343,11 @@ export function ExportControl({ caseItem }: { caseItem: Case }) {
 
   return (
     <div className="flex flex-col gap-2 rounded-md border border-border bg-surface p-3.5">
-      <label className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">Export case</label>
+      <span className="text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">Export case</span>
       <select
         value={profile}
         onChange={(e) => setProfile(e.target.value as RedactionProfile)}
+        aria-label="Redaction profile"
         className="rounded-[4px] border border-border-strong bg-surface-raised px-2.5 py-1.5 text-[13px] text-text-primary capitalize"
       >
         {REDACTION_PROFILES.map((p) => (
@@ -355,6 +360,7 @@ export function ExportControl({ caseItem }: { caseItem: Case }) {
         value={purpose}
         onChange={(e) => setPurpose(e.target.value)}
         placeholder="Purpose (optional)"
+        aria-label="Export purpose"
         className="rounded-[4px] border border-border-strong bg-surface-raised px-2.5 py-1.5 text-[13px] text-text-primary placeholder:text-text-tertiary"
       />
       <button
