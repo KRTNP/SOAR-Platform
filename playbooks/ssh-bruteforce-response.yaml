@@ -10,6 +10,14 @@ references:
 trigger:
   source: wazuh
   condition: authenticated webhook payload shows 5 failed SSH logins within 1 minute from one source IP against the designated Ubuntu victim
+automation:
+  signature_id: ssh-bruteforce
+  match:
+    event_class: authentication
+    observable_type: ipv4
+  threshold: 5
+  window_seconds: 60
+  action_intent: block_network_indicator
 scope:
   tenant: payload.tenant_id
   assets: lab_ssh_victim_only

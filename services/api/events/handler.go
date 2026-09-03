@@ -24,45 +24,40 @@ import (
 	"soar-platform/services/api/evidence"
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
+	"soar-platform/services/api/signatures"
 	"soar-platform/services/api/store"
 	"soar-platform/services/api/telemetry"
 )
 
 const ingestRoute = "ingestEvent"
 
-// correlationWindowSeconds and autoBlockThreshold implement the one
-// correlated signature adr/0018 covers: repeated authentication-class
-// events sharing a source IP, matching
-// docs/08-testing/lab-scenario-ssh-bruteforce.md's "5 failed SSH logins
-// within 1 minute from one source IP". A second signature needing
-// correlation would pick its own window rather than reusing this constant.
-const (
-	correlationWindowSeconds = 60
-	autoBlockThreshold       = 5
-)
-
-// correlationKeyFor returns "" when eventClass/observables don't match the
-// one signature this package correlates — every other event class keeps
-// M1's original "always open a new case" behavior unchanged.
-func correlationKeyFor(eventClass string, observables []Observable) string {
-	if eventClass != "authentication" {
+// correlationKeyFor returns "" when eventClass/observables don't match any
+// signatures.Registry entry — every unmatched event class keeps M1's
+// original "always open a new case" behavior unchanged. adr/0021
+// generalized this from adr/0018's single hardcoded
+// authentication+ipv4 check into a registry lookup.
+func correlationKeyFor(sig *signatures.Signature, eventClass string, observables []Observable) string {
+	if sig == nil {
 		return ""
 	}
 	for _, o := range observables {
-		if o.Type == "ipv4" {
+		if o.Type == sig.ObservableType {
 			return eventClass + ":" + o.Value
 		}
 	}
 	return ""
 }
 
-// sourceIPFor mirrors correlationKeyFor's observable scan, for the
+// correlationValueFor mirrors correlationKeyFor's observable scan, for the
 // allowlist check and the auto-trigger's block target — kept separate from
-// the key itself so a future correlation signature isn't forced to encode
-// "the value to maybe block" into its key format.
-func sourceIPFor(observables []Observable) string {
+// the key itself so a future signature isn't forced to encode "the value to
+// maybe block" into its key format.
+func correlationValueFor(sig *signatures.Signature, observables []Observable) string {
+	if sig == nil {
+		return ""
+	}
 	for _, o := range observables {
-		if o.Type == "ipv4" {
+		if o.Type == sig.ObservableType {
 			return o.Value
 		}
 	}
@@ -180,17 +175,20 @@ func (h *Handler) Ingest(c *gin.Context) {
 			return err
 		}
 
-		// adr/0018: repeated authentication-class events sharing a source IP
-		// attach to the same still-open case instead of each opening a new
-		// one — the correlation step docs/03-domain-model already modeled
-		// (cases.correlation_key) but M1 deliberately deferred. Every other
-		// event class keeps today's "always open a new case" behavior.
-		correlationKey := correlationKeyFor(ev.EventClass, ev.Observables)
+		// adr/0018/adr/0021: an event whose class matches a registered
+		// signature (services/api/signatures) attaches to the same
+		// still-open case instead of each opening a new one — the
+		// correlation step docs/03-domain-model already modeled
+		// (cases.correlation_key) but M1 deliberately deferred. Every event
+		// class with no matching signature keeps today's "always open a new
+		// case" behavior.
+		sig := signatures.MatchEventClass(ev.EventClass)
+		correlationKey := correlationKeyFor(sig, ev.EventClass, ev.Observables)
 		var caseID string
 		var repeatCount int
 		var existingCase *cases.Case
 		if correlationKey != "" {
-			existingCase, err = cases.FindOpenByCorrelation(ctx, tx, tenant, correlationKey, correlationWindowSeconds, now)
+			existingCase, err = cases.FindOpenByCorrelation(ctx, tx, tenant, correlationKey, sig.WindowSeconds, now)
 			if err != nil {
 				return err
 			}
@@ -215,7 +213,7 @@ func (h *Handler) Ingest(c *gin.Context) {
 			var windowPtr *int
 			var keyPtr *string
 			if correlationKey != "" {
-				w := correlationWindowSeconds
+				w := sig.WindowSeconds
 				windowPtr = &w
 				keyPtr = &correlationKey
 			}
@@ -288,19 +286,23 @@ func (h *Handler) Ingest(c *gin.Context) {
 			}
 		}
 
-		// SSH brute-force auto-trigger (adr/0018): once the threshold is hit
-		// for a correlated, non-allowlisted source, request the block
-		// automatically instead of waiting for an analyst to click "Request
-		// block" — everything downstream (approval, execute, scheduled
-		// release) is the same already-built path that manual click uses.
-		if correlationKey != "" && repeatCount >= autoBlockThreshold {
-			sourceIP := sourceIPFor(ev.Observables)
+		// Signature auto-trigger (adr/0018/adr/0021): once a registered
+		// signature's threshold is hit for a correlated, non-allowlisted
+		// source, request the block automatically instead of waiting for an
+		// analyst to click "Request block" — everything downstream
+		// (approval, execute, scheduled release) is the same already-built
+		// path that manual click uses. Only signatures.Signature.ActionIntent
+		// == "block_network_indicator" has a request path today
+		// (actions.RequestBlock); no signature in the registry names
+		// anything else yet.
+		if correlationKey != "" && repeatCount >= sig.Threshold {
+			sourceIP := correlationValueFor(sig, ev.Observables)
 			trusted, err := allowlist.IsTrusted(ctx, tx, tenant, sourceIP, now)
 			if err != nil {
 				return err
 			}
 			if !trusted {
-				a, _, created, err := actions.RequestBlock(ctx, tx, tenant, caseID, "ipv4", sourceIP, "system")
+				a, _, created, err := actions.RequestBlock(ctx, tx, tenant, caseID, sig.ObservableType, sourceIP, "system")
 				if err != nil {
 					return err
 				}

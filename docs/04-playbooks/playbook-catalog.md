@@ -19,7 +19,7 @@
 | PB-NIST-RECOVERY-001 | Evidence-informed service recovery | L1/L3 | validated service restore |
 | PB-DFIR-EVIDENCE-001 | Read-only DFIR evidence preservation and custody | L1 | hash-verified evidence manifest |
 
-PB-SSHBF-001 คือ first end-to-end scenario ตาม [ADR-0007](../../adr/0007-first-vertical-scenario.md) และ [SSH brute-force lab scenario](../08-testing/lab-scenario-ssh-bruteforce.md) — เป็น write-enabled playbook เดียวที่ผ่าน tested lab scope ในปัจจุบัน
+PB-SSHBF-001 คือ first end-to-end scenario ตาม [ADR-0007](../../adr/0007-first-vertical-scenario.md) และ [SSH brute-force lab scenario](../08-testing/lab-scenario-ssh-bruteforce.md) — เป็น write-enabled playbook เดียวที่ผ่าน tested lab scope ในปัจจุบัน และเป็น playbook เดียวที่มี structured `automation` block ([ADR-0021](../../adr/0021-declarative-signature-registry.md)) เชื่อมกับ `services/api/signatures`'s registry จริง — ทุก playbook อื่นในตารางนี้ยังเป็น documentation เท่านั้น เพราะ `trigger.condition` ของแต่ละไฟล์เป็น prose ไม่มี threshold/window ที่ชัดเจนพอจะ mirror เข้า registry ได้ (สำรวจครบทั้ง 15 ไฟล์ที่เหลือแล้ว)
 
 PB-WAZUH-001, PB-IOC-001 และ PB-VULN-001 เป็นลำดับเริ่มต้นที่ปลอดภัยกว่า response ที่เปลี่ยน network/identity state
 

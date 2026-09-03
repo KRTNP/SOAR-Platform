@@ -41,6 +41,14 @@ for path in files:
         raise SystemExit(f"{path}: missing safe default mode")
     if not data["safety"].get("stop_conditions"):
         raise SystemExit(f"{path}: missing stop conditions")
+    automation = data.get("automation")
+    if automation is not None:
+        required_automation = {"signature_id", "match", "threshold", "window_seconds", "action_intent"}
+        missing_automation = required_automation - set(automation)
+        if missing_automation:
+            raise SystemExit(f"{path}: automation missing keys: {', '.join(sorted(missing_automation))}")
+        if not isinstance(automation["match"], dict) or "event_class" not in automation["match"]:
+            raise SystemExit(f"{path}: automation.match must include event_class")
     print(f"playbook contract: {path.relative_to(root)}")
 print(f"validated {len(files)} playbooks")
 PY

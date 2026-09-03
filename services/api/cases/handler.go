@@ -21,6 +21,7 @@ import (
 	"soar-platform/services/api/evidence"
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
+	"soar-platform/services/api/signatures"
 	"soar-platform/services/api/store"
 	"soar-platform/services/api/telemetry"
 	"soar-platform/services/api/ticketing"
@@ -268,16 +269,28 @@ func (h *Handler) Update(c *gin.Context) {
 				return httpx.ErrConflict("case_has_live_action", "cannot close a case with a block still in effect; release it first")
 			}
 			// adr/0019's remaining close-gate clause: "no repeated alert is
-			// present." Scoped to a case that actually reached the SSH
-			// brute-force auto-trigger threshold (events.autoBlockThreshold,
-			// hand-synced here — cases must not import events) — not every
-			// merely-correlated case. A case with 1-2 low-signal correlated
-			// events that never escalated to an auto-requested block is not
-			// "an active attack pattern" in the sense this clause means;
-			// gating those too broke closing them almost immediately after
-			// creation, which is normal, expected usage (found via
+			// present." Scoped to a case that actually reached its matching
+			// signature's auto-trigger threshold (services/api/signatures,
+			// adr/0021 — cases may import signatures, it has no dependency
+			// on cases or events) — not every merely-correlated case. A case
+			// with 1-2 low-signal correlated events that never escalated to
+			// an auto-requested block is not "an active attack pattern" in
+			// the sense this clause means; gating those too broke closing
+			// them almost immediately after creation, which is normal,
+			// expected usage (found via
 			// TestCaseClose_RejectsWhileActionExecuted's own regression).
-			const autoBlockThreshold = 5
+			// eventClass, "" if CorrelationKey has no ":" — should not
+			// happen since events.correlationKeyFor always writes
+			// "eventClass:value", but an unmatched signature (nil) falls
+			// back to 5, adr/0018's original SSH brute-force threshold.
+			autoBlockThreshold := 5
+			if before.CorrelationKey != nil {
+				if eventClass, _, found := strings.Cut(*before.CorrelationKey, ":"); found {
+					if sig := signatures.MatchEventClass(eventClass); sig != nil {
+						autoBlockThreshold = sig.Threshold
+					}
+				}
+			}
 			if before.CorrelationKey != nil && before.CorrelationWindowSeconds != nil && before.RepeatCount >= autoBlockThreshold {
 				windowEnd := before.UpdatedAt.Add(time.Duration(*before.CorrelationWindowSeconds) * time.Second)
 				if time.Now().UTC().Before(windowEnd) {
