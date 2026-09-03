@@ -263,6 +263,24 @@ func (h *Handler) Update(c *gin.Context) {
 			} else if live {
 				return httpx.ErrConflict("case_has_live_action", "cannot close a case with a block still in effect; release it first")
 			}
+			// adr/0019's remaining close-gate clause: "no repeated alert is
+			// present." Scoped to a case that actually reached the SSH
+			// brute-force auto-trigger threshold (events.autoBlockThreshold,
+			// hand-synced here — cases must not import events) — not every
+			// merely-correlated case. A case with 1-2 low-signal correlated
+			// events that never escalated to an auto-requested block is not
+			// "an active attack pattern" in the sense this clause means;
+			// gating those too broke closing them almost immediately after
+			// creation, which is normal, expected usage (found via
+			// TestCaseClose_RejectsWhileActionExecuted's own regression).
+			const autoBlockThreshold = 5
+			if before.CorrelationKey != nil && before.CorrelationWindowSeconds != nil && before.RepeatCount >= autoBlockThreshold {
+				windowEnd := before.UpdatedAt.Add(time.Duration(*before.CorrelationWindowSeconds) * time.Second)
+				if time.Now().UTC().Before(windowEnd) {
+					return httpx.ErrConflict("case_correlation_window_open",
+						"cannot close while this case's correlation window is still open; a repeated alert may still arrive")
+				}
+			}
 			if err := Close(ctx, tx, tenant, caseID, *req.ClosureReason); err != nil {
 				return err
 			}

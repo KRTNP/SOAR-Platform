@@ -42,15 +42,35 @@ correlated signature as adr/0018's auto-trigger — not a general "any case touc
 target escalates" rule — and checked from the first correlated event, not gated on the 5-event
 auto-block threshold (escalation is about *who*, not *how many times*).
 
-### 3. Close gate: cannot close a case with a block still in effect
+### 3. Close gate: cannot close a case with a block still in effect, or while a repeated alert may still arrive
 
-"Case closes only after rollback succeeds." New `actions.HasLiveAction(tenantID, caseID)`
-(`select exists(... where case_id = $1 and status = 'executed')`) — checked in
-`cases/handler.go`'s `close` operation before `Close` runs; if any action on the case is still
-`"executed"` (not yet released), returns `httpx.ErrConflict("case_has_live_action", ...)` (409).
-Deliberately scoped to `status = 'executed'` only, not `pending_approval`/`approved` too — an
-analyst rejecting-and-closing a case with an undecided approval must still be able to; those
-statuses haven't touched real infrastructure, so there is nothing to "roll back" yet.
+"Case closes only after rollback succeeds, no repeated alert is present, and analyst review is
+recorded" — all three clauses, not just the first:
+
+- **Rollback succeeded**: new `actions.HasLiveAction(tenantID, caseID)`
+  (`select exists(... where case_id = $1 and status = 'executed')`) — checked in
+  `cases/handler.go`'s `close` operation before `Close` runs; if any action on the case is still
+  `"executed"` (not yet released), returns `httpx.ErrConflict("case_has_live_action", ...)` (409).
+  Deliberately scoped to `status = 'executed'` only, not `pending_approval`/`approved` too — an
+  analyst rejecting-and-closing a case with an undecided approval must still be able to; those
+  statuses haven't touched real infrastructure, so there is nothing to "roll back" yet.
+- **No repeated alert is present**: a second check, only for a case that actually reached the
+  auto-block threshold (`repeat_count >= 5`, the same threshold `events/handler.go`'s auto-trigger
+  uses, hand-synced as a local constant since `cases` must not import `events`) — if
+  `now < updated_at + correlation_window_seconds`, closing is rejected
+  (`case_correlation_window_open`, 409), since another matching alert could still arrive. The
+  first version of this checked *any* correlated case (`correlation_key != nil`), not just ones
+  that reached the threshold — that broke closing a case with only 1-2 low-signal correlated
+  events almost immediately after creation, completely normal usage, caught by
+  `TestCaseClose_RejectsWhileActionExecuted`'s own regression during this same change. Narrowing
+  to the auto-block threshold fixed it; `TestCaseClose_RejectsWhileCorrelationWindowOpenAfterAutoBlock`
+  covers the actually-intended case (reject while the window is open, succeed once it has
+  elapsed — forced via `updated_at` the same way TTL tests force `executed_at`).
+- **Analyst review is recorded**: no new mechanism — `close` already requires a non-empty
+  `closure_reason` from a human-attributed actor, timestamped (`closed_at`) and audited
+  (`case.close`). That already *is* a recorded analyst review in every sense this codebase has a
+  concept for; adding a separate "reviewed" flag on top would be a duplicate of data this
+  operation already captures, not a new precondition.
 
 ## Rationale
 
@@ -62,11 +82,10 @@ posture this repo's ADR sequence has held throughout.
 
 ## Consequences
 
-- **"No repeated alert is present" and "analyst review is recorded"** — the other two clauses
-  in the scenario's close precondition — are still not implemented. The close gate here only
-  covers "rollback succeeded" (no live executed action); a case could still be closed while a
-  new correlated alert just landed, or with no recorded analyst review of any kind (no such
-  concept exists in this codebase). Separate, smaller follow-ups if wanted.
+- **The correlation-window close-gate only applies to cases that reached the auto-block
+  threshold**, not every correlated case — a case with 1-2 correlated events that never
+  auto-triggered a block can be closed immediately, matching normal usage rather than the
+  literal "any repeated alert at all."
 - **Escalation only ever raises severity, never lowers it** (`EscalateSeverity` is a plain
   write; the caller's `SeverityRank` comparison is the only guard) — there is no de-escalation
   path if a critical-target match turns out to be a false positive; an analyst would need to

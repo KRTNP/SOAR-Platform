@@ -3,6 +3,7 @@
 package integration
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -243,5 +244,65 @@ func TestIngestion_AllowlistedSourceNeverBlocked(t *testing.T) {
 	detail := getCaseDetail(t, srv, caseID)
 	if detail.PendingAction != nil {
 		t.Errorf("expected no auto-requested block for an allowlisted source, got action %s", detail.PendingAction.Id)
+	}
+}
+
+// TestCaseClose_RejectsWhileCorrelationWindowOpenAfterAutoBlock proves
+// adr/0019's "no repeated alert is present" close-gate clause: once a case
+// has actually reached the auto-block threshold (not just any correlated
+// case — see TestCaseClose_RejectsWhileActionExecuted's own regression),
+// closing it while its correlation window is still open is rejected, and
+// succeeds once that window has passed.
+func TestCaseClose_RejectsWhileCorrelationWindowOpenAfterAutoBlock(t *testing.T) {
+	srv, pool := setupServer(t)
+	defer srv.Close()
+	ctx := context.Background()
+
+	const ip = "203.0.113.54"
+	var caseID string
+	for i := 1; i <= 5; i++ {
+		sourceEventID := "closewindow-test-" + string(rune('0'+i))
+		_, accepted := postEvent(t, srv, "idem-key-closewindow-000"+string(rune('0'+i)), authFixture(t, sourceEventID, ip))
+		if i == 1 {
+			if err := pool.QueryRow(ctx, "select case_ref from alerts where id = $1", *accepted.AlertId).Scan(&caseID); err != nil {
+				t.Fatalf("looking up case: %v", err)
+			}
+		}
+	}
+
+	detail := getCaseDetail(t, srv, caseID)
+	if detail.PendingAction == nil {
+		t.Fatal("expected the 5th event to auto-request a block")
+	}
+	approveApproval(t, srv, findApprovalForAction(t, srv, detail.PendingAction.Id).Id).Body.Close()
+	executeAction(t, srv, detail.PendingAction.Id).Body.Close()
+	releaseAction(t, srv, detail.PendingAction.Id).Body.Close()
+
+	closeReq, _ := http.NewRequest(http.MethodPatch, srv.URL+"/v1/cases/"+caseID,
+		strings.NewReader(`{"operation":"close","closure_reason":"trying while window open"}`))
+	closeReq.Header.Set("Content-Type", "application/json")
+	closeResp, err := http.DefaultClient.Do(closeReq)
+	if err != nil {
+		t.Fatalf("PATCH close while window open: %v", err)
+	}
+	closeResp.Body.Close()
+	if closeResp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected 409 closing while the correlation window is open, got %d", closeResp.StatusCode)
+	}
+
+	if _, err := pool.Exec(ctx, `update cases set updated_at = now() - interval '2 minutes' where id = $1`, caseID); err != nil {
+		t.Fatalf("forcing updated_at into the past: %v", err)
+	}
+
+	closeReq2, _ := http.NewRequest(http.MethodPatch, srv.URL+"/v1/cases/"+caseID,
+		strings.NewReader(`{"operation":"close","closure_reason":"window elapsed, closing now"}`))
+	closeReq2.Header.Set("Content-Type", "application/json")
+	closeResp2, err := http.DefaultClient.Do(closeReq2)
+	if err != nil {
+		t.Fatalf("PATCH close after window elapsed: %v", err)
+	}
+	defer closeResp2.Body.Close()
+	if closeResp2.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 closing after the correlation window elapsed, got %d", closeResp2.StatusCode)
 	}
 }
