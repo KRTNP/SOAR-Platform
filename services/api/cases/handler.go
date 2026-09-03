@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	"soar-platform/services/api/evidence"
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
+	"soar-platform/services/api/outbox"
 	"soar-platform/services/api/signatures"
 	"soar-platform/services/api/store"
 	"soar-platform/services/api/telemetry"
@@ -405,7 +407,33 @@ func (h *Handler) Update(c *gin.Context) {
 		httpx.WriteProblem(c, mapCaseError(err))
 		return
 	}
+	projectCaseBestEffort(ctx, h.pool, tenant, cs)
 	c.JSON(http.StatusOK, toAPICase(cs))
+}
+
+// projectCaseBestEffort re-projects a case into the OpenSearch outbox
+// (adr/0022) after any of Update's five operations mutate it — without
+// this, a case's search document goes stale the moment it's transitioned,
+// closed, or otherwise changed outside of event ingestion (the only other
+// writer, events.Handler.Ingest). Best-effort/log-only, the same posture
+// actions/handler.go's auditDeniedExecute already uses: a search-projection
+// failure must never fail a case mutation that already succeeded. Runs
+// against pool directly, not the mutation's own transaction (already
+// committed by the time this is called) — outbox.Write's querier interface
+// only needs Exec, which *pgxpool.Pool already satisfies.
+func projectCaseBestEffort(ctx context.Context, pool *pgxpool.Pool, tenant string, cs *Case) {
+	key := ""
+	if cs.CorrelationKey != nil {
+		key = *cs.CorrelationKey
+	}
+	payload := map[string]any{
+		"id": cs.ID, "tenant_id": tenant, "title": cs.Title, "category": cs.Category,
+		"severity": cs.Severity, "status": cs.Status, "repeat_count": cs.RepeatCount,
+		"correlation_key": key, "updated_at": cs.UpdatedAt,
+	}
+	if err := outbox.Write(ctx, pool, tenant, "case", cs.ID, payload, time.Now().UTC()); err != nil {
+		slog.Default().Error("failed to project case update to search outbox", "case_id", cs.ID, "err", err)
+	}
 }
 
 // Timeline implements GET /v1/cases/{caseId}/timeline.

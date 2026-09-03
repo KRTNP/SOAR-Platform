@@ -95,16 +95,25 @@ in the markup.
   depth, not a real security boundary, matching
   `data-architecture.md`'s own "must not be the sole source of truth"
   caveat for this whole projection.
-- **Only `events.Handler.Ingest` writes outbox rows.** A case mutated later
-  through `cases/handler.go`'s `Update`/`Close`/`request_block` operations
-  does not re-project — its OpenSearch document can go stale relative to
-  status/severity changes made through those paths. Disclosed, not fixed
-  here — extending outbox writes to those call sites is a small, separate
-  follow-up if search accuracy for closed/updated cases ever matters.
-- **No backfill.** Only new writes flow through the outbox from this point
-  forward; every case/event that existed before this ADR has no OpenSearch
-  document. A one-off backfill script (read existing rows, call
-  `outbox.Write` for each) is a disclosed follow-up if ever needed.
+- ~~**Only `events.Handler.Ingest` writes outbox rows.**~~ **Fixed**:
+  `cases/handler.go`'s `Update` (covering all five of its operations —
+  `update`/`transition`/`close`/`open_ticket`/`request_block`, which share
+  one tail) now calls a new best-effort `projectCaseBestEffort` after every
+  mutation. Verified against a real case: closing it now produces a second
+  `outbox_events` row with `payload->>'status' = 'closed'`
+  (`TestCaseClose_ReprojectsToOutbox`), and a case closed hours before this
+  fix existed showed the correct `"status": "closed"` in OpenSearch once
+  re-backfilled (see below) — confirmed directly against the live index,
+  not just the test.
+- ~~**No backfill.**~~ **Fixed**: `services/api/cmd/backfill-search` (a new
+  one-off tool, this repo's first `cmd/` entrypoint) reads every existing
+  `cases`/`events` row and writes an outbox row for each, using the
+  identical payload shapes the real write paths use. Run once against the
+  live lab database: backfilled 28 cases and 42 events, all indexed within
+  seconds by the already-running `searchindex` poller with no code changes
+  to that poller needed. Not idempotent at the outbox-row level (re-running
+  inserts fresh rows per case/event) — only at the final OpenSearch-document
+  level, an accepted trade-off for a tool meant to run rarely.
 - `httpx.TenantStubMiddleware` no longer exists — every call site
   (`main.go`, `integration/ingestion_test.go`) was updated to
   `TenantKeyMiddleware`.

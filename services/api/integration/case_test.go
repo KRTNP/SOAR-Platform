@@ -421,3 +421,40 @@ func TestCaseOpenTicket(t *testing.T) {
 		t.Errorf("expected ticket_status closed after closing the case, got %v", afterClose.TicketStatus)
 	}
 }
+
+// TestCaseClose_ReprojectsToOutbox proves the fix for adr/0022's disclosed
+// gap: closing a case (or any Update operation) now re-projects it into
+// services/api/outbox, not just the original ingestion write — otherwise a
+// case's OpenSearch document goes stale the moment it's mutated outside of
+// event ingestion.
+func TestCaseClose_ReprojectsToOutbox(t *testing.T) {
+	srv, pool := setupServer(t)
+	defer srv.Close()
+
+	caseID := caseWithBlockTarget(t, srv, "outbox-reproject-0001")
+
+	closeReq, _ := http.NewRequest(http.MethodPatch, srv.URL+"/v1/cases/"+caseID,
+		strings.NewReader(`{"operation":"close","closure_reason":"outbox reprojection check"}`))
+	closeReq.Header.Set("Content-Type", "application/json")
+	closeResp, err := http.DefaultClient.Do(closeReq)
+	if err != nil {
+		t.Fatalf("PATCH close: %v", err)
+	}
+	closeResp.Body.Close()
+	if closeResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 closing the case, got %d", closeResp.StatusCode)
+	}
+
+	var closedOutboxRows int
+	err = pool.QueryRow(context.Background(), `
+		select count(*) from outbox_events
+		where entity_type = 'case' and entity_id = $1 and payload->>'status' = 'closed'`,
+		caseID,
+	).Scan(&closedOutboxRows)
+	if err != nil {
+		t.Fatalf("querying outbox_events: %v", err)
+	}
+	if closedOutboxRows == 0 {
+		t.Fatal("expected a 'closed'-status outbox row for this case after closing it, found none")
+	}
+}
