@@ -78,11 +78,12 @@ caught and fixed a real bug in the process (the `term` filter against bare
 `tenant_id` silently matched nothing, since OpenSearch's dynamic mapping
 made it an analyzed `text` field tokenized on `-`; fixed to
 `tenant_id.keyword`). Confirmed the default `lab` tenant (no header) still
-works unchanged. Confirmed the frontend `/search` page end-to-end via the
-built container (`curl` against the rendered HTML — no browser automation
-tool was available this session, so visual/interactive verification in an
-actual browser was not done; the rendered markup, the case-detail link
-target, and the sidebar nav link were all confirmed present and correct).
+works unchanged. Confirmed the frontend `/search` page end-to-end in a real headless
+Chromium (Playwright's Python bindings, found already installed on this
+host): typed a query into the input, clicked Search, screenshotted the
+results, clicked a result's link, and confirmed it actually navigated to
+the correct case detail page — not just that the right `href` was present
+in the markup.
 
 ## Consequences
 
@@ -104,11 +105,6 @@ target, and the sidebar nav link were all confirmed present and correct).
   forward; every case/event that existed before this ADR has no OpenSearch
   document. A one-off backfill script (read existing rows, call
   `outbox.Write` for each) is a disclosed follow-up if ever needed.
-- **`web/app/search/page.tsx` was verified by inspecting rendered HTML
-  output, not by driving an actual browser** — no browser automation tool
-  was available this session. The rendered markup was confirmed correct,
-  but interactive behavior (focus, keyboard submission, responsive layout)
-  was not observed directly.
 - `httpx.TenantStubMiddleware` no longer exists — every call site
   (`main.go`, `integration/ingestion_test.go`) was updated to
   `TenantKeyMiddleware`.
