@@ -15,6 +15,10 @@ import type {
   PendingAction,
   ApprovalPage,
   SearchPage,
+  Tenant,
+  TenantPage,
+  TrustedSourcePage,
+  CriticalTargetPage,
 } from "./types";
 
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8080";
@@ -166,6 +170,42 @@ export function getMetrics(): Promise<MetricsSnapshot> {
 // means the search indexer isn't running, not that q was invalid.
 export function search(q: string): Promise<SearchPage> {
   return request<SearchPage>(`/v1/search?q=${encodeURIComponent(q)}`);
+}
+
+// GET/POST /v1/tenants (adr/0022). None of the three functions below need
+// an Idempotency-Key header — unlike requestBlock/approveAction/etc., the
+// backend handlers for tenants/allowlist/critical-targets don't require one.
+export function listTenants(): Promise<TenantPage> {
+  return request<TenantPage>(`/v1/tenants`);
+}
+
+export function createTenant(name: string): Promise<Tenant> {
+  return request<Tenant>(`/v1/tenants`, {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function listAllowlist(): Promise<TrustedSourcePage> {
+  return request<TrustedSourcePage>(`/v1/allowlist`);
+}
+
+export function addAllowlistEntry(value: string, reason: string, expiresAt?: string): Promise<unknown> {
+  return request(`/v1/allowlist`, {
+    method: "POST",
+    body: JSON.stringify({ value, reason, expires_at: expiresAt || undefined }),
+  });
+}
+
+export function listCriticalTargets(): Promise<CriticalTargetPage> {
+  return request<CriticalTargetPage>(`/v1/critical-targets`);
+}
+
+export function addCriticalTarget(value: string, reason: string): Promise<unknown> {
+  return request(`/v1/critical-targets`, {
+    method: "POST",
+    body: JSON.stringify({ value, reason }),
+  });
 }
 
 // csv is spec'd (api/openapi.yaml) but not implemented server-side yet

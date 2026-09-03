@@ -226,3 +226,46 @@ export interface CaseExportAccepted {
   redaction_profile?: string;
   manifest?: Record<string, unknown>;
 }
+
+// GET/POST /v1/tenants (adr/0022). api_key is only ever present on the
+// response to a successful create — the list endpoint never returns it,
+// since only its hash is stored server-side.
+export interface Tenant {
+  id: string;
+  name: string;
+  created_at: string;
+  api_key?: string;
+}
+
+export interface TenantPage {
+  items: Tenant[];
+}
+
+// GET/POST /v1/allowlist (adr/0018) — trusted/management sources the SSH
+// brute-force auto-trigger must never request a block against.
+export interface TrustedSource {
+  id: string;
+  value: string;
+  reason: string;
+  created_by: string;
+  created_at: string;
+  expires_at?: string;
+}
+
+export interface TrustedSourcePage {
+  items: TrustedSource[];
+}
+
+// GET/POST /v1/critical-targets (adr/0019) — privileged users/critical
+// assets that raise a correlated case's priority above Medium.
+export interface CriticalTarget {
+  id: string;
+  value: string;
+  reason: string;
+  created_by: string;
+  created_at: string;
+}
+
+export interface CriticalTargetPage {
+  items: CriticalTarget[];
+}
