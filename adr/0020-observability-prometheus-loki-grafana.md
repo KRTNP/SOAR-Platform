@@ -154,3 +154,17 @@ profile scheme this file's own header comment already described.
   encode real findings (§2b) that would otherwise be silently rediscovered —
   they are not committed, but are what was actually run to produce every
   verification claim in this ADR.
+- **`podman-compose` (1.6.0) manages every service as one pod**, and was
+  observed silently reverting a running `grafana` container back to the
+  *committed, non-override* config (base `prometheus:9090`/`loki:3100`
+  datasource URLs) after an unrelated `up -d` was run against this same
+  project naming only `docker-compose.core.yml` (no `-f
+  docker-compose.override.yml`) — confirmed by inspecting the running
+  container's actual mounted `datasources.yml` after the dashboard started
+  showing `dial tcp: lookup prometheus on ...: server misbehaving` errors in
+  a real browser session, caught only because a Playwright-driven check
+  loaded the live dashboard rather than trusting an earlier API-only check.
+  **Always pass both `-f docker-compose.core.yml -f
+  docker-compose.override.yml` together for every `up`/`--force-recreate`
+  against this project on this host** — a single-file command can silently
+  revert sibling services' overrides, not just the one named.
