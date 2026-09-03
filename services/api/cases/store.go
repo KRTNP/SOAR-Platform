@@ -63,6 +63,30 @@ func IncrementRepeatCount(ctx context.Context, tx pgx.Tx, tenantID, caseID strin
 	return count, err
 }
 
+// SeverityRank orders schemas/case.schema.json's severity enum lowest to
+// highest. Callers (e.g. events/handler.go's adr/0019 escalation check)
+// compare a case's current severity against a candidate one with this
+// before calling EscalateSeverity, which itself is a plain unconditional
+// write — keeping "should this raise the severity" a Go-side decision
+// rather than folding a rank comparison into the SQL itself.
+var SeverityRank = map[string]int{
+	"informational": 0, "low": 1, "medium": 2, "high": 3, "critical": 4,
+}
+
+// EscalateSeverity sets a case's severity to newSeverity. Backs adr/0019's
+// "Medium becomes higher priority only when source targets a privileged
+// user or critical asset" — the caller (via SeverityRank) is responsible
+// for only calling this when newSeverity actually ranks higher than the
+// case's current one.
+func EscalateSeverity(ctx context.Context, tx pgx.Tx, tenantID, caseID, newSeverity string, updatedAt time.Time) error {
+	_, err := tx.Exec(ctx, `
+		update cases set severity = $3, updated_at = $4
+		where tenant_id = $1 and id = $2`,
+		tenantID, caseID, newSeverity, updatedAt,
+	)
+	return err
+}
+
 func LinkAlert(ctx context.Context, tx pgx.Tx, caseID, alertID string) error {
 	_, err := tx.Exec(ctx, `insert into case_alerts (case_id, alert_id) values ($1,$2)`, caseID, alertID)
 	return err

@@ -259,6 +259,51 @@ func TestCaseTransition_RejectsOnceClosed(t *testing.T) {
 	}
 }
 
+// TestCaseClose_RejectsWhileActionExecuted proves adr/0019's close-gate:
+// docs/08-testing/lab-scenario-ssh-bruteforce.md's "Case closes only after
+// rollback succeeds" — a case with a block still in effect (status
+// "executed", not yet released) cannot be closed; releasing it first makes
+// closing succeed.
+func TestCaseClose_RejectsWhileActionExecuted(t *testing.T) {
+	srv, _ := setupServer(t)
+	defer srv.Close()
+
+	caseID := caseWithBlockTarget(t, srv, "close-gate-0001")
+	action := requestBlock(t, srv, caseID, "198.51.100.10")
+	approveApproval(t, srv, findApprovalForAction(t, srv, action.Id).Id).Body.Close()
+	executeAction(t, srv, action.Id).Body.Close()
+
+	closeReq, _ := http.NewRequest(http.MethodPatch, srv.URL+"/v1/cases/"+caseID,
+		strings.NewReader(`{"operation":"close","closure_reason":"trying to close early"}`))
+	closeReq.Header.Set("Content-Type", "application/json")
+	closeResp, err := http.DefaultClient.Do(closeReq)
+	if err != nil {
+		t.Fatalf("PATCH close while executed: %v", err)
+	}
+	closeResp.Body.Close()
+	if closeResp.StatusCode != http.StatusConflict {
+		t.Fatalf("expected 409 closing a case with a live block, got %d", closeResp.StatusCode)
+	}
+
+	releaseResp := releaseAction(t, srv, action.Id)
+	releaseResp.Body.Close()
+	if releaseResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 releasing, got %d", releaseResp.StatusCode)
+	}
+
+	closeReq2, _ := http.NewRequest(http.MethodPatch, srv.URL+"/v1/cases/"+caseID,
+		strings.NewReader(`{"operation":"close","closure_reason":"released, now closing"}`))
+	closeReq2.Header.Set("Content-Type", "application/json")
+	closeResp2, err := http.DefaultClient.Do(closeReq2)
+	if err != nil {
+		t.Fatalf("PATCH close after release: %v", err)
+	}
+	defer closeResp2.Body.Close()
+	if closeResp2.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 closing after release, got %d", closeResp2.StatusCode)
+	}
+}
+
 // TestIngest_RunsEnrichment proves the M2 mock IOC connector actually runs
 // as part of ingestion (not just in isolation): a case whose observable
 // matches a seeded ioc_indicators row carries a verdict on the API response.

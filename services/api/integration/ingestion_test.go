@@ -26,6 +26,7 @@ import (
 	"soar-platform/services/api/audit"
 	"soar-platform/services/api/cases"
 	"soar-platform/services/api/connectors"
+	"soar-platform/services/api/criticaltargets"
 	"soar-platform/services/api/events"
 	"soar-platform/services/api/evidence"
 	"soar-platform/services/api/genapi"
@@ -114,6 +115,7 @@ func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	auditH := audit.NewHandler(pool)
 	metricsH := metrics.NewHandler(pool, netConn.Target, netConn.Version)
 	allowlistH := allowlist.NewHandler(pool)
+	criticalTargetsH := criticaltargets.NewHandler(pool)
 	v1 := r.Group("/v1")
 	v1.POST("/events", eventsH.Ingest)
 	v1.GET("/events", eventsH.List)
@@ -137,6 +139,8 @@ func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	v1.GET("/metrics", metricsH.Get)
 	v1.GET("/allowlist", allowlistH.List)
 	v1.POST("/allowlist", allowlistH.Add)
+	v1.GET("/critical-targets", criticalTargetsH.List)
+	v1.POST("/critical-targets", criticalTargetsH.Add)
 
 	return httptest.NewServer(r), pool
 }

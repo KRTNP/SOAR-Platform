@@ -731,6 +731,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TrustedSource'
+  /v1/critical-targets:
+    get:
+      operationId: listCriticalTargets
+      responses:
+        '200':
+          description: >-
+            Privileged users/critical assets that raise a correlated case's
+            priority above Medium (adr/0019).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourcePage'
+    post:
+      operationId: addCriticalTarget
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CriticalTargetRequest'
+      responses:
+        '201':
+          description: Critical target added (or its reason updated, if the value already existed).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CriticalTarget'
   /v1/metrics:
     get:
       operationId: getMetrics
@@ -1147,6 +1174,21 @@ components:
         created_by: {type: string}
         created_at: {type: string, format: date-time}
         expires_at: {type: string, format: date-time}
+    CriticalTargetRequest:
+      type: object
+      required: [value, reason]
+      properties:
+        value: {type: string}
+        reason: {type: string}
+    CriticalTarget:
+      type: object
+      required: [id, value, reason, created_by, created_at]
+      properties:
+        id: {type: string}
+        value: {type: string}
+        reason: {type: string}
+        created_by: {type: string}
+        created_at: {type: string, format: date-time}
     Approval:
       type: object
       required: [id, action_id, status, expires_at]

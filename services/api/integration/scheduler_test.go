@@ -4,13 +4,17 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
+	"soar-platform/services/api/actions"
 	"soar-platform/services/api/scheduler"
 )
 
@@ -172,5 +176,143 @@ func TestScheduler_OneFailingCandidateDoesNotBlockTheRest(t *testing.T) {
 	}
 	if status1 != "executed" {
 		t.Errorf("expected action1 still executed after its release failed, got %q", status1)
+	}
+}
+
+// alwaysFailingConnector is mockNetworkConnector with Release replaced to
+// always error, for the retry/escalation tests below.
+func alwaysFailingConnector() actions.NetworkConnector {
+	failing := mockNetworkConnector()
+	failing.Release = func(ctx context.Context, tx pgx.Tx, actionID, targetValue string) error {
+		return fmt.Errorf("simulated connector outage")
+	}
+	return failing
+}
+
+// TestScheduler_FailedReleaseSchedulesBackoffRetry: adr/0019 — a failed
+// release does not just get retried on the scheduler's normal tick; it
+// schedules a 5-second backoff (retrySchedule[0]) and is excluded from the
+// next sweep until that time passes, so a fast-ticking scheduler doesn't
+// hammer a genuinely down connector every interval.
+func TestScheduler_FailedReleaseSchedulesBackoffRetry(t *testing.T) {
+	srv, pool := setupServer(t)
+	defer srv.Close()
+	ctx := context.Background()
+
+	caseID := caseWithBlockTarget(t, srv, "scheduler-backoff-0001")
+	action := requestBlock(t, srv, caseID, "198.51.100.10")
+	approveApproval(t, srv, findApprovalForAction(t, srv, action.Id).Id).Body.Close()
+	executeAction(t, srv, action.Id).Body.Close()
+	if _, err := pool.Exec(ctx, `update actions set executed_at = now() - interval '20 minutes' where id = $1`, action.Id); err != nil {
+		t.Fatalf("forcing executed_at into the past: %v", err)
+	}
+
+	failing := alwaysFailingConnector()
+	if _, err := scheduler.Sweep(ctx, pool, failing, testLogger()); err != nil {
+		t.Fatalf("first Sweep: %v", err)
+	}
+
+	var attempts int
+	var nextRetryAt *time.Time
+	var escalated bool
+	if err := pool.QueryRow(ctx, `select release_attempts, next_retry_at, escalated from actions where id = $1`, action.Id).
+		Scan(&attempts, &nextRetryAt, &escalated); err != nil {
+		t.Fatalf("reading action retry state: %v", err)
+	}
+	if attempts != 1 {
+		t.Errorf("release_attempts = %d, want 1", attempts)
+	}
+	if escalated {
+		t.Error("expected not escalated after only 1 failure")
+	}
+	if nextRetryAt == nil || !nextRetryAt.After(time.Now().UTC()) {
+		t.Errorf("expected next_retry_at set in the future, got %v", nextRetryAt)
+	}
+
+	// A second sweep immediately after must not retry it yet (backoff not
+	// elapsed) — release_attempts stays at 1, not 2.
+	if released, err := scheduler.Sweep(ctx, pool, failing, testLogger()); err != nil {
+		t.Fatalf("second Sweep: %v", err)
+	} else if released != 0 {
+		t.Errorf("expected 0 released on the immediate second sweep, got %d", released)
+	}
+	if err := pool.QueryRow(ctx, `select release_attempts from actions where id = $1`, action.Id).Scan(&attempts); err != nil {
+		t.Fatalf("reading release_attempts after second sweep: %v", err)
+	}
+	if attempts != 1 {
+		t.Errorf("release_attempts after immediate second sweep = %d, want still 1 (backoff not elapsed)", attempts)
+	}
+}
+
+// TestScheduler_EscalatesAfterRetriesExhausted: once retrySchedule (5s, 15s,
+// 30s) is exhausted, the action is marked escalated, an
+// action.release_escalated audit record is written, and the block is
+// retained (status stays "executed", never silently unblocked) —
+// docs/08-testing/lab-scenario-ssh-bruteforce.md's "retain the block and
+// escalate if all retries fail."
+func TestScheduler_EscalatesAfterRetriesExhausted(t *testing.T) {
+	srv, pool := setupServer(t)
+	defer srv.Close()
+	ctx := context.Background()
+
+	caseID := caseWithBlockTarget(t, srv, "scheduler-escalate-0001")
+	action := requestBlock(t, srv, caseID, "198.51.100.10")
+	approveApproval(t, srv, findApprovalForAction(t, srv, action.Id).Id).Body.Close()
+	executeAction(t, srv, action.Id).Body.Close()
+	// Simulate having already exhausted every scheduled retry.
+	if _, err := pool.Exec(ctx, `
+		update actions set executed_at = now() - interval '20 minutes', release_attempts = 3
+		where id = $1`, action.Id); err != nil {
+		t.Fatalf("forcing exhausted retry state: %v", err)
+	}
+
+	failing := alwaysFailingConnector()
+	if _, err := scheduler.Sweep(ctx, pool, failing, testLogger()); err != nil {
+		t.Fatalf("Sweep: %v", err)
+	}
+
+	var status string
+	var escalated bool
+	if err := pool.QueryRow(ctx, `select status, escalated from actions where id = $1`, action.Id).Scan(&status, &escalated); err != nil {
+		t.Fatalf("reading action state: %v", err)
+	}
+	if !escalated {
+		t.Error("expected escalated = true after exhausting retrySchedule")
+	}
+	if status != "executed" {
+		t.Errorf("expected the block retained (status still executed), got %q", status)
+	}
+
+	auditResp, err := http.Get(srv.URL + "/v1/audit")
+	if err != nil {
+		t.Fatalf("listing audit: %v", err)
+	}
+	defer auditResp.Body.Close()
+	var page struct {
+		Items []struct {
+			Action   string `json:"action"`
+			Decision string `json:"decision"`
+		} `json:"items"`
+	}
+	_ = json.NewDecoder(auditResp.Body).Decode(&page)
+	found := false
+	for _, r := range page.Items {
+		if r.Action == "action.release_escalated" {
+			found = true
+			if r.Decision != "completed" {
+				t.Errorf("expected decision=completed (audit_log.decision is a closed enum; escalation detail is in Reason), got %q", r.Decision)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected an action.release_escalated audit record")
+	}
+
+	// A sweep after escalation must not keep retrying it — escalated
+	// actions are a human's problem now, not the scheduler's.
+	if released, err := scheduler.Sweep(ctx, pool, failing, testLogger()); err != nil {
+		t.Fatalf("Sweep after escalation: %v", err)
+	} else if released != 0 {
+		t.Errorf("expected 0 released for an escalated action, got %d", released)
 	}
 }

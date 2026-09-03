@@ -27,6 +27,7 @@ import (
 	"soar-platform/services/api/cases"
 	"soar-platform/services/api/config"
 	"soar-platform/services/api/connectors"
+	"soar-platform/services/api/criticaltargets"
 	"soar-platform/services/api/events"
 	"soar-platform/services/api/evidence"
 	"soar-platform/services/api/httpx"
@@ -191,6 +192,7 @@ func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netCo
 	auditH := audit.NewHandler(pool)
 	metricsH := metrics.NewHandler(pool, netConn.Target, netConn.Version)
 	allowlistH := allowlist.NewHandler(pool)
+	criticalTargetsH := criticaltargets.NewHandler(pool)
 
 	v1 := r.Group("/v1")
 	{
@@ -223,6 +225,9 @@ func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netCo
 
 		v1.GET("/allowlist", allowlistH.List)
 		v1.POST("/allowlist", allowlistH.Add)
+
+		v1.GET("/critical-targets", criticalTargetsH.List)
+		v1.POST("/critical-targets", criticalTargetsH.Add)
 	}
 
 	return r

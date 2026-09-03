@@ -258,6 +258,11 @@ func (h *Handler) Update(c *gin.Context) {
 			if err != nil {
 				return err
 			}
+			if live, err := actions.HasLiveAction(ctx, tx, tenant, caseID); err != nil {
+				return err
+			} else if live {
+				return httpx.ErrConflict("case_has_live_action", "cannot close a case with a block still in effect; release it first")
+			}
 			if err := Close(ctx, tx, tenant, caseID, *req.ClosureReason); err != nil {
 				return err
 			}

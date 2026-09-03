@@ -698,6 +698,21 @@ type CreateCaseRequest struct {
 // CreateCaseRequestSeverity defines model for CreateCaseRequest.Severity.
 type CreateCaseRequestSeverity string
 
+// CriticalTarget defines model for CriticalTarget.
+type CriticalTarget struct {
+	CreatedAt time.Time `json:"created_at"`
+	CreatedBy string    `json:"created_by"`
+	Id        string    `json:"id"`
+	Reason    string    `json:"reason"`
+	Value     string    `json:"value"`
+}
+
+// CriticalTargetRequest defines model for CriticalTargetRequest.
+type CriticalTargetRequest struct {
+	Reason string `json:"reason"`
+	Value  string `json:"value"`
+}
+
 // EventIngestRequest defines model for EventIngestRequest.
 type EventIngestRequest struct {
 	OccurredAt time.Time              `json:"occurred_at"`
@@ -1180,6 +1195,9 @@ type ExportCaseJSONRequestBody = CaseExportRequest
 
 // CreateCaseTaskJSONRequestBody defines body for CreateCaseTask for application/json ContentType.
 type CreateCaseTaskJSONRequestBody = CaseTaskRequest
+
+// AddCriticalTargetJSONRequestBody defines body for AddCriticalTarget for application/json ContentType.
+type AddCriticalTargetJSONRequestBody = CriticalTargetRequest
 
 // IngestEventJSONRequestBody defines body for IngestEvent for application/json ContentType.
 type IngestEventJSONRequestBody = EventIngestRequest

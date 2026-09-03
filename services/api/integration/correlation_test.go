@@ -38,6 +38,88 @@ func authFixture(t *testing.T, sourceEventID, sourceIP string) []byte {
 	return b
 }
 
+// authFixtureWithUser is authFixture plus a "user" observable, for
+// adr/0019's priority-escalation check (which only fires for a user/host
+// observable, never the IP alone).
+func authFixtureWithUser(t *testing.T, sourceEventID, sourceIP, user string) []byte {
+	t.Helper()
+	payload := map[string]any{
+		"source_event_id": sourceEventID,
+		"event_class":     "authentication",
+		"severity":        "medium",
+		"confidence":      0.82,
+		"observables": []any{
+			map[string]any{
+				"type": "ipv4", "value": sourceIP, "normalization": "rfc5737-test-net",
+				"first_seen": "2026-09-02T04:00:00Z", "last_seen": "2026-09-02T04:00:00Z",
+				"confidence": 0.82, "sensitivity": "internal", "source_refs": []any{sourceEventID},
+			},
+			map[string]any{
+				"type": "user", "value": user, "normalization": "lowercase-username",
+				"first_seen": "2026-09-02T04:00:00Z", "last_seen": "2026-09-02T04:00:00Z",
+				"confidence": 0.82, "sensitivity": "internal", "source_refs": []any{sourceEventID},
+			},
+		},
+	}
+	body := map[string]any{"source": "wazuh", "occurred_at": "2026-09-02T04:00:00Z", "payload": payload}
+	b, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshaling fixture: %v", err)
+	}
+	return b
+}
+
+// TestIngestion_CriticalTargetEscalatesPriority proves adr/0019's
+// escalation rule: a correlated case's severity is raised from medium to
+// high only once an event names a registered privileged user/critical
+// asset — the same 5-event correlation as
+// TestIngestion_FiveAuthFailuresFromOneIPAutoRequestsBlock, but with a
+// critical-target user, checked from the very first event (no threshold —
+// escalation is about *who* was targeted, not *how many times*).
+func TestIngestion_CriticalTargetEscalatesPriority(t *testing.T) {
+	srv, _ := setupServer(t)
+	defer srv.Close()
+
+	addBody, err := json.Marshal(map[string]any{"value": "admin", "reason": "domain admin account"})
+	if err != nil {
+		t.Fatalf("marshaling critical-target body: %v", err)
+	}
+	addReq, _ := http.NewRequest(http.MethodPost, srv.URL+"/v1/critical-targets", strings.NewReader(string(addBody)))
+	addReq.Header.Set("Content-Type", "application/json")
+	addResp, err := http.DefaultClient.Do(addReq)
+	if err != nil {
+		t.Fatalf("POST /v1/critical-targets: %v", err)
+	}
+	addResp.Body.Close()
+	if addResp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201 adding a critical target, got %d", addResp.StatusCode)
+	}
+
+	const ip = "203.0.113.53"
+	status, accepted := postEvent(t, srv, "idem-key-escalate-0001", authFixtureWithUser(t, "escalate-test-0001", ip, "admin"))
+	if status != http.StatusAccepted || accepted.Status != genapi.AcceptedEventStatusAccepted {
+		t.Fatalf("event: status=%d body=%+v", status, accepted)
+	}
+
+	listResp, err := http.Get(srv.URL + "/v1/cases")
+	if err != nil {
+		t.Fatalf("listing cases: %v", err)
+	}
+	defer listResp.Body.Close()
+	var page struct {
+		Items []genapi.Case `json:"items"`
+	}
+	_ = json.NewDecoder(listResp.Body).Decode(&page)
+	if len(page.Items) == 0 {
+		t.Fatal("expected at least one case")
+	}
+
+	c := getCaseDetail(t, srv, page.Items[0].Id)
+	if c.Severity != "high" {
+		t.Errorf("severity = %q, want high (targets a registered critical target)", c.Severity)
+	}
+}
+
 // TestIngestion_FiveAuthFailuresFromOneIPAutoRequestsBlock proves adr/0018's
 // correlation + auto-trigger slice end to end: 5 authentication events
 // sharing a source IP land on one case (not five), and the 5th one alone

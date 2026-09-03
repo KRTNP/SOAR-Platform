@@ -240,6 +240,25 @@ func getByIdempotencyKey(ctx context.Context, q querier, tenantID, key string) (
 	return scanActionApproval(row)
 }
 
+// HasLiveAction reports whether caseID has any action still "executed" (a
+// block genuinely in effect, not yet released) — adr/0019's close-gate:
+// docs/08-testing/lab-scenario-ssh-bruteforce.md's "Case closes only after
+// rollback succeeds." A merely pending_approval/approved action hasn't
+// touched real infrastructure yet, so it does not block a close (an analyst
+// rejecting-and-closing a case must still be able to); rejected/expired/
+// released are terminal and never block one either.
+func HasLiveAction(ctx context.Context, q querier, tenantID, caseID string) (bool, error) {
+	var exists bool
+	err := q.QueryRow(ctx, `
+		select exists(
+			select 1 from actions
+			where tenant_id = $1 and case_id = $2 and status = 'executed'
+		)`,
+		tenantID, caseID,
+	).Scan(&exists)
+	return exists, err
+}
+
 // Get returns an action and its approval, applying lazy expiry first.
 func Get(ctx context.Context, q querier, tenantID, actionID string) (*Action, *Approval, error) {
 	a, ap, err := getByActionID(ctx, q, tenantID, actionID)

@@ -19,6 +19,7 @@ import (
 	"soar-platform/services/api/allowlist"
 	"soar-platform/services/api/audit"
 	"soar-platform/services/api/cases"
+	"soar-platform/services/api/criticaltargets"
 	"soar-platform/services/api/enrichment"
 	"soar-platform/services/api/evidence"
 	"soar-platform/services/api/genapi"
@@ -184,8 +185,10 @@ func (h *Handler) Ingest(c *gin.Context) {
 				return err
 			}
 		}
+		var currentSeverity string
 		if existingCase != nil {
 			caseID = existingCase.ID
+			currentSeverity = existingCase.Severity
 			repeatCount, err = cases.IncrementRepeatCount(ctx, tx, tenant, caseID, now)
 			if err != nil {
 				return err
@@ -209,6 +212,7 @@ func (h *Handler) Ingest(c *gin.Context) {
 				return err
 			}
 			repeatCount = cs.RepeatCount
+			currentSeverity = cs.Severity
 			if err := cases.AppendTimeline(ctx, tx, caseID, tenant, "case_opened", "system", map[string]any{
 				"alert_id": alertID, "event_id": ev.ID, "source": ev.Source,
 			}); err != nil {
@@ -243,6 +247,33 @@ func (h *Handler) Ingest(c *gin.Context) {
 		}
 		if _, err := evidence.RecordFromEvent(ctx, tx, tenant, caseID, ev.ID, ev.Source, ev.RawRef.URI, ev.ObservedAt); err != nil {
 			return err
+		}
+
+		// Priority escalation (adr/0019): "Medium becomes higher priority
+		// only when source targets a privileged user or critical asset" —
+		// scoped to the same correlated signature as the auto-trigger below,
+		// checked against any user/host observable this event carries.
+		if correlationKey != "" {
+			for _, o := range ev.Observables {
+				if o.Type != "user" && o.Type != "host" {
+					continue
+				}
+				critical, err := criticaltargets.IsCritical(ctx, tx, tenant, o.Value)
+				if err != nil {
+					return err
+				}
+				if critical && cases.SeverityRank["high"] > cases.SeverityRank[currentSeverity] {
+					if err := cases.EscalateSeverity(ctx, tx, tenant, caseID, "high", now); err != nil {
+						return err
+					}
+					if err := cases.AppendTimeline(ctx, tx, caseID, tenant, "priority_escalated", "system", map[string]any{
+						"from": currentSeverity, "to": "high", "target": o.Value,
+					}); err != nil {
+						return err
+					}
+					currentSeverity = "high"
+				}
+			}
 		}
 
 		// SSH brute-force auto-trigger (adr/0018): once the threshold is hit
