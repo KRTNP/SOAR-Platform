@@ -62,6 +62,16 @@ const NAV_ITEMS = [
       </>
     ),
   },
+  {
+    href: "/search",
+    label: "Search",
+    icon: (
+      <>
+        <circle cx="10.5" cy="10.5" r="6" />
+        <line x1="15" y1="15" x2="19.5" y2="19.5" />
+      </>
+    ),
+  },
 ];
 
 // Below md this recomposes into a compact top bar (logo + nav only — the

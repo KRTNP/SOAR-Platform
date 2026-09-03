@@ -887,6 +887,19 @@ type StatusResponse struct {
 	Status  string  `json:"status"`
 }
 
+// Tenant defines model for Tenant.
+type Tenant struct {
+	ApiKey    *string   `json:"api_key,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	Id        string    `json:"id"`
+	Name      string    `json:"name"`
+}
+
+// TenantRequest defines model for TenantRequest.
+type TenantRequest struct {
+	Name string `json:"name"`
+}
+
 // TrustedSource defines model for TrustedSource.
 type TrustedSource struct {
 	CreatedAt time.Time  `json:"created_at"`
@@ -1172,6 +1185,11 @@ type UpdateScheduleParams struct {
 	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
 }
 
+// SearchParams defines parameters for Search.
+type SearchParams struct {
+	Q string `form:"q" json:"q"`
+}
+
 // PreviewActionJSONRequestBody defines body for PreviewAction for application/json ContentType.
 type PreviewActionJSONRequestBody PreviewActionJSONBody
 
@@ -1219,3 +1237,6 @@ type CreateScheduleJSONRequestBody = ScheduleRequest
 
 // UpdateScheduleJSONRequestBody defines body for UpdateSchedule for application/json ContentType.
 type UpdateScheduleJSONRequestBody = ScheduleRequest
+
+// CreateTenantJSONRequestBody defines body for CreateTenant for application/json ContentType.
+type CreateTenantJSONRequestBody = TenantRequest

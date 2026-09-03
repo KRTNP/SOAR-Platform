@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"context"
 	"log/slog"
 	"time"
 
@@ -37,17 +38,35 @@ func RequestID(c *gin.Context) string {
 	return id
 }
 
-// TenantStubMiddleware is the M1 auth placeholder: every request is treated
-// as belonging to a single configured tenant. Replace with real OIDC/Keycloak
-// token verification when multi-tenant auth becomes a requirement.
-func TenantStubMiddleware(defaultTenantID string) gin.HandlerFunc {
+// TenantKeyMiddleware resolves the caller's tenant from an optional
+// X-Tenant-Key header via resolve (services/api/tenants.Resolve, bound to a
+// pool by the caller — httpx stays dependency-free of any domain package).
+// adr/0022: this is a lab-appropriate tenant *selector*, not authentication
+// — no identity, no session, no RBAC. No header -> defaultTenantID (every
+// existing curl/test/UI call that never sends the header keeps today's
+// exact behavior, the same M1 auth-placeholder posture this replaces). A
+// header present but unrecognized -> 401, never a silent fallback to the
+// wrong tenant.
+func TenantKeyMiddleware(defaultTenantID string, resolve func(ctx context.Context, key string) (string, error)) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Set(string(tenantIDKey), defaultTenantID)
+		key := c.GetHeader("X-Tenant-Key")
+		if key == "" {
+			c.Set(string(tenantIDKey), defaultTenantID)
+			c.Next()
+			return
+		}
+		tenantID, err := resolve(c.Request.Context(), key)
+		if err != nil {
+			WriteProblem(c, ErrUnauthorized("invalid_tenant_key", "X-Tenant-Key did not match any tenant"))
+			c.Abort()
+			return
+		}
+		c.Set(string(tenantIDKey), tenantID)
 		c.Next()
 	}
 }
 
-// TenantID returns the tenant id set by TenantStubMiddleware.
+// TenantID returns the tenant id set by TenantKeyMiddleware.
 func TenantID(c *gin.Context) string {
 	v, _ := c.Get(string(tenantIDKey))
 	id, _ := v.(string)

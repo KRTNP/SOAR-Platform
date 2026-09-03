@@ -33,6 +33,7 @@ import (
 	"soar-platform/services/api/httpx"
 	"soar-platform/services/api/metrics"
 	"soar-platform/services/api/network"
+	"soar-platform/services/api/tenants"
 )
 
 // mockNetworkConnector is the same mock-connector wiring services/api/main.go
@@ -106,7 +107,8 @@ func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.Use(httpx.RequestIDMiddleware(), httpx.TenantStubMiddleware("lab"))
+	resolveTenant := func(ctx context.Context, key string) (string, error) { return tenants.Resolve(ctx, pool, key) }
+	r.Use(httpx.RequestIDMiddleware(), httpx.TenantKeyMiddleware("lab", resolveTenant))
 	eventsH := events.NewHandler(pool, nil)
 	casesH := cases.NewHandler(pool, nil)
 	netConn := mockNetworkConnector()
@@ -116,6 +118,7 @@ func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	metricsH := metrics.NewHandler(pool, netConn.Target, netConn.Version)
 	allowlistH := allowlist.NewHandler(pool)
 	criticalTargetsH := criticaltargets.NewHandler(pool)
+	tenantsH := tenants.NewHandler(pool)
 	v1 := r.Group("/v1")
 	v1.POST("/events", eventsH.Ingest)
 	v1.GET("/events", eventsH.List)
@@ -141,6 +144,8 @@ func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	v1.POST("/allowlist", allowlistH.Add)
 	v1.GET("/critical-targets", criticalTargetsH.List)
 	v1.POST("/critical-targets", criticalTargetsH.Add)
+	v1.GET("/tenants", tenantsH.List)
+	v1.POST("/tenants", tenantsH.Create)
 
 	return httptest.NewServer(r), pool
 }

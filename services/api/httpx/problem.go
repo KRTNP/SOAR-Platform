@@ -67,6 +67,13 @@ func ErrForbidden(code, title string) *AppError {
 	return newError(http.StatusForbidden, code, title, false)
 }
 
+// ErrUnauthorized is for a caller-supplied credential (adr/0022's
+// X-Tenant-Key) that doesn't resolve to anything — distinct from
+// ErrForbidden, which is for an identified caller lacking permission.
+func ErrUnauthorized(code, title string) *AppError {
+	return newError(http.StatusUnauthorized, code, title, false)
+}
+
 func ErrUnsupported(code, title string) *AppError {
 	return newError(http.StatusUnprocessableEntity, code, title, false)
 }

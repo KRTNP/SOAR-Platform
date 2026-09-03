@@ -1,7 +1,8 @@
 // Command api is the SOAR M1 HTTP service: event ingestion and case
 // read/write, per docs/10-roadmap/milestones.md's "synthetic alert reaches a
 // case" gate. Deliberately out of scope at this milestone: real auth
-// (TenantStubMiddleware fixes a single tenant), NATS/Temporal (ingestion runs
+// (httpx.TenantKeyMiddleware selects a tenant by API key, adr/0022, but is
+// not authentication — no identity, no RBAC), NATS/Temporal (ingestion runs
 // synchronously in one DB transaction — see events.Handler.Ingest), and any
 // playbook/approval/connector logic. See docs/10-roadmap/milestones.md for
 // the milestone sequence this fits into.
@@ -36,8 +37,10 @@ import (
 	"soar-platform/services/api/network"
 	"soar-platform/services/api/opnsense"
 	"soar-platform/services/api/scheduler"
+	"soar-platform/services/api/searchindex"
 	"soar-platform/services/api/store"
 	"soar-platform/services/api/telemetry"
+	"soar-platform/services/api/tenants"
 	"soar-platform/services/api/wazuhpoll"
 )
 
@@ -114,7 +117,24 @@ func run(logger *slog.Logger) error {
 		close(wazuhPollDone)
 	}
 
-	router := newRouter(logger, cfg, pool, netConn, rec)
+	var searchH *searchindex.Handler
+	searchIndexDone := make(chan struct{})
+	if searchindex.Enabled() {
+		scfg, err := searchindex.LoadConfig()
+		if err != nil {
+			return fmt.Errorf("OPENSEARCH_ENABLE_REAL=true but config is invalid: %w", err)
+		}
+		logger.Info("search indexer enabled", "opensearch", scfg.BaseURL, "interval_seconds", scfg.PollIntervalSeconds)
+		searchH = searchindex.NewHandler(scfg)
+		go func() {
+			defer close(searchIndexDone)
+			searchindex.Run(ctx, pool, scfg, logger)
+		}()
+	} else {
+		close(searchIndexDone)
+	}
+
+	router := newRouter(logger, cfg, pool, netConn, rec, searchH)
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
@@ -151,6 +171,7 @@ func run(logger *slog.Logger) error {
 	stop()
 	<-schedulerDone
 	<-wazuhPollDone
+	<-searchIndexDone
 	return result
 }
 
@@ -191,10 +212,11 @@ func buildNetworkConnector() (actions.NetworkConnector, error) {
 	}, nil
 }
 
-func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netConn actions.NetworkConnector, rec *telemetry.Recorder) *gin.Engine {
+func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netConn actions.NetworkConnector, rec *telemetry.Recorder, searchH *searchindex.Handler) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
-	r.Use(httpx.RecoveryMiddleware(logger), httpx.RequestIDMiddleware(), httpx.TenantStubMiddleware(cfg.DefaultTenantID), httpx.AccessLogMiddleware(logger), rec.Middleware())
+	resolveTenant := func(ctx context.Context, key string) (string, error) { return tenants.Resolve(ctx, pool, key) }
+	r.Use(httpx.RecoveryMiddleware(logger), httpx.RequestIDMiddleware(), httpx.TenantKeyMiddleware(cfg.DefaultTenantID, resolveTenant), httpx.AccessLogMiddleware(logger), rec.Middleware())
 
 	r.GET("/healthz", func(c *gin.Context) { c.Status(http.StatusOK) })
 	r.GET("/readyz", func(c *gin.Context) {
@@ -214,6 +236,7 @@ func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netCo
 	metricsH := metrics.NewHandler(pool, netConn.Target, netConn.Version)
 	allowlistH := allowlist.NewHandler(pool)
 	criticalTargetsH := criticaltargets.NewHandler(pool)
+	tenantsH := tenants.NewHandler(pool)
 
 	v1 := r.Group("/v1")
 	{
@@ -249,6 +272,13 @@ func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netCo
 
 		v1.GET("/critical-targets", criticalTargetsH.List)
 		v1.POST("/critical-targets", criticalTargetsH.Add)
+
+		v1.GET("/tenants", tenantsH.List)
+		v1.POST("/tenants", tenantsH.Create)
+
+		if searchH != nil {
+			v1.GET("/search", searchH.Search)
+		}
 	}
 
 	return r

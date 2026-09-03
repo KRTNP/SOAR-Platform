@@ -758,6 +758,53 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CriticalTarget'
+  /v1/tenants:
+    get:
+      operationId: listTenants
+      responses:
+        '200':
+          description: >-
+            Every tenant (adr/0022) — tenant management has no tenant_id
+            scope of its own.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourcePage'
+    post:
+      operationId: createTenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantRequest'
+      responses:
+        '201':
+          description: >-
+            Tenant created. api_key is returned only once, here — only its
+            hash is stored (adr/0022).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+  /v1/search:
+    get:
+      operationId: search
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: >-
+            Cross-entity full-text search against the OpenSearch derived
+            projection (adr/0022, docs/02-architecture/data-architecture.md).
+            Never the sole source of truth for anything returned here.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourcePage'
   /v1/metrics:
     get:
       operationId: getMetrics
@@ -1174,6 +1221,19 @@ components:
         created_by: {type: string}
         created_at: {type: string, format: date-time}
         expires_at: {type: string, format: date-time}
+    TenantRequest:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+    Tenant:
+      type: object
+      required: [id, name, created_at]
+      properties:
+        id: {type: string}
+        name: {type: string}
+        created_at: {type: string, format: date-time}
+        api_key: {type: string}
     CriticalTargetRequest:
       type: object
       required: [value, reason]

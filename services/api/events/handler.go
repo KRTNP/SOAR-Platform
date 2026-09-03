@@ -24,6 +24,7 @@ import (
 	"soar-platform/services/api/evidence"
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
+	"soar-platform/services/api/outbox"
 	"soar-platform/services/api/signatures"
 	"soar-platform/services/api/store"
 	"soar-platform/services/api/telemetry"
@@ -193,11 +194,13 @@ func (h *Handler) Ingest(c *gin.Context) {
 				return err
 			}
 		}
-		var currentSeverity string
+		var currentSeverity, caseTitle, caseStatus string
 		if existingCase != nil {
 			h.rec.CaseOutcome("correlated")
 			caseID = existingCase.ID
 			currentSeverity = existingCase.Severity
+			caseTitle = existingCase.Title
+			caseStatus = existingCase.Status
 			repeatCount, err = cases.IncrementRepeatCount(ctx, tx, tenant, caseID, now)
 			if err != nil {
 				return err
@@ -223,6 +226,8 @@ func (h *Handler) Ingest(c *gin.Context) {
 			}
 			repeatCount = cs.RepeatCount
 			currentSeverity = cs.Severity
+			caseTitle = cs.Title
+			caseStatus = cs.Status
 			if err := cases.AppendTimeline(ctx, tx, caseID, tenant, "case_opened", "system", map[string]any{
 				"alert_id": alertID, "event_id": ev.ID, "source": ev.Source,
 			}); err != nil {
@@ -326,6 +331,26 @@ func (h *Handler) Ingest(c *gin.Context) {
 				}
 			}
 		}
+		// OpenSearch derived-search projection (adr/0022): outbox rows for
+		// this event and its case, picked up by services/api/searchindex's
+		// poller. Only event ingestion writes these — a case mutated later
+		// through cases/handler.go's Update/Close operations does not
+		// re-project here (disclosed gap, adr/0022's Consequences).
+		if err := outbox.Write(ctx, tx, tenant, "event", ev.ID, map[string]any{
+			"id": ev.ID, "tenant_id": tenant, "case_id": caseID, "source": ev.Source,
+			"event_class": ev.EventClass, "severity": ev.Severity, "confidence": ev.Confidence,
+			"occurred_at": ev.ObservedAt,
+		}, now); err != nil {
+			return err
+		}
+		if err := outbox.Write(ctx, tx, tenant, "case", caseID, map[string]any{
+			"id": caseID, "tenant_id": tenant, "title": caseTitle, "category": ev.EventClass,
+			"severity": currentSeverity, "status": caseStatus, "repeat_count": repeatCount,
+			"correlation_key": correlationKey, "updated_at": now,
+		}, now); err != nil {
+			return err
+		}
+
 		requestID := httpx.RequestID(c)
 		eventID := ev.ID
 		targetHash := audit.TargetHash(ev.ID)

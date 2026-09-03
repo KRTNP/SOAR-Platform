@@ -36,6 +36,11 @@ services:
       # adr/0020) can tail a plain file — harmless no-op when that profile
       # isn't running.
       LOG_FILE_PATH: /var/log/soar/api.jsonl
+      # Off by default (adr/0022), same opt-in posture as OPNSENSE_ENABLE_REAL/
+      # WAZUH_POLL_ENABLE_REAL — set OPENSEARCH_ENABLE_REAL=true and
+      # OPENSEARCH_BASE_URL=http://opensearch:9200 (an override, not this
+      # committed default) to enable GET /v1/search once the "search"
+      # profile's opensearch service is also running.
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
@@ -65,8 +70,23 @@ services:
   # keycloak: ...
   # vault: ...
 
-  # --- search profile (derived-search milestone) ---
-  # opensearch: ...
+  # --- search profile (adr/0022) ---
+  opensearch:
+    image: docker.io/opensearchproject/opensearch:2.19.1
+    profiles: ["search"]
+    environment:
+      discovery.type: single-node
+      plugins.security.disabled: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+      # OpenSearch >=2.12's bootstrap script demands this even though
+      # plugins.security.disabled above makes it moot once the node is up —
+      # a fixed lab-only placeholder, never a real credential.
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: SoarLabOnly1!
+    ports:
+      # 9201, not 9200 — a real lab often already runs Wazuh's own indexer
+      # (also OpenSearch-based) on 9200; this is this platform's own
+      # separate, derived-search-only instance (adr/0022).
+      - "127.0.0.1:9201:9200"
 
   # --- observability profile (adr/0020) ---
   prometheus:

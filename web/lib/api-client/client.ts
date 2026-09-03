@@ -14,6 +14,7 @@ import type {
   CaseExportAccepted,
   PendingAction,
   ApprovalPage,
+  SearchPage,
 } from "./types";
 
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8080";
@@ -158,6 +159,13 @@ export function getAudit(): Promise<AuditPage> {
 // historical baseline or time series.
 export function getMetrics(): Promise<MetricsSnapshot> {
   return request<MetricsSnapshot>(`/v1/metrics`);
+}
+
+// GET /v1/search — a cross-entity OpenSearch query (adr/0022), only mounted
+// server-side when OPENSEARCH_ENABLE_REAL=true; a Problem here (e.g. 503)
+// means the search indexer isn't running, not that q was invalid.
+export function search(q: string): Promise<SearchPage> {
+  return request<SearchPage>(`/v1/search?q=${encodeURIComponent(q)}`);
 }
 
 // csv is spec'd (api/openapi.yaml) but not implemented server-side yet

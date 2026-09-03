@@ -105,6 +105,20 @@ export interface CasePage {
   next_cursor?: string;
 }
 
+// GET /v1/search's result shape (adr/0022) — a thin pass-through of
+// whatever OpenSearch document matched, not a typed domain object; "source"
+// varies by which index ("soar-cases-v1" vs "soar-events-v1") the hit came
+// from.
+export interface SearchResult {
+  index: string;
+  id: string;
+  source: Record<string, unknown>;
+}
+
+export interface SearchPage {
+  items: SearchResult[];
+}
+
 export interface CaseTimelineEntry {
   id: number;
   occurred_at: string;
