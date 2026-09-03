@@ -25,6 +25,7 @@ import (
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
 	"soar-platform/services/api/store"
+	"soar-platform/services/api/telemetry"
 )
 
 const ingestRoute = "ingestEvent"
@@ -70,10 +71,14 @@ func sourceIPFor(observables []Observable) string {
 
 type Handler struct {
 	pool *pgxpool.Pool
+	rec  *telemetry.Recorder
 }
 
-func NewHandler(pool *pgxpool.Pool) *Handler {
-	return &Handler{pool: pool}
+// NewHandler wires the events API to a pool and a telemetry.Recorder — rec
+// may be nil (e.g. in tests that don't care about metrics; every Recorder
+// method is nil-receiver-safe).
+func NewHandler(pool *pgxpool.Pool, rec *telemetry.Recorder) *Handler {
+	return &Handler{pool: pool, rec: rec}
 }
 
 // Ingest implements POST /v1/events: normalize -> dedup -> alert -> case, all
@@ -81,6 +86,9 @@ func NewHandler(pool *pgxpool.Pool) *Handler {
 func (h *Handler) Ingest(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenant := httpx.TenantID(c)
+
+	outcome := "rejected"
+	defer func() { h.rec.IngestionOutcome(outcome) }()
 
 	key := c.GetHeader("Idempotency-Key")
 	if len(key) < httpx.MinIdempotencyKeyLength {
@@ -109,6 +117,7 @@ func (h *Handler) Ingest(c *gin.Context) {
 			// A retried ingest is always reported as a duplicate, even
 			// though the original response said "accepted".
 			resp.Status = genapi.AcceptedEventStatusDuplicate
+			outcome = "duplicate"
 			c.JSON(existing.StatusCode, resp)
 			return
 		}
@@ -144,6 +153,7 @@ func (h *Handler) Ingest(c *gin.Context) {
 		}
 
 		if duplicate {
+			outcome = "duplicate"
 			alertID, _, err := alerts.FindByEventID(ctx, tx, existingEventID)
 			if err != nil {
 				return httpx.ErrInternal("dedup_lookup_failed", "could not resolve the existing alert for a duplicate event").WithCause(err)
@@ -187,6 +197,7 @@ func (h *Handler) Ingest(c *gin.Context) {
 		}
 		var currentSeverity string
 		if existingCase != nil {
+			h.rec.CaseOutcome("correlated")
 			caseID = existingCase.ID
 			currentSeverity = existingCase.Severity
 			repeatCount, err = cases.IncrementRepeatCount(ctx, tx, tenant, caseID, now)
@@ -199,6 +210,7 @@ func (h *Handler) Ingest(c *gin.Context) {
 				return err
 			}
 		} else {
+			h.rec.CaseOutcome("created")
 			caseID = newID("case")
 			var windowPtr *int
 			var keyPtr *string
@@ -293,6 +305,7 @@ func (h *Handler) Ingest(c *gin.Context) {
 					return err
 				}
 				if created {
+					h.rec.ActionRequested(a.Intent)
 					if err := cases.AppendTimeline(ctx, tx, caseID, tenant, "block_requested", "system", map[string]any{
 						"action_id": a.ID, "target": sourceIP, "repeat_count": repeatCount,
 					}); err != nil {
@@ -328,6 +341,7 @@ func (h *Handler) Ingest(c *gin.Context) {
 			return err
 		}
 
+		outcome = "accepted"
 		resp = genapi.AcceptedEvent{
 			EventId:   ev.ID,
 			AlertId:   &alertID,
@@ -341,6 +355,7 @@ func (h *Handler) Ingest(c *gin.Context) {
 		return httpx.SaveIdempotency(ctx, tx, tenant, http.MethodPost, ingestRoute, key, bodyHash, http.StatusAccepted, body)
 	})
 	if txErr != nil {
+		outcome = "error"
 		httpx.WriteProblem(c, txErr)
 		return
 	}

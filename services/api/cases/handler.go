@@ -22,6 +22,7 @@ import (
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
 	"soar-platform/services/api/store"
+	"soar-platform/services/api/telemetry"
 	"soar-platform/services/api/ticketing"
 )
 
@@ -29,10 +30,13 @@ const createRoute = "createCase"
 
 type Handler struct {
 	pool *pgxpool.Pool
+	rec  *telemetry.Recorder
 }
 
-func NewHandler(pool *pgxpool.Pool) *Handler {
-	return &Handler{pool: pool}
+// NewHandler wires the cases API to a pool and a telemetry.Recorder — rec
+// may be nil (every telemetry.Recorder method is nil-receiver-safe).
+func NewHandler(pool *pgxpool.Pool, rec *telemetry.Recorder) *Handler {
+	return &Handler{pool: pool, rec: rec}
 }
 
 // Create implements POST /v1/cases — manual case creation by an analyst.
@@ -359,6 +363,7 @@ func (h *Handler) Update(c *gin.Context) {
 			if !created {
 				return nil
 			}
+			h.rec.ActionRequested(a.Intent)
 			if err := AppendTimeline(ctx, tx, caseID, tenant, "block_requested", "analyst", map[string]any{
 				"action_id": a.ID, "target": targetValue,
 			}); err != nil {

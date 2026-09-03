@@ -1,0 +1,115 @@
+{
+  "title": "SOAR overview",
+  "uid": "soar-overview",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "HTTP request rate by route",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (route, status) (rate(soar_http_requests_total[5m]))",
+          "legendFormat": "{{route}} {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Ingestion outcomes",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (rate(soar_ingestion_events_total[5m]))",
+          "legendFormat": "{{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Action funnel: requested → approved/rejected → executed → released",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum(increase(soar_action_requested_total[1h]))",
+          "legendFormat": "requested"
+        },
+        {
+          "expr": "sum(increase(soar_approval_decided_total{outcome=\"approved\"}[1h]))",
+          "legendFormat": "approved"
+        },
+        {
+          "expr": "sum(increase(soar_approval_decided_total{outcome=\"rejected\"}[1h]))",
+          "legendFormat": "rejected"
+        },
+        {
+          "expr": "sum(increase(soar_action_executed_total{outcome=\"success\"}[1h]))",
+          "legendFormat": "executed"
+        },
+        {
+          "expr": "sum(increase(soar_action_released_total[1h]))",
+          "legendFormat": "released"
+        },
+        {
+          "expr": "sum(increase(soar_action_release_escalated_total[1h]))",
+          "legendFormat": "escalated"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Connector call outcomes",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (connector, outcome) (rate(soar_connector_call_total[5m]))",
+          "legendFormat": "{{connector}} {{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Scheduler sweep duration (p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(soar_scheduler_sweep_duration_seconds_bucket[15m])))",
+          "legendFormat": "p95 sweep duration"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Wazuh poll duration (p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(soar_wazuhpoll_duration_seconds_bucket[15m])))",
+          "legendFormat": "p95 poll duration"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "HTTP p95 latency by route",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(soar_http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{route}}"
+        }
+      ]
+    }
+  ]
+}

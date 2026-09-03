@@ -41,7 +41,7 @@ func TestScheduler_ReleasesPastTTL(t *testing.T) {
 		t.Fatalf("forcing executed_at into the past: %v", err)
 	}
 
-	released, err := scheduler.Sweep(ctx, pool, mockNetworkConnector(), testLogger())
+	released, err := scheduler.Sweep(ctx, pool, mockNetworkConnector(), testLogger(), nil)
 	if err != nil {
 		t.Fatalf("Sweep: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestScheduler_LeavesActionWithinTTLAlone(t *testing.T) {
 	approveApproval(t, srv, approval.Id).Body.Close()
 	executeAction(t, srv, action.Id).Body.Close()
 
-	released, err := scheduler.Sweep(context.Background(), pool, mockNetworkConnector(), testLogger())
+	released, err := scheduler.Sweep(context.Background(), pool, mockNetworkConnector(), testLogger(), nil)
 	if err != nil {
 		t.Fatalf("Sweep: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestScheduler_LeavesActionWithinTTLAlone(t *testing.T) {
 // an error.
 func TestScheduler_SweepWithNoCandidatesIsANoop(t *testing.T) {
 	pool := setupPool(t)
-	released, err := scheduler.Sweep(context.Background(), pool, mockNetworkConnector(), testLogger())
+	released, err := scheduler.Sweep(context.Background(), pool, mockNetworkConnector(), testLogger(), nil)
 	if err != nil {
 		t.Fatalf("Sweep: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestScheduler_OneFailingCandidateDoesNotBlockTheRest(t *testing.T) {
 		return realRelease(ctx, tx, actionID, targetValue)
 	}
 
-	released, err := scheduler.Sweep(ctx, pool, failing, testLogger())
+	released, err := scheduler.Sweep(ctx, pool, failing, testLogger(), nil)
 	if err != nil {
 		t.Fatalf("Sweep: %v", err)
 	}
@@ -208,7 +208,7 @@ func TestScheduler_FailedReleaseSchedulesBackoffRetry(t *testing.T) {
 	}
 
 	failing := alwaysFailingConnector()
-	if _, err := scheduler.Sweep(ctx, pool, failing, testLogger()); err != nil {
+	if _, err := scheduler.Sweep(ctx, pool, failing, testLogger(), nil); err != nil {
 		t.Fatalf("first Sweep: %v", err)
 	}
 
@@ -231,7 +231,7 @@ func TestScheduler_FailedReleaseSchedulesBackoffRetry(t *testing.T) {
 
 	// A second sweep immediately after must not retry it yet (backoff not
 	// elapsed) — release_attempts stays at 1, not 2.
-	if released, err := scheduler.Sweep(ctx, pool, failing, testLogger()); err != nil {
+	if released, err := scheduler.Sweep(ctx, pool, failing, testLogger(), nil); err != nil {
 		t.Fatalf("second Sweep: %v", err)
 	} else if released != 0 {
 		t.Errorf("expected 0 released on the immediate second sweep, got %d", released)
@@ -267,7 +267,7 @@ func TestScheduler_EscalatesAfterRetriesExhausted(t *testing.T) {
 	}
 
 	failing := alwaysFailingConnector()
-	if _, err := scheduler.Sweep(ctx, pool, failing, testLogger()); err != nil {
+	if _, err := scheduler.Sweep(ctx, pool, failing, testLogger(), nil); err != nil {
 		t.Fatalf("Sweep: %v", err)
 	}
 
@@ -310,7 +310,7 @@ func TestScheduler_EscalatesAfterRetriesExhausted(t *testing.T) {
 
 	// A sweep after escalation must not keep retrying it — escalated
 	// actions are a human's problem now, not the scheduler's.
-	if released, err := scheduler.Sweep(ctx, pool, failing, testLogger()); err != nil {
+	if released, err := scheduler.Sweep(ctx, pool, failing, testLogger(), nil); err != nil {
 		t.Fatalf("Sweep after escalation: %v", err)
 	} else if released != 0 {
 		t.Errorf("expected 0 released for an escalated action, got %d", released)

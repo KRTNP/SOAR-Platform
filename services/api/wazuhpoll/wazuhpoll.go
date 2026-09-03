@@ -26,6 +26,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"soar-platform/services/api/telemetry"
 )
 
 // Config is loaded from WAZUH_* environment variables only — mirrors
@@ -120,7 +122,7 @@ type alertSource struct {
 // Run polls on a ticker until ctx is cancelled, logging and continuing past
 // any single Poll error (matching services/api/scheduler.Run's posture —
 // a transient indexer or ingest failure should not kill the whole loop).
-func Run(ctx context.Context, pool *pgxpool.Pool, cfg Config, ingestBaseURL string, logger *slog.Logger) {
+func Run(ctx context.Context, pool *pgxpool.Pool, cfg Config, ingestBaseURL string, logger *slog.Logger, rec *telemetry.Recorder) {
 	client := &http.Client{
 		Timeout: 15 * time.Second,
 		Transport: &http.Transport{
@@ -140,7 +142,9 @@ func Run(ctx context.Context, pool *pgxpool.Pool, cfg Config, ingestBaseURL stri
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			pollStart := time.Now()
 			newSince, forwarded, err := Poll(ctx, client, cfg, ingestBaseURL, since, logger)
+			rec.WazuhPoll(time.Since(pollStart))
 			if err != nil {
 				logger.Error("wazuh poll failed", "err", err)
 				continue

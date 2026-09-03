@@ -18,5 +18,10 @@ web/next-env.d.ts
 # see deploy/compose/docker-compose.core.yml's comment; never commit these)
 deploy/compose/docker-compose.override.yml
 
+# Local-only observability config for this lab's host-networked api/web
+# (see adr/0020-observability-prometheus-loki-grafana.md's Consequences)
+deploy/compose/prometheus/prometheus.local.yml
+deploy/compose/grafana/provisioning.local/
+
 # OS/editor cruft
 .DS_Store

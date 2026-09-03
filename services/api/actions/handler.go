@@ -16,18 +16,21 @@ import (
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
 	"soar-platform/services/api/store"
+	"soar-platform/services/api/telemetry"
 )
 
 type Handler struct {
 	pool *pgxpool.Pool
 	net  NetworkConnector
+	rec  *telemetry.Recorder
 }
 
 // NewHandler wires the actions API to a pool and a NetworkConnector — the
 // mock services/api/network by default, or the real services/api/opnsense
 // when the caller (services/api/main.go) opts in via OPNSENSE_ENABLE_REAL.
-func NewHandler(pool *pgxpool.Pool, net NetworkConnector) *Handler {
-	return &Handler{pool: pool, net: net}
+// rec may be nil (every telemetry.Recorder method is nil-receiver-safe).
+func NewHandler(pool *pgxpool.Pool, net NetworkConnector, rec *telemetry.Recorder) *Handler {
+	return &Handler{pool: pool, net: net, rec: rec}
 }
 
 // Preview implements POST /v1/actions/preview — a dry-run description of
@@ -107,10 +110,18 @@ func (h *Handler) Execute(c *gin.Context) {
 	})
 	if err != nil {
 		problem := mapExecuteError(err)
+		var appErr *httpx.AppError
+		if errors.As(problem, &appErr) && appErr.Status == http.StatusForbidden {
+			h.rec.ActionExecuted("denied")
+		} else {
+			h.rec.ActionExecuted("error")
+		}
 		auditDeniedExecute(ctx, h.pool, tenant, actionID, problem)
 		httpx.WriteProblem(c, problem)
 		return
 	}
+	h.rec.ActionExecuted("success")
+	h.rec.ConnectorCall(h.net.Version, "success")
 	c.JSON(http.StatusAccepted, genapi.ExecutionAccepted{
 		ExecutionId: a.ID,
 		Status:      genapi.ExecutionAcceptedStatusAccepted,
@@ -150,6 +161,7 @@ func (h *Handler) Release(c *gin.Context) {
 		httpx.WriteProblem(c, mapReleaseError(err))
 		return
 	}
+	h.rec.ActionReleased("manual")
 	c.JSON(http.StatusOK, genapi.ReleaseAccepted{
 		ActionId: a.ID,
 		Status:   genapi.ReleaseAcceptedStatusReleased,
@@ -224,6 +236,7 @@ func (h *Handler) Approve(c *gin.Context) {
 	}); err != nil {
 		slog.Default().Error("failed to record approval audit entry", "approval_id", ap.ID, "err", err)
 	}
+	h.rec.ApprovalDecided("approved")
 	c.JSON(http.StatusOK, ToAPIApproval(ap))
 }
 
@@ -257,6 +270,7 @@ func (h *Handler) Reject(c *gin.Context) {
 	}); err != nil {
 		slog.Default().Error("failed to record rejection audit entry", "approval_id", ap.ID, "err", err)
 	}
+	h.rec.ApprovalDecided("rejected")
 	c.JSON(http.StatusOK, ToAPIApproval(ap))
 }
 

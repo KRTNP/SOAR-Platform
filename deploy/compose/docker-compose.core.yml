@@ -1,10 +1,10 @@
-# M1 "core" profile only: Postgres, the Go API, and the Next.js web app.
+# M1 "core" profile: Postgres, the Go API, and the Next.js web app.
 # docs/02-architecture/lab-deployment-profile.md explicitly sanctions
 # starting with a bounded subset of the full lab stack ("core", "workflow",
 # "security", "search", "observability" profiles) without changing the API
-# contract — workflow/security/search/observability are commented below and
-# arrive with the milestones that actually need NATS, Temporal, Keycloak,
-# Vault, OpenSearch, and the observability stack.
+# contract. The "observability" profile (adr/0020) is implemented below;
+# workflow/security/search remain commented placeholders, arriving with the
+# milestones that actually need NATS/Temporal, Keycloak/Vault, and OpenSearch.
 
 services:
   postgres:
@@ -32,8 +32,14 @@ services:
       ADDR: ":8080"
       DATABASE_URL: postgres://soar:soar_lab_only@postgres:5432/soar?sslmode=disable
       DEFAULT_TENANT_ID: lab
+      # Also written to a shared volume so promtail (observability profile,
+      # adr/0020) can tail a plain file — harmless no-op when that profile
+      # isn't running.
+      LOG_FILE_PATH: /var/log/soar/api.jsonl
     ports:
       - "127.0.0.1:8080:8080"
+    volumes:
+      - soar_api_logs:/var/log/soar
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,11 +68,49 @@ services:
   # --- search profile (derived-search milestone) ---
   # opensearch: ...
 
-  # --- observability profile ---
-  # otel-collector: ...
-  # prometheus: ...
-  # grafana: ...
-  # loki: ...
+  # --- observability profile (adr/0020) ---
+  prometheus:
+    image: docker.io/prom/prometheus:v3.0.1
+    profiles: ["observability"]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro,Z
+    ports:
+      - "127.0.0.1:9090:9090"
+
+  loki:
+    image: docker.io/grafana/loki:3.3.2
+    profiles: ["observability"]
+    ports:
+      - "127.0.0.1:3100:3100"
+
+  promtail:
+    image: docker.io/grafana/promtail:3.3.2
+    profiles: ["observability"]
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/config.yml:ro,Z
+      - soar_api_logs:/var/log/soar:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+
+  grafana:
+    image: docker.io/grafana/grafana:11.4.0
+    profiles: ["observability"]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro,Z
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro,Z
+    ports:
+      - "127.0.0.1:3002:3000"
+    depends_on:
+      - prometheus
+      - loki
+
+  # otel-collector: deferred — no distributed call chain exists yet to trace
+  # (Temporal/NATS aren't implemented); see adr/0020's Consequences.
 
 volumes:
   soar_postgres_data:
+  soar_api_logs:

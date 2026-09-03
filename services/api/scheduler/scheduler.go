@@ -22,6 +22,7 @@ import (
 	"soar-platform/services/api/actions"
 	"soar-platform/services/api/audit"
 	"soar-platform/services/api/store"
+	"soar-platform/services/api/telemetry"
 )
 
 const defaultBatchLimit = 100
@@ -60,7 +61,7 @@ type candidate struct {
 // recordFailure), and skipped — not fatal to the rest of the batch; each
 // release attempt runs in its own transaction. Returns a non-nil error only
 // if the candidate query itself fails.
-func Sweep(ctx context.Context, pool *pgxpool.Pool, net actions.NetworkConnector, logger *slog.Logger) (released int, err error) {
+func Sweep(ctx context.Context, pool *pgxpool.Pool, net actions.NetworkConnector, logger *slog.Logger, rec *telemetry.Recorder) (released int, err error) {
 	candidates, err := findCandidates(ctx, pool)
 	if err != nil {
 		return 0, fmt.Errorf("selecting release candidates: %w", err)
@@ -69,11 +70,12 @@ func Sweep(ctx context.Context, pool *pgxpool.Pool, net actions.NetworkConnector
 	for _, c := range candidates {
 		if err := releaseOne(ctx, pool, net, c); err != nil {
 			logger.Error("scheduler: releasing action failed", "action_id", c.id, "tenant_id", c.tenantID, "attempt", c.releaseAttempts+1, "err", err)
-			if failErr := recordFailure(ctx, pool, c, logger); failErr != nil {
+			if failErr := recordFailure(ctx, pool, c, logger, rec); failErr != nil {
 				logger.Error("scheduler: recording release failure failed", "action_id", c.id, "err", failErr)
 			}
 			continue
 		}
+		rec.ActionReleased("scheduled")
 		released++
 	}
 	return released, nil
@@ -126,9 +128,9 @@ func releaseOne(ctx context.Context, pool *pgxpool.Pool, net actions.NetworkConn
 // block is retained (this never touches network_blocks or actions.status),
 // matching the scenario's "retain the block and escalate if all retries
 // fail, and never remove all firewall rules."
-func recordFailure(ctx context.Context, pool *pgxpool.Pool, c candidate, logger *slog.Logger) error {
+func recordFailure(ctx context.Context, pool *pgxpool.Pool, c candidate, logger *slog.Logger, rec *telemetry.Recorder) error {
 	if c.releaseAttempts >= len(retrySchedule) {
-		return escalate(ctx, pool, c, logger)
+		return escalate(ctx, pool, c, logger, rec)
 	}
 	nextRetryAt := time.Now().UTC().Add(retrySchedule[c.releaseAttempts])
 	_, err := pool.Exec(ctx, `
@@ -137,7 +139,7 @@ func recordFailure(ctx context.Context, pool *pgxpool.Pool, c candidate, logger 
 	return err
 }
 
-func escalate(ctx context.Context, pool *pgxpool.Pool, c candidate, logger *slog.Logger) error {
+func escalate(ctx context.Context, pool *pgxpool.Pool, c candidate, logger *slog.Logger, rec *telemetry.Recorder) error {
 	return store.WithTx(ctx, pool, func(tx pgx.Tx) error {
 		var caseID string
 		if err := tx.QueryRow(ctx, `
@@ -147,6 +149,7 @@ func escalate(ctx context.Context, pool *pgxpool.Pool, c candidate, logger *slog
 		).Scan(&caseID); err != nil {
 			return err
 		}
+		rec.ActionEscalated()
 		logger.Error("scheduler: release retries exhausted, escalating", "action_id", c.id, "case_id", caseID)
 		reason := fmt.Sprintf("automatic rollback failed after %d attempts (5s/15s/30s backoff exhausted); block retained, needs manual release", len(retrySchedule))
 		th := audit.TargetHash(c.id)
@@ -165,7 +168,7 @@ func escalate(ctx context.Context, pool *pgxpool.Pool, c candidate, logger *slog
 }
 
 // Run calls Sweep every interval until ctx is canceled.
-func Run(ctx context.Context, pool *pgxpool.Pool, net actions.NetworkConnector, interval time.Duration, logger *slog.Logger) {
+func Run(ctx context.Context, pool *pgxpool.Pool, net actions.NetworkConnector, interval time.Duration, logger *slog.Logger, rec *telemetry.Recorder) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
@@ -173,7 +176,10 @@ func Run(ctx context.Context, pool *pgxpool.Pool, net actions.NetworkConnector, 
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if _, err := Sweep(ctx, pool, net, logger); err != nil {
+			start := time.Now()
+			_, err := Sweep(ctx, pool, net, logger, rec)
+			rec.SchedulerSweep(time.Since(start))
+			if err != nil {
 				logger.Error("scheduler: sweep failed", "err", err)
 			}
 		}

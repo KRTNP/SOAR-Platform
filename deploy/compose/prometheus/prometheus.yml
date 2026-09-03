@@ -1,0 +1,14 @@
+# Scrapes the API's Prometheus exposition endpoint (services/api/telemetry,
+
+# mounted at GET /metrics — see adr/0020-observability-prometheus-loki-grafana.md).
+# "api:8080" assumes normal compose bridge networking; a lab whose local
+# docker-compose.override.yml host-networks the api service (see that file's
+# own header comment) must also override this scrape target — documented in
+# adr/0020's Consequences rather than baked into this committed default.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: soar-api
+    static_configs:
+      - targets: ["api:8080"]

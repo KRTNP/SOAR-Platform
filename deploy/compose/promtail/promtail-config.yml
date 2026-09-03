@@ -1,0 +1,27 @@
+# Ships api's stdout JSON logs to Loki by tailing a plain file on a shared
+# volume (services/api/main.go's newLogger writes to LOG_FILE_PATH in
+# addition to stdout when that env var is set) — not the container runtime's
+# Docker-API socket, which this lab's rootless-podman + SELinux-enforcing
+# host denies to a container process regardless of uid mapping (confirmed:
+# neither plain uid matching nor --userns=keep-id let promtail open the
+# mounted podman.sock; relabeling that shared, system-wide socket with :Z
+# was ruled out as unsafe for a resource every other podman command also
+# uses). See adr/0020-observability-prometheus-loki-grafana.md's Consequences.
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: soar-api
+    static_configs:
+      - targets: ["localhost"]
+        labels:
+          job: soar-api
+          container: api
+          __path__: /var/log/soar/api.jsonl

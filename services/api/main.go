@@ -10,6 +10,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -36,15 +37,32 @@ import (
 	"soar-platform/services/api/opnsense"
 	"soar-platform/services/api/scheduler"
 	"soar-platform/services/api/store"
+	"soar-platform/services/api/telemetry"
 	"soar-platform/services/api/wazuhpoll"
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := newLogger()
 	if err := run(logger); err != nil {
 		logger.Error("fatal", "err", err)
 		os.Exit(1)
 	}
+}
+
+// newLogger writes structured JSON to stdout, same as always, plus — when
+// LOG_FILE_PATH is set — to that file too, so Promtail (adr/0020) can tail a
+// plain file on a shared volume instead of needing access to the container
+// runtime's own API socket. Unset (the default) is byte-for-byte today's
+// stdout-only behavior; a file that fails to open falls back to stdout-only
+// rather than failing startup over a log-shipping convenience.
+func newLogger() *slog.Logger {
+	w := io.Writer(os.Stdout)
+	if path := os.Getenv("LOG_FILE_PATH"); path != "" {
+		if f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
+			w = io.MultiWriter(os.Stdout, f)
+		}
+	}
+	return slog.New(slog.NewJSONHandler(w, nil))
 }
 
 func run(logger *slog.Logger) error {
@@ -68,12 +86,14 @@ func run(logger *slog.Logger) error {
 	}
 	logger.Info("network connector selected", "provider", netConn.Version)
 
+	rec := telemetry.NewRecorder()
+
 	schedulerDone := make(chan struct{})
 	if cfg.SchedulerEnabled {
 		logger.Info("scheduler enabled", "interval_seconds", cfg.SchedulerIntervalSeconds)
 		go func() {
 			defer close(schedulerDone)
-			scheduler.Run(ctx, pool, netConn, time.Duration(cfg.SchedulerIntervalSeconds)*time.Second, logger)
+			scheduler.Run(ctx, pool, netConn, time.Duration(cfg.SchedulerIntervalSeconds)*time.Second, logger, rec)
 		}()
 	} else {
 		close(schedulerDone)
@@ -88,13 +108,13 @@ func run(logger *slog.Logger) error {
 		logger.Info("wazuh poller enabled", "indexer", wcfg.IndexerBaseURL, "interval_seconds", wcfg.PollIntervalSeconds)
 		go func() {
 			defer close(wazuhPollDone)
-			wazuhpoll.Run(ctx, pool, wcfg, cfg.WazuhIngestBaseURL, logger)
+			wazuhpoll.Run(ctx, pool, wcfg, cfg.WazuhIngestBaseURL, logger, rec)
 		}()
 	} else {
 		close(wazuhPollDone)
 	}
 
-	router := newRouter(logger, cfg, pool, netConn)
+	router := newRouter(logger, cfg, pool, netConn, rec)
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
@@ -171,10 +191,10 @@ func buildNetworkConnector() (actions.NetworkConnector, error) {
 	}, nil
 }
 
-func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netConn actions.NetworkConnector) *gin.Engine {
+func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netConn actions.NetworkConnector, rec *telemetry.Recorder) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
-	r.Use(httpx.RecoveryMiddleware(logger), httpx.RequestIDMiddleware(), httpx.TenantStubMiddleware(cfg.DefaultTenantID), httpx.AccessLogMiddleware(logger))
+	r.Use(httpx.RecoveryMiddleware(logger), httpx.RequestIDMiddleware(), httpx.TenantStubMiddleware(cfg.DefaultTenantID), httpx.AccessLogMiddleware(logger), rec.Middleware())
 
 	r.GET("/healthz", func(c *gin.Context) { c.Status(http.StatusOK) })
 	r.GET("/readyz", func(c *gin.Context) {
@@ -184,10 +204,11 @@ func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netCo
 		}
 		c.Status(http.StatusOK)
 	})
+	r.GET("/metrics", gin.WrapH(rec.Handler()))
 
-	eventsH := events.NewHandler(pool)
-	casesH := cases.NewHandler(pool)
-	actionsH := actions.NewHandler(pool, netConn)
+	eventsH := events.NewHandler(pool, rec)
+	casesH := cases.NewHandler(pool, rec)
+	actionsH := actions.NewHandler(pool, netConn, rec)
 	evidenceH := evidence.NewHandler(pool)
 	auditH := audit.NewHandler(pool)
 	metricsH := metrics.NewHandler(pool, netConn.Target, netConn.Version)
