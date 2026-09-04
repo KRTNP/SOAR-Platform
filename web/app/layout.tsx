@@ -1,9 +1,5 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
-import { Sidebar } from "@/components/Sidebar";
-import { getMetrics } from "@/lib/api-client/client";
-import { auth } from "@/lib/auth";
-import { signOutAction } from "./actions";
 import "./globals.css";
 
 const plexSans = IBM_Plex_Sans({
@@ -23,36 +19,14 @@ export const metadata: Metadata = {
   description: "SOAR lab case queue and investigation console.",
 };
 
-export default async function RootLayout({ children }: LayoutProps<"/">) {
-  // Best-effort: the sidebar's connector badge is a convenience, not load-
-  // bearing, so a metrics fetch failure (backend not running, tenant with no
-  // data yet) just omits the badge rather than breaking every page's layout.
-  let connectorTarget: string | undefined;
-  let connectorVersion: string | undefined;
-  try {
-    const snap = await getMetrics();
-    connectorTarget = snap.connector_target;
-    connectorVersion = snap.connector_version;
-  } catch {
-    // omit the badge
-  }
-
-  // adr/0024 — null on /login itself (no session yet) and whenever
-  // AUTH_ENABLE_REAL is off server-side, in which case Sidebar simply
-  // omits the sign-out control, unchanged from before this ADR.
-  const session = await auth();
-
+// Bare shell only — no Sidebar, no session/metrics fetch. Those belong to
+// app/(app)/layout.tsx, which wraps every authenticated route; /login sits
+// outside that group on purpose, so a signed-out screen never renders the
+// app chrome (nav links to pages it can't reach yet) around it.
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${plexSans.variable} ${plexMono.variable} h-full antialiased`}>
-      <body className="flex h-full min-h-screen flex-col md:flex-row">
-        <Sidebar
-          connectorTarget={connectorTarget}
-          connectorVersion={connectorVersion}
-          userEmail={session?.user?.email ?? undefined}
-          onSignOut={session ? signOutAction : undefined}
-        />
-        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto px-4 pt-5 pb-8 md:px-[34px] md:pt-[26px]">{children}</div>
-      </body>
+      <body className="flex h-full min-h-screen flex-col">{children}</body>
     </html>
   );
 }

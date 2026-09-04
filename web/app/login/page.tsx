@@ -33,24 +33,46 @@ export default async function LoginPage({
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 py-24 text-center">
-      <div className="flex flex-col gap-1.5">
-        <h1 className="text-lg font-semibold tracking-tight">SOAR Console</h1>
-        <p className="text-[13px] text-text-tertiary">Sign in with your lab Keycloak account to continue.</p>
-      </div>
-      <form
-        action={async () => {
-          "use server";
-          await signIn("keycloak");
-        }}
-      >
-        <button
-          type="submit"
-          className="rounded-[4px] bg-accent px-4 py-2 text-[13px] font-medium text-bg transition-opacity hover:opacity-90"
+    <div className="flex flex-1 flex-col items-center justify-center px-4 py-24">
+      <div className="flex w-full max-w-[380px] flex-col gap-6 rounded-lg border border-border bg-surface p-8 shadow-xl">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-9 w-9 text-accent"
+          >
+            <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" />
+          </svg>
+          <div className="flex flex-col gap-1">
+            <h1 className="text-base font-semibold tracking-tight">
+              SOAR <span className="font-normal text-text-tertiary">/ lab</span>
+            </h1>
+            <p className="text-[13px] text-text-tertiary">Sign in with your lab Keycloak account to continue.</p>
+          </div>
+        </div>
+
+        <form
+          action={async () => {
+            "use server";
+            await signIn("keycloak");
+          }}
         >
-          Sign in with Keycloak
-        </button>
-      </form>
+          <button
+            type="submit"
+            className="w-full rounded-[4px] bg-accent px-4 py-2.5 text-[13px] font-medium text-bg transition-opacity hover:opacity-90"
+          >
+            Sign in with Keycloak
+          </button>
+        </form>
+
+        <p className="text-center font-mono text-[10.5px] tracking-wide text-text-tertiary uppercase">
+          Lab environment &middot; identity provided by Keycloak
+        </p>
+      </div>
     </div>
   );
 }

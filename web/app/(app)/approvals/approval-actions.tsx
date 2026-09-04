@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef, useEffect } from "react";
-import { approveActionAction, rejectActionAction } from "@/app/cases/[caseId]/actions";
+import { approveActionAction, rejectActionAction } from "@/app/(app)/cases/[caseId]/actions";
 
 interface ApprovalRowActionsProps {
   approvalId: string;
