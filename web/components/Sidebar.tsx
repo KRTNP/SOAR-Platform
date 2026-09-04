@@ -141,31 +141,15 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className="hidden flex-col gap-2 border-t border-border pt-3.5 md:flex">
-        <span className="px-2.5 font-mono text-[10.5px] tracking-wider text-text-tertiary">
-          TENANT &middot; LAB
-        </span>
-        {connectorTarget && (
-          <span
-            title={connectorVersion}
-            className={`flex items-center gap-1.5 rounded-[4px] border px-2.5 py-1.5 text-[11.5px] ${
-              isMockConnector ? "border-border-strong text-text-secondary" : "border-danger/30 bg-danger/[0.06] text-danger"
-            }`}
-          >
-            <span className={`h-[7px] w-[7px] shrink-0 rounded-full ${isMockConnector ? "bg-text-tertiary" : "bg-danger"}`} />
-            <span className="truncate">{isMockConnector ? "mock connector" : `live: ${connectorTarget}`}</span>
-          </span>
-        )}
-        {/* This used to be a hardcoded "dry-run mode" label — accurate back
-            when no real connector existed at all, but actively misleading
-            once a real one (isMockConnector false) can execute for real:
-            it sat right next to the danger-styled "live: X" badge above,
-            each contradicting the other. An approval is still required
-            either way (adr/0011); only the honesty of what happens *after*
-            approval changes here. */}
-        <span
-          className={`flex items-center gap-1.5 rounded-[4px] border px-2.5 py-1.5 text-[11.5px] ${
-            isMockConnector ? "border-warn/25 bg-warn/[0.08] text-warn" : "border-danger/30 bg-danger/[0.08] text-danger"
+      <div className="hidden flex-col gap-3 border-t border-border pt-3.5 md:flex">
+        {/* One status line, not two near-duplicate badges: mock vs. live is
+            a single fact (dry-run vs. real effects on a named target), so
+            it gets one visual treatment instead of two stacked pills that
+            used to repeat the same "is this real" signal in slightly
+            different words. */}
+        <div
+          className={`flex items-start gap-2 rounded-[4px] border px-2.5 py-2 text-[11.5px] ${
+            isMockConnector ? "border-border-strong text-text-secondary" : "border-danger/30 bg-danger/[0.07] text-danger"
           }`}
         >
           <svg
@@ -175,7 +159,7 @@ export function Sidebar({
             strokeWidth={1.7}
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="h-3 w-3 shrink-0"
+            className="mt-0.5 h-3 w-3 shrink-0"
           >
             {isMockConnector ? (
               <>
@@ -190,15 +174,32 @@ export function Sidebar({
               </>
             )}
           </svg>
-          {isMockConnector ? "dry-run mode" : "live actions — real effects"}
-        </span>
-        {onSignOut && (
-          <form action={onSignOut} className="flex items-center justify-between gap-2 pt-1">
-            {userEmail && <span className="truncate text-[11px] text-text-tertiary">{userEmail}</span>}
-            <button type="submit" className="shrink-0 text-[11.5px] font-medium text-text-secondary hover:text-text-primary">
+          <div className="flex min-w-0 flex-col">
+            <span className="font-medium">{isMockConnector ? "Dry-run mode" : "Live — real effects"}</span>
+            {connectorTarget && <span className="truncate text-text-tertiary">{connectorTarget}</span>}
+          </div>
+        </div>
+
+        {onSignOut ? (
+          <form action={onSignOut} className="flex items-center justify-between gap-2 border-t border-border pt-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-raised font-mono text-[10px] font-medium text-text-secondary">
+                {(userEmail ?? "L")[0].toUpperCase()}
+              </span>
+              <div className="flex min-w-0 flex-col leading-tight">
+                <span className="truncate text-[11.5px] text-text-secondary">{userEmail ?? "lab"}</span>
+                <span className="font-mono text-[10px] tracking-wider text-text-tertiary uppercase">tenant &middot; lab</span>
+              </div>
+            </div>
+            <button
+              type="submit"
+              className="shrink-0 rounded-[4px] px-1.5 py-1 text-[11px] font-medium text-text-tertiary hover:bg-surface-raised hover:text-text-primary"
+            >
               Sign out
             </button>
           </form>
+        ) : (
+          <span className="font-mono text-[10.5px] tracking-wider text-text-tertiary uppercase">tenant &middot; lab</span>
         )}
       </div>
     </aside>

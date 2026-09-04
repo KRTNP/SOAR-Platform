@@ -77,35 +77,49 @@ export function IntegrityBadge({ status }: { status: IntegrityStatus }) {
 // Audit records carry a free-text "decision" (services/api/audit's
 // auditAppend callers use "allowed"/"denied"/"completed" today, per
 // services/api/cases/handler.go and services/api/actions/handler.go) rather
-// than a closed enum, so this falls back to a neutral style for anything
-// else instead of assuming the vocabulary is exhaustive.
-const DECISION_CLASSES: Record<string, string> = {
-  allowed: "text-safe border-safe/35",
-  completed: "text-safe border-safe/35",
-  denied: "text-danger border-danger/40 bg-danger/[0.08]",
-};
-
+// than a closed enum, so anything outside this vocabulary falls back to the
+// same quiet plain-text treatment as the routine cases below.
+//
+// A full colored pill is reserved for "denied" — the one value an analyst
+// scanning this log actually needs to catch. "allowed"/"completed" is what
+// nearly every row says (it's the expected outcome), so giving it the same
+// bordered/bg pill treatment as "denied" just paints most of the column
+// green and drowns out the rows that matter; plain text carries it instead.
 export function DecisionBadge({ decision }: { decision: string }) {
-  const cls = DECISION_CLASSES[decision] ?? "text-text-tertiary border-border-strong";
-  return (
-    <span className={`inline-block rounded-[3px] border px-2 py-[3px] text-[11px] font-medium whitespace-nowrap capitalize ${cls}`}>
-      {decision}
-    </span>
-  );
+  if (decision === "denied") {
+    return (
+      <span className="inline-block rounded-[3px] border border-danger/40 bg-danger/[0.08] px-2 py-[3px] text-[11px] font-medium whitespace-nowrap text-danger capitalize">
+        {decision}
+      </span>
+    );
+  }
+  return <span className="text-[11px] whitespace-nowrap text-text-tertiary capitalize">{decision}</span>;
 }
 
-const APPROVAL_STATUS_CLASSES: Record<ApprovalStatus, string> = {
-  pending: "text-warn border-warn/40",
-  approved: "text-safe border-safe/35",
-  rejected: "text-danger border-danger/40 bg-danger/[0.08]",
-  expired: "text-text-tertiary border-border-strong",
-};
-
+// "pending" is genuinely actionable (it's why the row is in the Pending
+// table at all) and "rejected" is the outcome an analyst reviewing history
+// needs to spot, so both keep a full colored pill. "approved" is the
+// majority outcome in Decided History — same quiet-by-default treatment as
+// DecisionBadge/VerifiedBadge, a small check instead of a matching pill so
+// it doesn't visually compete with "rejected". "expired" is background
+// information, not a decision anyone made, so it stays plain muted text.
 export function ApprovalStatusBadge({ status }: { status: ApprovalStatus }) {
+  if (status === "approved") {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] text-text-tertiary capitalize">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 text-safe">
+          <polyline points="5 12.5 9.5 17 19 6.5" />
+        </svg>
+        {status}
+      </span>
+    );
+  }
+  if (status === "expired") {
+    return <span className="text-[11px] whitespace-nowrap text-text-tertiary capitalize">{status}</span>;
+  }
+  const cls = status === "rejected" ? "text-danger border-danger/40 bg-danger/[0.08]" : "text-warn border-warn/40";
   return (
-    <span
-      className={`inline-block rounded-[3px] border px-2 py-[3px] text-[11px] font-medium whitespace-nowrap capitalize ${APPROVAL_STATUS_CLASSES[status]}`}
-    >
+    <span className={`inline-block rounded-[3px] border px-2 py-[3px] text-[11px] font-medium whitespace-nowrap capitalize ${cls}`}>
       {status}
     </span>
   );
@@ -114,14 +128,25 @@ export function ApprovalStatusBadge({ status }: { status: ApprovalStatus }) {
 // Reflects audit.Record.Verified — a read-time recomputation of the row's
 // own result_hash (services/api/audit's List), not a persisted flag. false
 // means this specific row's hash no longer matches its stored content.
+//
+// "verified" is the expected outcome on every row (a real tamper event
+// should be rare), so it gets a small quiet checkmark rather than a full
+// bordered pill — the pill is reserved for "tampered", the one state an
+// analyst scanning this column must never miss.
 export function VerifiedBadge({ verified }: { verified: boolean }) {
+  if (!verified) {
+    return (
+      <span className="inline-block rounded-[3px] border border-danger/40 bg-danger/[0.08] px-2 py-[3px] text-[11px] font-medium whitespace-nowrap text-danger">
+        tampered
+      </span>
+    );
+  }
   return (
-    <span
-      className={`inline-block rounded-[3px] border px-2 py-[3px] text-[11px] font-medium whitespace-nowrap ${
-        verified ? "text-safe border-safe/35" : "text-danger border-danger/40 bg-danger/[0.08]"
-      }`}
-    >
-      {verified ? "verified" : "tampered"}
+    <span className="inline-flex items-center gap-1 text-[11px] text-text-tertiary" title="Hash recomputed and matched on read">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 text-safe">
+        <polyline points="5 12.5 9.5 17 19 6.5" />
+      </svg>
+      verified
     </span>
   );
 }

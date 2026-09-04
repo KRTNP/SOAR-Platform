@@ -33,38 +33,42 @@ export default async function AuditPage() {
         <div>
           <p className="mb-1.5 text-[11px] text-text-tertiary md:hidden">Scroll sideways for decision, actor, case, connector, and reason →</p>
           <div className="overflow-x-auto rounded-md border border-border">
-            <table className="w-full min-w-[1080px] border-collapse text-[12.5px]">
+            <table className="w-full min-w-[880px] border-collapse text-[12.5px]">
               <thead>
                 <tr className="border-b border-border bg-surface text-left text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">
-                  <th className="px-3 py-2.5 font-semibold">ID</th>
-                  <th className="px-3 py-2.5 font-semibold">Timestamp</th>
-                  <th className="px-3 py-2.5 font-semibold">Action</th>
-                  <th className="px-3 py-2.5 font-semibold">Decision</th>
-                  <th className="px-3 py-2.5 font-semibold">Actor</th>
-                  <th className="px-3 py-2.5 font-semibold">Case</th>
-                  <th className="px-3 py-2.5 font-semibold">Connector</th>
-                  <th className="px-3 py-2.5 font-semibold">Integrity</th>
-                  <th className="px-3 py-2.5 font-semibold">Reason</th>
+                  <th className="px-2.5 py-2.5 font-semibold">Timestamp</th>
+                  <th className="px-2.5 py-2.5 font-semibold">Action</th>
+                  <th className="px-2.5 py-2.5 font-semibold">Decision</th>
+                  <th className="px-2.5 py-2.5 font-semibold">Actor</th>
+                  <th className="px-2.5 py-2.5 font-semibold">Case</th>
+                  <th className="px-2.5 py-2.5 font-semibold">Integrity</th>
+                  <th className="px-2.5 py-2.5 font-semibold">Reason</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {page.items.map((r) => (
                   <tr key={r.id} className="bg-surface hover:bg-surface-hover">
-                    <td className="px-3 py-2.5 font-mono text-text-tertiary whitespace-nowrap" title={r.id}>
-                      {r.id.slice(0, 8)}
-                    </td>
-                    <td className="px-3 py-2.5 font-mono text-text-tertiary whitespace-nowrap" title={new Date(r.timestamp).toLocaleString()}>
+                    <td className="px-2.5 py-2.5 font-mono text-text-tertiary whitespace-nowrap" title={new Date(r.timestamp).toLocaleString()}>
                       {new Date(r.timestamp).toLocaleDateString([], { month: "numeric", day: "numeric" })},{" "}
                       {new Date(r.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-text-primary whitespace-nowrap">{r.action}</td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-2.5 py-2.5 font-mono text-text-primary whitespace-nowrap">
+                      {r.action}
+                      {/* Connector version used to be its own mostly-empty column
+                          ("—" for every non-execute/release row) — shown here
+                          only when present, right next to the action it
+                          belongs to, instead of a column nearly nobody's row fills. */}
+                      {r.connector_version && (
+                        <span className="ml-1.5 text-text-tertiary">{r.connector_version.replace(/^connector-/, "")}</span>
+                      )}
+                    </td>
+                    <td className="px-2.5 py-2.5">
                       <DecisionBadge decision={r.decision} />
                     </td>
-                    <td className="px-3 py-2.5 text-text-secondary whitespace-nowrap">
+                    <td className="px-2.5 py-2.5 text-text-secondary whitespace-nowrap">
                       {r.actor} <span className="text-text-tertiary">({r.actor_type})</span>
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className="px-2.5 py-2.5 whitespace-nowrap">
                       {r.case_id ? (
                         <Link href={`/cases/${r.case_id}`} className="font-mono text-accent hover:underline" title={r.case_id}>
                           {r.case_id.length > 22 ? `${r.case_id.slice(0, 19)}…` : r.case_id}
@@ -73,16 +77,10 @@ export default async function AuditPage() {
                         <span className="text-text-tertiary">—</span>
                       )}
                     </td>
-                    <td
-                      className="px-3 py-2.5 font-mono text-text-tertiary whitespace-nowrap"
-                      title={r.connector_version ?? undefined}
-                    >
-                      {r.connector_version ? r.connector_version.replace(/^connector-/, "") : "—"}
-                    </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-2.5 py-2.5">
                       <VerifiedBadge verified={r.verified} />
                     </td>
-                    <td className="max-w-[220px] px-3 py-2.5 text-text-tertiary">{r.reason ?? "—"}</td>
+                    <td className="max-w-[220px] px-2.5 py-2.5 text-text-tertiary">{r.reason ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>

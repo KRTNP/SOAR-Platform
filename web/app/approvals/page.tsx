@@ -179,8 +179,8 @@ function ApprovalTable({ title, rows, badgeColor, showActions, isHistorical }: A
                     <span className="text-text-tertiary">—</span>
                   )}
                 </td>
-                <td className="max-w-[200px] truncate px-3.5 py-2.5 font-medium text-text-primary" title={action?.intent}>
-                  {action?.intent ?? "—"}
+                <td className="max-w-[200px] truncate px-3.5 py-2.5 text-text-secondary" title={action?.intent}>
+                  {action?.intent ? action.intent.replaceAll("_", " ") : "—"}
                 </td>
                 <td className="max-w-[220px] truncate px-3.5 py-2.5 font-mono text-[11.5px] text-text-secondary" title={action?.target.value}>
                   {action?.target.value ? (
