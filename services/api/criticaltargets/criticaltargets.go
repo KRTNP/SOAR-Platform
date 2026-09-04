@@ -9,6 +9,8 @@ package criticaltargets
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -16,6 +18,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/oklog/ulid/v2"
 )
+
+var ErrNotFound = errors.New("critical target not found")
 
 type querier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
@@ -59,6 +63,19 @@ func Add(ctx context.Context, q querier, tenantID, value, reason, createdBy stri
 		return nil, err
 	}
 	return &c, nil
+}
+
+// Delete removes a critical target by id, scoped to tenantID, or
+// ErrNotFound if none matched.
+func Delete(ctx context.Context, q querier, tenantID, id string) error {
+	tag, err := q.Exec(ctx, `delete from critical_targets where tenant_id = $1 and id = $2`, tenantID, id)
+	if err != nil {
+		return fmt.Errorf("deleting critical target: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // List returns every critical target for tenantID, newest first.

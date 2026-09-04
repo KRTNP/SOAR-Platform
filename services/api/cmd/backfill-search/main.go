@@ -9,11 +9,11 @@
 //
 // Run once: DATABASE_URL=postgres://... go run ./cmd/backfill-search
 //
-// Not idempotent at the outbox-row level — re-running inserts a fresh
-// outbox row per case/event every time, though each still lands on the
-// same OpenSearch document id (idempotent at that layer). Acceptable for a
-// tool meant to run rarely, if ever more than once; not worth a dedup
-// mechanism.
+// Idempotent as a catch-up tool: it only projects cases/events that have
+// never had an outbox row written for them (by this tool or by the normal
+// ingest/update paths), so re-running it is a no-op once the initial
+// catch-up is done. It does not dedup against the outbox table's normal
+// multi-row-per-entity behavior from ordinary mutations — that's intentional.
 package main
 
 import (
@@ -55,9 +55,35 @@ func main() {
 	fmt.Printf("wrote %d case and %d event outbox rows\n", cases, events)
 }
 
+// alreadyProjected returns the entity ids that already have at least one
+// outbox_events row for the given entity type, across all tenants — used
+// so re-running this tool only ever projects entities it has never touched.
+func alreadyProjected(ctx context.Context, pool *pgxpool.Pool, entityType string) (map[string]bool, error) {
+	rows, err := pool.Query(ctx, `select distinct entity_id from outbox_events where entity_type = $1`, entityType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	seen := make(map[string]bool)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scanning projected entity id: %w", err)
+		}
+		seen[id] = true
+	}
+	return seen, rows.Err()
+}
+
 // backfillCases mirrors cases.projectCaseBestEffort's payload shape exactly
 // — a document's field set must not depend on which write path produced it.
 func backfillCases(ctx context.Context, pool *pgxpool.Pool, now time.Time) (int, error) {
+	done, err := alreadyProjected(ctx, pool, "case")
+	if err != nil {
+		return 0, fmt.Errorf("checking already-projected cases: %w", err)
+	}
+
 	rows, err := pool.Query(ctx, `
 		select id, tenant_id, title, category, severity, status, repeat_count, correlation_key, updated_at
 		from cases`)
@@ -74,6 +100,9 @@ func backfillCases(ctx context.Context, pool *pgxpool.Pool, now time.Time) (int,
 		var updatedAt time.Time
 		if err := rows.Scan(&id, &tenantID, &title, &category, &severity, &status, &repeatCount, &correlationKey, &updatedAt); err != nil {
 			return count, fmt.Errorf("scanning case row: %w", err)
+		}
+		if done[id] {
+			continue
 		}
 		key := ""
 		if correlationKey != nil {
@@ -98,6 +127,11 @@ func backfillCases(ctx context.Context, pool *pgxpool.Pool, now time.Time) (int,
 // more than one alert — this takes the first case_ref found, matching the
 // 1:1 relationship every event ingested through this codebase actually has).
 func backfillEvents(ctx context.Context, pool *pgxpool.Pool, now time.Time) (int, error) {
+	done, err := alreadyProjected(ctx, pool, "event")
+	if err != nil {
+		return 0, fmt.Errorf("checking already-projected events: %w", err)
+	}
+
 	rows, err := pool.Query(ctx, `
 		select e.id, e.tenant_id, e.source, e.event_class, e.severity, e.confidence, e.observed_at,
 		       (select a.case_ref from alert_events ae join alerts a on a.id = ae.alert_id
@@ -116,6 +150,9 @@ func backfillEvents(ctx context.Context, pool *pgxpool.Pool, now time.Time) (int
 		var caseID *string
 		if err := rows.Scan(&id, &tenantID, &source, &eventClass, &severity, &confidence, &observedAt, &caseID); err != nil {
 			return count, fmt.Errorf("scanning event row: %w", err)
+		}
+		if done[id] {
+			continue
 		}
 		payload := map[string]any{
 			"id": id, "tenant_id": tenantID, "case_id": caseID, "source": source,

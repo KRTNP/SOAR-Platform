@@ -142,10 +142,13 @@ func setupServer(t *testing.T) (*httptest.Server, *pgxpool.Pool) {
 	v1.GET("/metrics", metricsH.Get)
 	v1.GET("/allowlist", allowlistH.List)
 	v1.POST("/allowlist", allowlistH.Add)
+	v1.DELETE("/allowlist/:id", allowlistH.Delete)
 	v1.GET("/critical-targets", criticalTargetsH.List)
 	v1.POST("/critical-targets", criticalTargetsH.Add)
+	v1.DELETE("/critical-targets/:id", criticalTargetsH.Delete)
 	v1.GET("/tenants", tenantsH.List)
 	v1.POST("/tenants", tenantsH.Create)
+	v1.DELETE("/tenants/:id", tenantsH.Delete)
 
 	return httptest.NewServer(r), pool
 }

@@ -186,6 +186,10 @@ export function createTenant(name: string): Promise<Tenant> {
   });
 }
 
+export function deleteTenant(id: string): Promise<void> {
+  return request<void>(`/v1/tenants/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
 export function listAllowlist(): Promise<TrustedSourcePage> {
   return request<TrustedSourcePage>(`/v1/allowlist`);
 }
@@ -197,6 +201,10 @@ export function addAllowlistEntry(value: string, reason: string, expiresAt?: str
   });
 }
 
+export function deleteAllowlistEntry(id: string): Promise<void> {
+  return request<void>(`/v1/allowlist/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
 export function listCriticalTargets(): Promise<CriticalTargetPage> {
   return request<CriticalTargetPage>(`/v1/critical-targets`);
 }
@@ -206,6 +214,10 @@ export function addCriticalTarget(value: string, reason: string): Promise<unknow
     method: "POST",
     body: JSON.stringify({ value, reason }),
   });
+}
+
+export function deleteCriticalTarget(id: string): Promise<void> {
+  return request<void>(`/v1/critical-targets/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
 // csv is spec'd (api/openapi.yaml) but not implemented server-side yet

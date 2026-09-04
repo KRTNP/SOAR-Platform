@@ -923,6 +923,9 @@ type ActionId = string
 // AlertId defines model for AlertId.
 type AlertId = string
 
+// AllowlistId defines model for AllowlistId.
+type AllowlistId = string
+
 // ApprovalId defines model for ApprovalId.
 type ApprovalId = string
 
@@ -931,6 +934,9 @@ type CaseId = string
 
 // ConnectorId defines model for ConnectorId.
 type ConnectorId = string
+
+// CriticalTargetId defines model for CriticalTargetId.
+type CriticalTargetId = string
 
 // Cursor defines model for Cursor.
 type Cursor = string
@@ -955,6 +961,9 @@ type RequestId = string
 
 // ScheduleId defines model for ScheduleId.
 type ScheduleId = string
+
+// TenantId defines model for TenantId.
+type TenantId = string
 
 // PreviewActionJSONBody defines parameters for PreviewAction.
 type PreviewActionJSONBody struct {

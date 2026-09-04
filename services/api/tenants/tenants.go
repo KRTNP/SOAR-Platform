@@ -91,6 +91,18 @@ func List(ctx context.Context, q querier) ([]Tenant, error) {
 	return out, rows.Err()
 }
 
+// Delete removes a tenant by id, or ErrNotFound if none matched.
+func Delete(ctx context.Context, q querier, id string) error {
+	tag, err := q.Exec(ctx, `delete from tenants where id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("deleting tenant: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // Resolve returns the tenant id whose api_key_hash matches key, or
 // ErrNotFound if no tenant has that key.
 func Resolve(ctx context.Context, q querier, key string) (string, error) {

@@ -9,6 +9,8 @@ package allowlist
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -16,6 +18,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/oklog/ulid/v2"
 )
+
+var ErrNotFound = errors.New("trusted source not found")
 
 // querier is satisfied by both *pgxpool.Pool and pgx.Tx, matching every
 // other package in this codebase (e.g. services/api/actions.querier).
@@ -70,6 +74,19 @@ func Add(ctx context.Context, q querier, tenantID, value, reason, createdBy stri
 		return nil, err
 	}
 	return &t, nil
+}
+
+// Delete removes a trusted source by id, scoped to tenantID, or ErrNotFound
+// if none matched.
+func Delete(ctx context.Context, q querier, tenantID, id string) error {
+	tag, err := q.Exec(ctx, `delete from trusted_sources where tenant_id = $1 and id = $2`, tenantID, id)
+	if err != nil {
+		return fmt.Errorf("deleting trusted source: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // List returns every trusted source for tenantID, newest first — lab scale

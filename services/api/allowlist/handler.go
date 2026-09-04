@@ -1,6 +1,7 @@
 package allowlist
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -56,6 +57,20 @@ func (h *Handler) Add(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, toAPI(*t))
+}
+
+// Delete implements DELETE /v1/allowlist/:id.
+func (h *Handler) Delete(c *gin.Context) {
+	tenant := httpx.TenantID(c)
+	if err := Delete(c.Request.Context(), h.pool, tenant, c.Param("id")); err != nil {
+		if errors.Is(err, ErrNotFound) {
+			httpx.WriteProblem(c, httpx.ErrNotFound("trusted_source_not_found", "trusted source not found"))
+			return
+		}
+		httpx.WriteProblem(c, httpx.ErrInternal("delete_trusted_source_failed", "could not delete trusted source").WithCause(err))
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func toAPI(t TrustedSource) genapi.TrustedSource {

@@ -1,6 +1,7 @@
 package tenants
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -54,6 +55,19 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, toAPI(t, key))
+}
+
+// Delete implements DELETE /v1/tenants/:id.
+func (h *Handler) Delete(c *gin.Context) {
+	if err := Delete(c.Request.Context(), h.pool, c.Param("id")); err != nil {
+		if errors.Is(err, ErrNotFound) {
+			httpx.WriteProblem(c, httpx.ErrNotFound("tenant_not_found", "tenant not found"))
+			return
+		}
+		httpx.WriteProblem(c, httpx.ErrInternal("delete_tenant_failed", "could not delete tenant").WithCause(err))
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func toAPI(t Tenant, apiKey string) genapi.Tenant {

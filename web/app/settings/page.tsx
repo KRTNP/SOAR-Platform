@@ -3,6 +3,8 @@ import type { Tenant, TrustedSource, CriticalTarget, Problem } from "@/lib/api-c
 import { ProblemBanner } from "@/components/ProblemBanner";
 import { EmptyState } from "@/components/EmptyState";
 import { TenantForm, AllowlistForm, CriticalTargetForm } from "./forms";
+import { DeleteButton } from "./delete-button";
+import { deleteTenantAction, deleteAllowlistEntryAction, deleteCriticalTargetAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -37,8 +39,8 @@ export default async function SettingsPage() {
       <header>
         <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
         <p className="text-xs text-text-tertiary">
-          Tenants (adr/0022), the SSH brute-force allowlist (adr/0018), and critical targets (adr/0019) &mdash; list and
-          add only, no auth/RBAC gate yet
+          Tenants (adr/0022), the SSH brute-force allowlist (adr/0018), and critical targets (adr/0019) &mdash; no
+          auth/RBAC gate yet
         </p>
       </header>
 
@@ -57,6 +59,7 @@ export default async function SettingsPage() {
                   <th className="px-3 py-2.5 font-semibold">ID</th>
                   <th className="px-3 py-2.5 font-semibold">Name</th>
                   <th className="px-3 py-2.5 font-semibold">Created</th>
+                  <th className="px-3 py-2.5 font-semibold" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -67,6 +70,9 @@ export default async function SettingsPage() {
                     </td>
                     <td className="px-3 py-2.5 text-text-primary">{t.name}</td>
                     <td className="px-3 py-2.5 font-mono text-text-tertiary whitespace-nowrap">{fmtDate(t.created_at)}</td>
+                    <td className="px-3 py-2.5 text-right">
+                      <DeleteButton label={t.name} onDelete={deleteTenantAction.bind(null, t.id)} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -94,6 +100,7 @@ export default async function SettingsPage() {
                   <th className="px-3 py-2.5 font-semibold">Added by</th>
                   <th className="px-3 py-2.5 font-semibold">Created</th>
                   <th className="px-3 py-2.5 font-semibold">Expires</th>
+                  <th className="px-3 py-2.5 font-semibold" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -105,6 +112,9 @@ export default async function SettingsPage() {
                     <td className="px-3 py-2.5 font-mono text-text-tertiary whitespace-nowrap">{fmtDate(a.created_at)}</td>
                     <td className="px-3 py-2.5 font-mono text-text-tertiary whitespace-nowrap">
                       {a.expires_at ? fmtDate(a.expires_at) : "never"}
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <DeleteButton label={a.value} onDelete={deleteAllowlistEntryAction.bind(null, a.id)} />
                     </td>
                   </tr>
                 ))}
@@ -132,6 +142,7 @@ export default async function SettingsPage() {
                   <th className="px-3 py-2.5 font-semibold">Reason</th>
                   <th className="px-3 py-2.5 font-semibold">Added by</th>
                   <th className="px-3 py-2.5 font-semibold">Created</th>
+                  <th className="px-3 py-2.5 font-semibold" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -141,6 +152,9 @@ export default async function SettingsPage() {
                     <td className="px-3 py-2.5 text-text-secondary">{ct.reason}</td>
                     <td className="px-3 py-2.5 text-text-tertiary">{ct.created_by}</td>
                     <td className="px-3 py-2.5 font-mono text-text-tertiary whitespace-nowrap">{fmtDate(ct.created_at)}</td>
+                    <td className="px-3 py-2.5 text-right">
+                      <DeleteButton label={ct.value} onDelete={deleteCriticalTargetAction.bind(null, ct.id)} />
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -731,6 +731,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TrustedSource'
+  /v1/allowlist/{id}:
+    delete:
+      operationId: deleteTrustedSource
+      parameters:
+        - $ref: '#/components/parameters/AllowlistId'
+      responses:
+        '204':
+          description: Trusted source removed.
+        '404':
+          $ref: '#/components/responses/Problem'
   /v1/critical-targets:
     get:
       operationId: listCriticalTargets
@@ -758,6 +768,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CriticalTarget'
+  /v1/critical-targets/{id}:
+    delete:
+      operationId: deleteCriticalTarget
+      parameters:
+        - $ref: '#/components/parameters/CriticalTargetId'
+      responses:
+        '204':
+          description: Critical target removed.
+        '404':
+          $ref: '#/components/responses/Problem'
   /v1/tenants:
     get:
       operationId: listTenants
@@ -787,6 +807,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Tenant'
+  /v1/tenants/{id}:
+    delete:
+      operationId: deleteTenant
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '204':
+          description: Tenant removed.
+        '404':
+          $ref: '#/components/responses/Problem'
   /v1/search:
     get:
       operationId: search
@@ -914,6 +944,24 @@ components:
         type: string
     ScheduleId:
       name: scheduleId
+      in: path
+      required: true
+      schema:
+        type: string
+    AllowlistId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    CriticalTargetId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    TenantId:
+      name: id
       in: path
       required: true
       schema:

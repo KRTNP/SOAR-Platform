@@ -1,7 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createTenant, addAllowlistEntry, addCriticalTarget } from "@/lib/api-client/client";
+import {
+  createTenant,
+  addAllowlistEntry,
+  addCriticalTarget,
+  deleteTenant,
+  deleteAllowlistEntry,
+  deleteCriticalTarget,
+} from "@/lib/api-client/client";
 import type { Tenant } from "@/lib/api-client/types";
 
 // Returns the created Tenant (including its one-time api_key) directly to
@@ -21,5 +28,20 @@ export async function addAllowlistEntryAction(value: string, reason: string, exp
 
 export async function addCriticalTargetAction(value: string, reason: string) {
   await addCriticalTarget(value, reason);
+  revalidatePath("/settings");
+}
+
+export async function deleteTenantAction(id: string) {
+  await deleteTenant(id);
+  revalidatePath("/settings");
+}
+
+export async function deleteAllowlistEntryAction(id: string) {
+  await deleteAllowlistEntry(id);
+  revalidatePath("/settings");
+}
+
+export async function deleteCriticalTargetAction(id: string) {
+  await deleteCriticalTarget(id);
   revalidatePath("/settings");
 }

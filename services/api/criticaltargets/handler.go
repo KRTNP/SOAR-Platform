@@ -1,6 +1,7 @@
 package criticaltargets
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -56,6 +57,20 @@ func (h *Handler) Add(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, toAPI(*t))
+}
+
+// Delete implements DELETE /v1/critical-targets/:id.
+func (h *Handler) Delete(c *gin.Context) {
+	tenant := httpx.TenantID(c)
+	if err := Delete(c.Request.Context(), h.pool, tenant, c.Param("id")); err != nil {
+		if errors.Is(err, ErrNotFound) {
+			httpx.WriteProblem(c, httpx.ErrNotFound("critical_target_not_found", "critical target not found"))
+			return
+		}
+		httpx.WriteProblem(c, httpx.ErrInternal("delete_critical_target_failed", "could not delete critical target").WithCause(err))
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func toAPI(t CriticalTarget) genapi.CriticalTarget {
