@@ -1,0 +1,56 @@
+{
+  "realm": "soar",
+  "enabled": true,
+  "sslRequired": "none",
+  "roles": {
+    "realm": [
+      { "name": "analyst" },
+      { "name": "incident-commander" },
+      { "name": "service-owner" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "soar-web",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"]
+    }
+  ],
+  "users": [
+    {
+      "username": "analyst@lab.local",
+      "email": "analyst@lab.local",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Analyst",
+      "lastName": "Lab",
+      "credentials": [{ "type": "password", "value": "lab-analyst-pw", "temporary": false }],
+      "realmRoles": ["analyst"]
+    },
+    {
+      "username": "ic@lab.local",
+      "email": "ic@lab.local",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "IC",
+      "lastName": "Lab",
+      "credentials": [{ "type": "password", "value": "lab-ic-pw", "temporary": false }],
+      "realmRoles": ["incident-commander"]
+    },
+    {
+      "username": "owner@lab.local",
+      "email": "owner@lab.local",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Owner",
+      "lastName": "Lab",
+      "credentials": [{ "type": "password", "value": "lab-owner-pw", "temporary": false }],
+      "realmRoles": ["service-owner"]
+    }
+  ]
+}

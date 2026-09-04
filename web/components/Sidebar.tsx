@@ -89,7 +89,17 @@ const NAV_ITEMS = [
 // dropped rather than shrunk, per gridgeist's "recompose, don't shrink"
 // rule) so the app is usable on a phone instead of rendering a squeezed
 // 236px column beside the content. md and up keeps the original side rail.
-export function Sidebar({ connectorTarget, connectorVersion }: { connectorTarget?: string; connectorVersion?: string }) {
+export function Sidebar({
+  connectorTarget,
+  connectorVersion,
+  userEmail,
+  onSignOut,
+}: {
+  connectorTarget?: string;
+  connectorVersion?: string;
+  userEmail?: string;
+  onSignOut?: () => Promise<void>;
+}) {
   const pathname = usePathname();
   const isMockConnector = connectorVersion?.includes("mock") ?? true;
 
@@ -182,6 +192,14 @@ export function Sidebar({ connectorTarget, connectorVersion }: { connectorTarget
           </svg>
           {isMockConnector ? "dry-run mode" : "live actions — real effects"}
         </span>
+        {onSignOut && (
+          <form action={onSignOut} className="flex items-center justify-between gap-2 pt-1">
+            {userEmail && <span className="truncate text-[11px] text-text-tertiary">{userEmail}</span>}
+            <button type="submit" className="shrink-0 text-[11.5px] font-medium text-text-secondary hover:text-text-primary">
+              Sign out
+            </button>
+          </form>
+        )}
       </div>
     </aside>
   );

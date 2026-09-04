@@ -235,6 +235,14 @@ func getByApprovalID(ctx context.Context, q querier, tenantID, approvalID string
 	return scanActionApproval(row)
 }
 
+// GetByApprovalID is the read-only lookup Approve/Reject already do
+// internally, exported so a caller (services/api/auth's RBAC enforcement in
+// actions/handler.go) can check the intent/risk-derived required roles
+// before deciding whether to call Approve/Reject at all.
+func GetByApprovalID(ctx context.Context, q querier, tenantID, approvalID string) (*Action, *Approval, error) {
+	return getByApprovalID(ctx, q, tenantID, approvalID)
+}
+
 func getByIdempotencyKey(ctx context.Context, q querier, tenantID, key string) (*Action, *Approval, error) {
 	row := q.QueryRow(ctx, selectActionApproval+` where a.tenant_id = $1 and a.idempotency_key = $2`, tenantID, key)
 	return scanActionApproval(row)

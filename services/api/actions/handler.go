@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"soar-platform/services/api/audit"
+	"soar-platform/services/api/auth"
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
 	"soar-platform/services/api/store"
@@ -93,6 +94,7 @@ func (h *Handler) Execute(c *gin.Context) {
 		return
 	}
 
+	actor, actorType := auth.ActorFrom(c, "incident-commander", "analyst")
 	var a Action
 	err := store.WithTx(ctx, h.pool, func(tx pgx.Tx) error {
 		var err error
@@ -103,7 +105,7 @@ func (h *Handler) Execute(c *gin.Context) {
 		th := audit.TargetHash(actionID)
 		cv := h.net.Version
 		return audit.Append(ctx, tx, audit.Record{
-			TenantID: tenant, Actor: "incident-commander", ActorType: "analyst",
+			TenantID: tenant, Actor: actor, ActorType: actorType,
 			CaseID: &a.CaseID, ExecutionID: &a.ID, Action: "action.execute",
 			TargetHash: &th, ConnectorVersion: &cv, Decision: "allowed",
 		})
@@ -116,7 +118,7 @@ func (h *Handler) Execute(c *gin.Context) {
 		} else {
 			h.rec.ActionExecuted("error")
 		}
-		auditDeniedExecute(ctx, h.pool, tenant, actionID, problem)
+		auditDeniedExecute(ctx, h.pool, tenant, actionID, problem, actor, actorType)
 		httpx.WriteProblem(c, problem)
 		return
 	}
@@ -142,6 +144,7 @@ func (h *Handler) Release(c *gin.Context) {
 		return
 	}
 
+	actor, actorType := auth.ActorFrom(c, "incident-commander", "analyst")
 	var a Action
 	err := store.WithTx(ctx, h.pool, func(tx pgx.Tx) error {
 		var err error
@@ -152,7 +155,7 @@ func (h *Handler) Release(c *gin.Context) {
 		th := audit.TargetHash(actionID)
 		cv := h.net.Version
 		return audit.Append(ctx, tx, audit.Record{
-			TenantID: tenant, Actor: "incident-commander", ActorType: "analyst",
+			TenantID: tenant, Actor: actor, ActorType: actorType,
 			CaseID: &a.CaseID, ExecutionID: &a.ID, Action: "action.release",
 			TargetHash: &th, ConnectorVersion: &cv, Decision: "allowed",
 		})
@@ -174,7 +177,7 @@ func (h *Handler) Release(c *gin.Context) {
 // vanish along with it. Best-effort: a logging failure here does not change
 // the 403 already decided for the caller, same posture as WriteProblem's own
 // internal-error logging.
-func auditDeniedExecute(ctx context.Context, pool *pgxpool.Pool, tenant, actionID string, problem error) {
+func auditDeniedExecute(ctx context.Context, pool *pgxpool.Pool, tenant, actionID string, problem error, actor, actorType string) {
 	var appErr *httpx.AppError
 	if !errors.As(problem, &appErr) || appErr.Status != http.StatusForbidden {
 		return
@@ -190,7 +193,7 @@ func auditDeniedExecute(ctx context.Context, pool *pgxpool.Pool, tenant, actionI
 		caseIDPtr = &caseID
 	}
 	if err := audit.Append(ctx, pool, audit.Record{
-		TenantID: tenant, Actor: "incident-commander", ActorType: "analyst",
+		TenantID: tenant, Actor: actor, ActorType: actorType,
 		CaseID: caseIDPtr, ExecutionID: &actionID, Action: "action.execute",
 		TargetHash: &th, Decision: "denied", Reason: &reason,
 	}); err != nil {
@@ -213,7 +216,12 @@ func (h *Handler) ListApprovals(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"items": items})
 }
 
-// Approve implements POST /v1/approvals/{approvalId}/approve.
+// Approve implements POST /v1/approvals/{approvalId}/approve. When
+// auth.Enabled(), the caller's real roles are checked against
+// EvaluatePolicy's approvalRoles for the underlying action's intent before
+// anything is decided (adr/0024) — with auth off, that check is skipped
+// entirely, matching this endpoint's pre-adr/0024 "anyone can approve"
+// behavior.
 func (h *Handler) Approve(c *gin.Context) {
 	ctx := c.Request.Context()
 	tenant := httpx.TenantID(c)
@@ -221,16 +229,29 @@ func (h *Handler) Approve(c *gin.Context) {
 		httpx.WriteProblem(c, httpx.ErrValidation("invalid_idempotency_key", "Idempotency-Key header must be at least 8 characters"))
 		return
 	}
-	// There is no auth/RBAC yet (see adr/0011); every approval is recorded
-	// under a fixed "incident-commander" actor until real identity exists.
-	a, ap, err := Approve(ctx, h.pool, tenant, c.Param("approvalId"), "incident-commander")
+	approvalID := c.Param("approvalId")
+	if claims, ok := auth.FromContext(c); ok {
+		pending, _, err := GetByApprovalID(ctx, h.pool, tenant, approvalID)
+		if err != nil {
+			httpx.WriteProblem(c, mapDecisionError(err))
+			return
+		}
+		_, approvalRoles := EvaluatePolicy(pending.Intent, pending.Risk)
+		if !claims.HasRole(approvalRoles...) {
+			httpx.WriteProblem(c, httpx.ErrForbidden("insufficient_role", "caller's role cannot approve this action"))
+			return
+		}
+	}
+
+	actor, actorType := auth.ActorFrom(c, "incident-commander", "analyst")
+	a, ap, err := Approve(ctx, h.pool, tenant, approvalID, actor)
 	if err != nil {
 		httpx.WriteProblem(c, mapDecisionError(err))
 		return
 	}
 	th := audit.TargetHash(a.ID)
 	if err := audit.Append(ctx, h.pool, audit.Record{
-		TenantID: tenant, Actor: "incident-commander", ActorType: "analyst",
+		TenantID: tenant, Actor: actor, ActorType: actorType,
 		CaseID: &a.CaseID, ExecutionID: &a.ID, Action: "approval.approve",
 		TargetHash: &th, Decision: "completed",
 	}); err != nil {
@@ -257,14 +278,29 @@ func (h *Handler) Reject(c *gin.Context) {
 		httpx.WriteProblem(c, httpx.ErrValidation("missing_field", "reason is required to reject an approval"))
 		return
 	}
-	a, ap, err := Reject(ctx, h.pool, tenant, c.Param("approvalId"), req.Reason)
+	approvalID := c.Param("approvalId")
+	if claims, ok := auth.FromContext(c); ok {
+		pending, _, err := GetByApprovalID(ctx, h.pool, tenant, approvalID)
+		if err != nil {
+			httpx.WriteProblem(c, mapDecisionError(err))
+			return
+		}
+		_, approvalRoles := EvaluatePolicy(pending.Intent, pending.Risk)
+		if !claims.HasRole(approvalRoles...) {
+			httpx.WriteProblem(c, httpx.ErrForbidden("insufficient_role", "caller's role cannot reject this action"))
+			return
+		}
+	}
+
+	actor, actorType := auth.ActorFrom(c, "incident-commander", "analyst")
+	a, ap, err := Reject(ctx, h.pool, tenant, approvalID, req.Reason)
 	if err != nil {
 		httpx.WriteProblem(c, mapDecisionError(err))
 		return
 	}
 	th := audit.TargetHash(a.ID)
 	if err := audit.Append(ctx, h.pool, audit.Record{
-		TenantID: tenant, Actor: "incident-commander", ActorType: "analyst",
+		TenantID: tenant, Actor: actor, ActorType: actorType,
 		CaseID: &a.CaseID, ExecutionID: &a.ID, Action: "approval.reject",
 		TargetHash: &th, Decision: "completed", Reason: &req.Reason,
 	}); err != nil {

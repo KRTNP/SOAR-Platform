@@ -26,6 +26,7 @@ import (
 	"soar-platform/services/api/actions"
 	"soar-platform/services/api/allowlist"
 	"soar-platform/services/api/audit"
+	"soar-platform/services/api/auth"
 	"soar-platform/services/api/cases"
 	"soar-platform/services/api/config"
 	"soar-platform/services/api/connectors"
@@ -140,7 +141,20 @@ func run(logger *slog.Logger) error {
 		close(searchIndexDone)
 	}
 
-	router := newRouter(logger, cfg, pool, netConn, rec, searchH)
+	var authVerifier *auth.Verifier
+	if auth.Enabled() {
+		issuerURL := os.Getenv("AUTH_KEYCLOAK_ISSUER_URL")
+		if issuerURL == "" {
+			return fmt.Errorf("AUTH_ENABLE_REAL=true but AUTH_KEYCLOAK_ISSUER_URL is not set")
+		}
+		authVerifier, err = auth.NewVerifier(ctx, issuerURL)
+		if err != nil {
+			return fmt.Errorf("AUTH_ENABLE_REAL=true but building the auth verifier failed: %w", err)
+		}
+		logger.Info("real auth enabled", "issuer", issuerURL)
+	}
+
+	router := newRouter(logger, cfg, pool, netConn, rec, searchH, authVerifier)
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
@@ -218,11 +232,19 @@ func buildNetworkConnector(ctx context.Context, sp secrets.Provider) (actions.Ne
 	}, nil
 }
 
-func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netConn actions.NetworkConnector, rec *telemetry.Recorder, searchH *searchindex.Handler) *gin.Engine {
+func newRouter(logger *slog.Logger, cfg config.Config, pool *pgxpool.Pool, netConn actions.NetworkConnector, rec *telemetry.Recorder, searchH *searchindex.Handler, authVerifier *auth.Verifier) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	resolveTenant := func(ctx context.Context, key string) (string, error) { return tenants.Resolve(ctx, pool, key) }
-	r.Use(httpx.RecoveryMiddleware(logger), httpx.RequestIDMiddleware(), httpx.TenantKeyMiddleware(cfg.DefaultTenantID, resolveTenant), httpx.AccessLogMiddleware(logger), rec.Middleware())
+	r.Use(httpx.RecoveryMiddleware(logger), httpx.RequestIDMiddleware(), httpx.TenantKeyMiddleware(cfg.DefaultTenantID, resolveTenant))
+	// adr/0024: only mounted when AUTH_ENABLE_REAL=true (authVerifier is nil
+	// otherwise) — every handler's auth.FromContext/ActorFrom call already
+	// degrades to its pre-auth literal-actor behavior when no claims were
+	// ever set here.
+	if authVerifier != nil {
+		r.Use(authVerifier.Middleware())
+	}
+	r.Use(httpx.AccessLogMiddleware(logger), rec.Middleware())
 
 	r.GET("/healthz", func(c *gin.Context) { c.Status(http.StatusOK) })
 	r.GET("/readyz", func(c *gin.Context) {

@@ -19,6 +19,7 @@ import (
 
 	"soar-platform/services/api/actions"
 	"soar-platform/services/api/audit"
+	"soar-platform/services/api/auth"
 	"soar-platform/services/api/evidence"
 	"soar-platform/services/api/genapi"
 	"soar-platform/services/api/httpx"
@@ -371,7 +372,8 @@ func (h *Handler) Update(c *gin.Context) {
 			if targetType == "" {
 				return httpx.ErrValidation("target_not_on_case", "target_value must match an observable already on this case")
 			}
-			a, _, created, err := actions.RequestBlock(ctx, tx, tenant, caseID, targetType, targetValue, "analyst")
+			actor, actorType := auth.ActorFrom(c, "analyst", "analyst")
+			a, _, created, err := actions.RequestBlock(ctx, tx, tenant, caseID, targetType, targetValue, actor)
 			if err != nil {
 				return err
 			}
@@ -379,18 +381,18 @@ func (h *Handler) Update(c *gin.Context) {
 				return nil
 			}
 			h.rec.ActionRequested(a.Intent)
-			if err := AppendTimeline(ctx, tx, caseID, tenant, "block_requested", "analyst", map[string]any{
+			if err := AppendTimeline(ctx, tx, caseID, tenant, "block_requested", actor, map[string]any{
 				"action_id": a.ID, "target": targetValue,
 			}); err != nil {
 				return err
 			}
-			// adr/0016: the approval_roles this intent's policy rule names
-			// is descriptive (no RBAC exists yet to enforce it) but is worth
-			// recording on the audit trail rather than only ever writing a
-			// nil reason, so it's visible to whoever reviews this decision.
+			// adr/0016/adr/0024: the approval_roles this intent's policy rule
+			// names is recorded on the audit trail for visibility; the actual
+			// enforcement against a caller's roles happens later, when
+			// someone approves it (actions.Handler.Approve).
 			_, approvalRoles := actions.EvaluatePolicy(a.Intent, a.Risk)
 			reason := "requires approval from: " + strings.Join(approvalRoles, ", ")
-			return auditAppend(ctx, tx, tenant, &caseID, "analyst", "analyst", "action.request_block", "completed", audit.TargetHash(targetValue), &reason)
+			return auditAppend(ctx, tx, tenant, &caseID, actor, actorType, "action.request_block", "completed", audit.TargetHash(targetValue), &reason)
 		})
 		if err != nil {
 			httpx.WriteProblem(c, mapCaseError(err))

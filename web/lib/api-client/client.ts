@@ -1,5 +1,6 @@
 import "server-only";
 
+import { auth } from "@/lib/auth";
 import type {
   Case,
   CasePage,
@@ -35,9 +36,18 @@ export class ApiProblemError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // adr/0024 — forwards the signed-in user's Keycloak access token so the
+  // Go API's auth.Verifier can authenticate the caller; session is null
+  // (and this header omitted) whenever AUTH_ENABLE_REAL is off server-side,
+  // matching that flag's own default-off, zero-behavior-change posture.
+  const session = await auth();
+  const headers: HeadersInit = { "Content-Type": "application/json", ...init?.headers };
+  if (session?.accessToken) {
+    (headers as Record<string, string>)["Authorization"] = `Bearer ${session.accessToken}`;
+  }
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers,
     cache: "no-store",
   });
 

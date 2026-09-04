@@ -2,11 +2,10 @@
 # docs/02-architecture/lab-deployment-profile.md explicitly sanctions
 # starting with a bounded subset of the full lab stack ("core", "workflow",
 # "security", "search", "observability" profiles) without changing the API
-# contract. The "observability" (adr/0020), "search" (adr/0022), and the
-# Vault half of "security" (adr/0023) profiles are implemented below;
-# workflow and Keycloak (the rest of "security") remain commented
-# placeholders, arriving with the milestones that actually need NATS/
-# Temporal and Keycloak.
+# contract. The "observability" (adr/0020), "search" (adr/0022), and
+# "security" (adr/0023 Vault, adr/0024 Keycloak) profiles are implemented
+# below; "workflow" remains a commented placeholder, arriving with the
+# milestone that actually needs NATS/Temporal.
 
 services:
   postgres:
@@ -69,7 +68,20 @@ services:
   # temporal: ...
 
   # --- security profile (auth/secrets milestone) ---
-  # keycloak: ... (Milestone C, not yet added)
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    profiles: ["security"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      # Dev-mode only (adr/0024) — set only in the gitignored override file.
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-}
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./keycloak/realm-soar.json:/opt/keycloak/data/import/realm-soar.json:ro,Z
+    command: ["start-dev", "--import-realm"]
+    ports:
+      - "127.0.0.1:8081:8080"
+
   vault:
     image: docker.io/hashicorp/vault:1.18
     profiles: ["security"]
