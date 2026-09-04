@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"soar-platform/services/api/connectors"
+	"soar-platform/services/api/secrets"
 )
 
 const provider = "opnsense"
@@ -78,12 +79,18 @@ func Enabled() bool {
 // SOAR_TEMP_BLOCK), OPNSENSE_TIMEOUT_SECONDS (default 15, matching the
 // manifest) and OPNSENSE_INSECURE_SKIP_VERIFY (default false — the lab VM's
 // self-signed cert requires opting into this explicitly).
-func LoadConfig() (Config, error) {
+func LoadConfig(ctx context.Context, sp secrets.Provider) (Config, error) {
 	baseURL := os.Getenv("OPNSENSE_BASE_URL")
-	apiKey := os.Getenv("OPNSENSE_API_KEY")
-	apiSecret := os.Getenv("OPNSENSE_API_SECRET")
-	if baseURL == "" || apiKey == "" || apiSecret == "" {
-		return Config{}, fmt.Errorf("OPNSENSE_BASE_URL, OPNSENSE_API_KEY and OPNSENSE_API_SECRET are required")
+	if baseURL == "" {
+		return Config{}, fmt.Errorf("OPNSENSE_BASE_URL is required")
+	}
+	apiKey, err := sp.Get(ctx, "OPNSENSE_API_KEY")
+	if err != nil {
+		return Config{}, err
+	}
+	apiSecret, err := sp.Get(ctx, "OPNSENSE_API_SECRET")
+	if err != nil {
+		return Config{}, err
 	}
 
 	timeoutSeconds := 15

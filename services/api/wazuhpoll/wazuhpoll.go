@@ -27,6 +27,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"soar-platform/services/api/secrets"
 	"soar-platform/services/api/telemetry"
 )
 
@@ -53,12 +54,15 @@ func Enabled() bool {
 // WAZUH_INDEXER_INSECURE_SKIP_VERIFY (default false — the lab indexer's
 // self-signed cert needs this true) and WAZUH_POLL_INTERVAL_SECONDS
 // (default 15).
-func LoadConfig() (Config, error) {
+func LoadConfig(ctx context.Context, sp secrets.Provider) (Config, error) {
 	baseURL := os.Getenv("WAZUH_INDEXER_BASE_URL")
 	username := os.Getenv("WAZUH_INDEXER_USERNAME")
-	password := os.Getenv("WAZUH_INDEXER_PASSWORD")
-	if baseURL == "" || username == "" || password == "" {
-		return Config{}, fmt.Errorf("WAZUH_INDEXER_BASE_URL, WAZUH_INDEXER_USERNAME and WAZUH_INDEXER_PASSWORD are required")
+	if baseURL == "" || username == "" {
+		return Config{}, fmt.Errorf("WAZUH_INDEXER_BASE_URL and WAZUH_INDEXER_USERNAME are required")
+	}
+	password, err := sp.Get(ctx, "WAZUH_INDEXER_PASSWORD")
+	if err != nil {
+		return Config{}, err
 	}
 
 	interval := 15

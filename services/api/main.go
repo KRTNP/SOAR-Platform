@@ -38,6 +38,7 @@ import (
 	"soar-platform/services/api/opnsense"
 	"soar-platform/services/api/scheduler"
 	"soar-platform/services/api/searchindex"
+	"soar-platform/services/api/secrets"
 	"soar-platform/services/api/store"
 	"soar-platform/services/api/telemetry"
 	"soar-platform/services/api/tenants"
@@ -72,7 +73,12 @@ func run(logger *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	cfg, err := config.Load()
+	sp, err := secrets.New()
+	if err != nil {
+		return fmt.Errorf("selecting secrets backend: %w", err)
+	}
+
+	cfg, err := config.Load(ctx, sp)
 	if err != nil {
 		return err
 	}
@@ -83,7 +89,7 @@ func run(logger *slog.Logger) error {
 	}
 	defer pool.Close()
 
-	netConn, err := buildNetworkConnector()
+	netConn, err := buildNetworkConnector(ctx, sp)
 	if err != nil {
 		return err
 	}
@@ -104,7 +110,7 @@ func run(logger *slog.Logger) error {
 
 	wazuhPollDone := make(chan struct{})
 	if wazuhpoll.Enabled() {
-		wcfg, err := wazuhpoll.LoadConfig()
+		wcfg, err := wazuhpoll.LoadConfig(ctx, sp)
 		if err != nil {
 			return fmt.Errorf("WAZUH_POLL_ENABLE_REAL=true but config is invalid: %w", err)
 		}
@@ -181,7 +187,7 @@ func run(logger *slog.Logger) error {
 // required to configure cleanly or startup fails fast (a bad OPNsense
 // config should never silently fall back to the mock — see
 // adr/0013-real-opnsense-lab-connector.md).
-func buildNetworkConnector() (actions.NetworkConnector, error) {
+func buildNetworkConnector(ctx context.Context, sp secrets.Provider) (actions.NetworkConnector, error) {
 	if !opnsense.Enabled() {
 		return actions.NetworkConnector{
 			New: func(tx pgx.Tx) connectors.Connector { return network.New(tx) },
@@ -193,7 +199,7 @@ func buildNetworkConnector() (actions.NetworkConnector, error) {
 		}, nil
 	}
 
-	ocfg, err := opnsense.LoadConfig()
+	ocfg, err := opnsense.LoadConfig(ctx, sp)
 	if err != nil {
 		return actions.NetworkConnector{}, fmt.Errorf("OPNSENSE_ENABLE_REAL=true but config is invalid: %w", err)
 	}

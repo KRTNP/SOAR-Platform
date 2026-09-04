@@ -2,9 +2,11 @@
 # docs/02-architecture/lab-deployment-profile.md explicitly sanctions
 # starting with a bounded subset of the full lab stack ("core", "workflow",
 # "security", "search", "observability" profiles) without changing the API
-# contract. The "observability" profile (adr/0020) is implemented below;
-# workflow/security/search remain commented placeholders, arriving with the
-# milestones that actually need NATS/Temporal, Keycloak/Vault, and OpenSearch.
+# contract. The "observability" (adr/0020), "search" (adr/0022), and the
+# Vault half of "security" (adr/0023) profiles are implemented below;
+# workflow and Keycloak (the rest of "security") remain commented
+# placeholders, arriving with the milestones that actually need NATS/
+# Temporal and Keycloak.
 
 services:
   postgres:
@@ -67,8 +69,18 @@ services:
   # temporal: ...
 
   # --- security profile (auth/secrets milestone) ---
-  # keycloak: ...
-  # vault: ...
+  # keycloak: ... (Milestone C, not yet added)
+  vault:
+    image: docker.io/hashicorp/vault:1.18
+    profiles: ["security"]
+    cap_add: ["IPC_LOCK"]
+    environment:
+      # Dev-mode only (adr/0023) — a fixed root token, never a real unseal/
+      # ACL setup. Set only in the gitignored override file, never here.
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN_ID:-}
+    command: ["server", "-dev"]
+    ports:
+      - "127.0.0.1:8200:8200"
 
   # --- search profile (adr/0022) ---
   opensearch:

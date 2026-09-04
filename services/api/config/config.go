@@ -3,10 +3,13 @@ package config
 
 import (
 	"cmp"
+	"context"
 	"fmt"
 	"net"
 	"os"
 	"strconv"
+
+	"soar-platform/services/api/secrets"
 )
 
 type Config struct {
@@ -25,10 +28,10 @@ type Config struct {
 	WazuhIngestBaseURL string
 }
 
-func Load() (Config, error) {
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		return Config{}, fmt.Errorf("DATABASE_URL is required")
+func Load(ctx context.Context, sp secrets.Provider) (Config, error) {
+	dbURL, err := sp.Get(ctx, "DATABASE_URL")
+	if err != nil {
+		return Config{}, err
 	}
 
 	schedulerEnabled := true

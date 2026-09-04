@@ -111,9 +111,10 @@ in the markup.
   identical payload shapes the real write paths use. Run once against the
   live lab database: backfilled 28 cases and 42 events, all indexed within
   seconds by the already-running `searchindex` poller with no code changes
-  to that poller needed. Not idempotent at the outbox-row level (re-running
-  inserts fresh rows per case/event) — only at the final OpenSearch-document
-  level, an accepted trade-off for a tool meant to run rarely.
+  to that poller needed. Idempotent at the outbox-row level too (fixed
+  after this ADR was first written): it now skips any entity that already
+  has an outbox row, so re-running it once the initial catch-up is done is
+  a no-op.
 - `httpx.TenantStubMiddleware` no longer exists — every call site
   (`main.go`, `integration/ingestion_test.go`) was updated to
   `TenantKeyMiddleware`.

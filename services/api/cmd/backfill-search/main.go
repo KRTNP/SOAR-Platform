@@ -20,19 +20,23 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"soar-platform/services/api/outbox"
+	"soar-platform/services/api/secrets"
 )
 
 func main() {
 	ctx := context.Background()
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		log.Fatal("DATABASE_URL is required")
+	sp, err := secrets.New()
+	if err != nil {
+		log.Fatalf("selecting secrets backend: %v", err)
+	}
+	dbURL, err := sp.Get(ctx, "DATABASE_URL")
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	pool, err := pgxpool.New(ctx, dbURL)
