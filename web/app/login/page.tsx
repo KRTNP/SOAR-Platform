@@ -64,8 +64,13 @@ export default async function LoginPage({
           </button>
         </form>
 
+        {/* "Keycloak" was said three times on one small card — the tagline,
+            the button, and here — and at 11px uppercase mono with tracking
+            this line wrapped, orphaning "KEYCLOAK" on a line of its own. The
+            identity provider is already stated twice above; what this line is
+            actually for is saying the environment is not production. */}
         <p className="text-center font-mono text-2xs tracking-wide text-text-tertiary uppercase">
-          Lab environment &middot; identity provided by Keycloak
+          Lab environment &middot; not production
         </p>
       </div>
     </div>
