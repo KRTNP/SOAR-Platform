@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { formatIso, formatTimestamp } from "@/lib/time";
 
 function relative(iso: string): string {
   const minutes = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -32,11 +33,11 @@ export function RelativeTime({ iso, className }: { iso: string; className?: stri
 
   const label =
     minuteBucket === null
-      ? new Date(iso).toLocaleString([], { month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" })
+      ? formatTimestamp(iso)
       : relative(iso);
 
   return (
-    <time dateTime={iso} title={new Date(iso).toISOString()} className={className}>
+    <time dateTime={iso} title={formatIso(iso)} className={className}>
       {label}
     </time>
   );

@@ -54,7 +54,17 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
         </button>
       </form>
 
-      {loadError && <ProblemBanner problem={loadError.problem} fallbackTitle="Search is unavailable" />}
+      {loadError && (
+        <ProblemBanner
+          problem={loadError.problem}
+          fallbackTitle="Search is unavailable"
+          hint={
+            loadError.problem.status === 503
+              ? "The search indexer is not running in this environment, so nothing is searchable right now. Your query was not the problem — cases and events are still reachable from the queue and the audit log."
+              : undefined
+          }
+        />
+      )}
 
       {!loadError && query && results && results.length === 0 && (
         <EmptyState title="No matches" body={`Nothing in the search index matched "${query}".`} />

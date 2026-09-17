@@ -10,8 +10,3 @@
 export function truncateCaseId(id: string): string {
   return id.length > 22 ? `…${id.slice(-19)}` : id;
 }
-
-export function formatExpiry(iso: string): string {
-  const d = new Date(iso);
-  return `${d.toLocaleDateString([], { month: "numeric", day: "numeric" })}, ${d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
-}

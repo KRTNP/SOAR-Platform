@@ -4,6 +4,7 @@ import { ProblemBanner } from "@/components/ProblemBanner";
 import { EmptyState } from "@/components/EmptyState";
 import { SeverityBadge } from "@/components/badges";
 import { RelativeTime } from "@/components/RelativeTime";
+import { formatPrecise } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +61,7 @@ export default async function MetricsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Metrics</h1>
         <p className="text-xs text-text-tertiary">
           Point-in-time KPI snapshot, not a historical baseline &middot; computed{" "}
-          <span className="font-mono">{new Date(snap.computed_at).toLocaleString()}</span>
+          <span className="font-mono">{formatPrecise(snap.computed_at)}</span>
         </p>
       </header>
 
@@ -155,13 +156,13 @@ export default async function MetricsPage() {
             ))}
           </div>
         )}
-        <p className="mt-3 text-2xs text-text-tertiary">
+        <p className="mt-3 text-xs text-text-tertiary">
           The {EVENT_LIMIT} most recent, newest first. An event listed here has been ingested; whether it opened a case is a
           separate question answered on the queue.
         </p>
       </section>
 
-      <p className="text-2xs text-text-tertiary">
+      <p className="text-xs text-text-tertiary">
         MTTT (alert-to-triage), false-positive harm and automation coverage are not shown — this system does not yet record the
         underlying data (a triage timestamp, a manual outcome tag) needed to compute them. See adr/0015-kpi-snapshot.md.
       </p>

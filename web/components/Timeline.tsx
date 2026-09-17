@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { CaseTimelineEntry } from "@/lib/api-client/types";
+import { formatClock, formatDay } from "@/lib/time";
 
 // Every kind services/api/cases writes today. A kind missing from this map
 // used to render as raw snake_case, which meant the containment events —
@@ -101,11 +102,7 @@ export function Timeline({ entries }: { entries: CaseTimelineEntry[] }) {
             {startsNewDay && (
               <div className="flex items-center gap-2 pt-1 first:pt-0">
                 <span className="font-mono text-2xs tracking-wide text-text-tertiary uppercase">
-                  {new Date(entry.occurred_at).toLocaleDateString([], {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
+                  {formatDay(entry.occurred_at)}
                 </span>
                 <span aria-hidden="true" className="h-px flex-1 bg-border" />
               </div>
@@ -131,11 +128,7 @@ export function Timeline({ entries }: { entries: CaseTimelineEntry[] }) {
                 {detail && <span className="text-xs break-words text-text-secondary">{detail}</span>}
               </div>
               <time className="shrink-0 font-mono text-2xs text-text-tertiary" dateTime={entry.occurred_at}>
-                {new Date(entry.occurred_at).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                })}
+                {formatClock(entry.occurred_at)}
               </time>
             </div>
           </li>

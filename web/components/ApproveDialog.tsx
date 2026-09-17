@@ -7,6 +7,7 @@ import { ModeBadge, SeverityBadge } from "@/components/badges";
 import { previewActionAction } from "@/app/(app)/cases/[caseId]/actions";
 import type { PendingAction } from "@/lib/api-client/types";
 import { Check } from "lucide-react";
+import { formatClock, formatTimestamp } from "@/lib/time";
 
 // Rendered on the client only, after mount: computing "in 12m" during a
 // server render is what makes a timestamp wrong the moment it arrives and
@@ -114,7 +115,7 @@ function TargetCheck({ intent, target }: { intent: string; target: string }) {
               {observed ? (
                 <>
                   Observed on the live connector as of{" "}
-                  {state.at?.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })} &middot;
+                  {state.at && formatClock(state.at)} &middot;
                   connector&apos;s own words, not interpreted
                 </>
               ) : state.liveConnector === false ? (
@@ -372,12 +373,7 @@ export function ApproveDialog({
           {expiresAt && (
             <Row label="Expires">
               <span className={isExpired ? "text-danger" : undefined}>
-                {new Date(expiresAt).toLocaleString([], {
-                  month: "numeric",
-                  day: "numeric",
-                  hour: "numeric",
-                  minute: "2-digit",
-                })}
+                {formatTimestamp(expiresAt)}
                 {countdown && <span className="ml-1.5 text-text-tertiary">({countdown})</span>}
               </span>
             </Row>

@@ -6,6 +6,7 @@ import { TenantForm, AllowlistForm, CriticalTargetForm } from "./forms";
 import { DeleteButton } from "./delete-button";
 import { truncateCaseId } from "@/app/(app)/approvals/format";
 import { deleteTenantAction, deleteAllowlistEntryAction, deleteCriticalTargetAction } from "./actions";
+import { formatDay } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ async function loadSection<T>(fn: () => Promise<{ items: T[] }>): Promise<Sectio
 }
 
 function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" });
+  return formatDay(iso);
 }
 
 export default async function SettingsPage() {

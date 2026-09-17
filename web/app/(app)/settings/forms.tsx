@@ -122,7 +122,7 @@ export function AllowlistForm() {
           {isPending ? "Adding…" : "Add trusted source"}
         </button>
       </div>
-      {dirty && !expiresAt && <p className="text-2xs text-text-tertiary">No expiry set — this entry never expires.</p>}
+      {dirty && !expiresAt && <p className="text-xs text-text-tertiary">No expiry set — this entry never expires.</p>}
       {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );

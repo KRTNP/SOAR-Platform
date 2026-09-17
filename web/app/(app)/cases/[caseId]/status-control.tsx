@@ -437,7 +437,7 @@ export function ActionControl({ caseItem }: { caseItem: Case }) {
 
     return (
       <div className="rounded-lg border border-border bg-surface p-4 shadow-xs">
-        <SectionLabel>Network Containment</SectionLabel>
+        <SectionLabel>Network containment</SectionLabel>
         {/* No confirmation here on purpose: this only opens an approval
             request, it does not touch the firewall. The gate that matters
             lives on the approval itself. Saying so keeps the ceremony
@@ -473,7 +473,7 @@ export function ActionControl({ caseItem }: { caseItem: Case }) {
           </span>
         }
       >
-        Network Block
+        Network block
       </SectionLabel>
 
       <div className="rounded border border-border-strong/40 bg-surface-raised p-2 text-xs">

@@ -85,4 +85,28 @@ body {
   [class*="slide-in-"] {
     animation: none;
   }
+
+  /* Everything above targets animations. `transition-colors`,
+     `transition-all` and friends are transitions, and `active:scale-[0.98]`
+     is a transform — three different CSS mechanisms, so none of the rules
+     above ever reached them. This is the majority of the motion in the app:
+     16 transition-colors, 8 transition-all, 3 press-scales. */
+  *,
+  *::before,
+  *::after {
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  /* The press-scale specifically, not transitions in general: at 1ms the
+     scale still lands, it just lands instantly, which is still motion. The
+     colour change on the same controls is kept — that is the part which
+     confirms a press without moving anything. */
+  [class*="active:scale-"]:active {
+    transform: none !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
 }
