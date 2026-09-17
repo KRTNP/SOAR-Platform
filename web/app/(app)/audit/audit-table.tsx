@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import type { AuditRecord } from "@/lib/api-client/types";
 import { DecisionBadge, VerifiedBadge } from "@/components/badges";
 import { truncateCaseId } from "@/app/(app)/approvals/format";
+import { formatIso, formatTimestamp } from "@/lib/time";
+import { ShortcutHint } from "@/components/KeyboardShortcuts";
 
 // services/api/audit hardcodes List(…, 100) and GET /v1/audit takes no
 // paging parameters, so this is the hard ceiling on what any single read can
@@ -23,15 +26,40 @@ const WINDOWS = [
 // already returned, and the count line says so rather than implying the
 // whole log was searched.
 export function AuditTable({ records }: { records: AuditRecord[] }) {
-  const [query, setQuery] = useState("");
+  // The filters live in the URL. An operator who has narrowed the log to the
+  // thing that matters needs to be able to send that view to someone else, or
+  // reload without rebuilding it — and an audit trail is precisely the surface
+  // where "here is exactly what I was looking at" is the point.
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const [query, setQuery] = useState(() => params.get("q") ?? "");
   // The cutoff is pinned when the window is chosen rather than recomputed on
   // every render: a moving boundary would silently drop rows out from under
-  // you while you were reading them, and Date.now() in render is impure.
-  const [timeFilter, setTimeFilter] = useState<{ minutes: number; cutoff: number | null }>({
-    minutes: 0,
-    cutoff: null,
+  // you while you were reading them, and Date.now() in render is impure. A
+  // window restored from the URL is pinned the same way, at mount.
+  const [timeFilter, setTimeFilter] = useState<{ minutes: number; cutoff: number | null }>(() => {
+    const requested = Number(params.get("window"));
+    const minutes = WINDOWS.some((w) => w.minutes === requested) ? requested : 0;
+    return { minutes, cutoff: minutes ? Date.now() - minutes * 60_000 : null };
   });
-  const [problemsOnly, setProblemsOnly] = useState(false);
+  const [problemsOnly, setProblemsOnly] = useState(() => params.get("problems") === "1");
+
+  // Debounced so typing a filter does not write the URL on every keystroke.
+  // `replace`, not `push`: refining a filter is one act, and it should cost
+  // one Back press to leave, not one per character.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      const next = new URLSearchParams();
+      if (query.trim()) next.set("q", query.trim());
+      if (timeFilter.minutes) next.set("window", String(timeFilter.minutes));
+      if (problemsOnly) next.set("problems", "1");
+      const search = next.toString();
+      router.replace(search ? `${pathname}?${search}` : pathname, { scroll: false });
+    }, 250);
+    return () => clearTimeout(id);
+  }, [query, timeFilter.minutes, problemsOnly, pathname, router]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -49,9 +77,16 @@ export function AuditTable({ records }: { records: AuditRecord[] }) {
 
   return (
     <div className="flex flex-col gap-3">
+      <ShortcutHint
+        keys={[
+          ["/", "focus the filter"],
+          ["j / k", "move between records"],
+        ]}
+      />
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="search"
+          data-kbd-filter
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Filter by action, actor, case, reason…"
@@ -94,7 +129,7 @@ export function AuditTable({ records }: { records: AuditRecord[] }) {
 
       {/* At exactly the cap, "of N records" reads as a total. This is the one
           surface whose whole job is completeness, so it says which it is. */}
-      <p className="text-2xs text-text-tertiary">
+      <p className="text-xs text-text-tertiary">
         Showing {filtered.length} of{" "}
         {records.length >= AUDIT_CAP
           ? `the ${AUDIT_CAP} most recent records — the API returns no more per request`
@@ -108,7 +143,7 @@ export function AuditTable({ records }: { records: AuditRecord[] }) {
         </p>
       ) : (
         <div>
-          <p className="mb-1.5 text-2xs text-text-tertiary md:hidden">
+          <p className="mb-1.5 text-xs text-text-tertiary md:hidden">
             Scroll sideways for decision, actor, case, connector, and reason
           </p>
           <div className="overflow-x-auto rounded-md border border-border">
@@ -126,13 +161,12 @@ export function AuditTable({ records }: { records: AuditRecord[] }) {
               </thead>
               <tbody className="divide-y divide-border">
                 {filtered.map((r) => (
-                  <tr key={r.id} className="bg-surface hover:bg-surface-hover">
+                  <tr key={r.id} data-kbd-row tabIndex={-1} className="bg-surface hover:bg-surface-hover">
                     <td
                       className="px-2.5 py-2.5 font-mono whitespace-nowrap text-text-tertiary"
-                      title={new Date(r.timestamp).toLocaleString()}
+                      title={formatIso(r.timestamp)}
                     >
-                      {new Date(r.timestamp).toLocaleDateString([], { month: "numeric", day: "numeric" })},{" "}
-                      {new Date(r.timestamp).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                      {formatTimestamp(r.timestamp)}
                     </td>
                     <td className="px-2.5 py-2.5 font-mono whitespace-nowrap text-text-primary">
                       {r.action}

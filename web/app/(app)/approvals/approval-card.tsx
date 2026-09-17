@@ -4,7 +4,8 @@ import Link from "next/link";
 import type { Approval, PendingAction } from "@/lib/api-client/types";
 import { ApprovalStatusBadge, ModeBadge, SeverityBadge } from "@/components/badges";
 import { ApprovalRowActions } from "./approval-actions";
-import { formatExpiry, truncateCaseId } from "./format";
+import { truncateCaseId } from "./format";
+import { formatTimestamp } from "@/lib/time";
 import { ArrowUpRight } from "lucide-react";
 
 interface ApprovalCardProps {
@@ -16,6 +17,8 @@ interface ApprovalCardProps {
 export function ApprovalCard({ approval, action, showActions }: ApprovalCardProps) {
   return (
     <article
+      data-kbd-row
+      tabIndex={-1}
       aria-labelledby={`approval-intent-${approval.id}`}
       className="group relative flex flex-col gap-3 border-b border-border bg-surface px-4 py-3.5 transition-colors duration-150 last:border-b-0 hover:bg-surface-raised/40"
     >
@@ -73,9 +76,9 @@ export function ApprovalCard({ approval, action, showActions }: ApprovalCardProp
             className="font-mono text-2xs text-text-secondary"
           >
             {approval.decided_at
-              ? formatExpiry(approval.decided_at)
+              ? formatTimestamp(approval.decided_at)
               : approval.expires_at
-                ? formatExpiry(approval.expires_at)
+                ? formatTimestamp(approval.expires_at)
                 : "—"}
           </time>
         </span>
@@ -85,7 +88,7 @@ export function ApprovalCard({ approval, action, showActions }: ApprovalCardProp
           The reason is the one field the operator was required to supply and
           it had nowhere to appear. */}
       {approval.reason && (
-        <p className="rounded-sm border border-border bg-surface-raised/40 px-2 py-1.5 text-2xs leading-relaxed text-text-secondary">
+        <p className="rounded-sm border border-border bg-surface-raised/40 px-2 py-1.5 text-xs leading-relaxed text-text-secondary">
           <span className="text-text-tertiary">{approval.status === "rejected" ? "Rejected" : "Noted"}:</span>{" "}
           {approval.reason}
         </p>

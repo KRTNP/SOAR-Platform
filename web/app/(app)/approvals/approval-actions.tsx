@@ -214,6 +214,7 @@ export function ApprovalRowActions({ approvalId, action, expiresAt, size = "sm" 
             type="button"
             onClick={() => setConfirming(true)}
             disabled={isPending}
+            data-kbd-approve
             aria-haspopup="dialog"
             aria-label={`Review and approve ${action.intent} on ${action.target.value}`}
             className={`inline-flex items-center justify-center gap-1.5 rounded-sm ${btnBase} font-medium whitespace-nowrap transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100 ${
@@ -229,6 +230,7 @@ export function ApprovalRowActions({ approvalId, action, expiresAt, size = "sm" 
             type="button"
             onClick={() => setRejecting(true)}
             disabled={isPending}
+            data-kbd-reject
             aria-label={`Reject ${action.intent} on ${action.target.value}`}
             className={`inline-flex items-center justify-center rounded-sm border border-danger/80 ${btnBase} font-medium whitespace-nowrap text-danger transition-all duration-150 hover:bg-danger/10 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100`}
           >
@@ -240,7 +242,7 @@ export function ApprovalRowActions({ approvalId, action, expiresAt, size = "sm" 
       {/* Reserves its own line so an error never shifts the row's layout.
           While the dialog is open it owns the error instead. */}
       {error && !confirming && (
-        <span role="alert" className="text-2xs font-medium text-danger">
+        <span role="alert" className="text-xs font-medium text-danger">
           {error}
         </span>
       )}

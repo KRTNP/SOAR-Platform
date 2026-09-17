@@ -6,7 +6,9 @@ import { EmptyState } from "@/components/EmptyState";
 import { ProblemBanner } from "@/components/ProblemBanner";
 import { ApprovalCard } from "./approval-card";
 import { ApprovalRowActions } from "./approval-actions";
-import { formatExpiry, truncateCaseId } from "./format";
+import { truncateCaseId } from "./format";
+import { formatTimestamp } from "@/lib/time";
+import { ShortcutHint } from "@/components/KeyboardShortcuts";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +68,15 @@ export default async function ApprovalsPage() {
           )}{" "}
           &middot; {decidedHidden > 0 ? `${decided.length + decidedHidden} decided` : `${decided.length} decided`}
         </p>
+        {pending.length > 0 && (
+          <ShortcutHint
+            keys={[
+              ["j / k", "move between approvals"],
+              ["a", "review and approve"],
+              ["r", "reject"],
+            ]}
+          />
+        )}
       </header>
 
       {/* Main Content Area */}
@@ -79,7 +90,7 @@ export default async function ApprovalsPage() {
         <main className="flex flex-col gap-8">
           {pending.length > 0 && (
             <ApprovalTable
-              title="Pending Approvals"
+              title="Pending approvals"
               rows={pending}
               badgeColor="bg-accent"
               showActions
@@ -89,7 +100,7 @@ export default async function ApprovalsPage() {
           {decided.length > 0 && (
             <div className="flex flex-col gap-2">
               <ApprovalTable
-                title="Decided History"
+                title="Decided history"
                 rows={decided}
                 badgeColor="bg-text-tertiary"
                 showActions={false}
@@ -157,7 +168,7 @@ function ApprovalTable({ title, rows, badgeColor, showActions, isHistorical }: A
               {/* A decided row's useful facts are who decided and why — the
                   reason the operator was required to type. Its risk and its
                   expiry are spent. */}
-              <th scope="col" className="px-3.5 py-2.5">{isHistorical ? "Decided" : "Requested By"}</th>
+              <th scope="col" className="px-3.5 py-2.5">{isHistorical ? "Decided" : "Requested by"}</th>
               <th scope="col" className="px-3.5 py-2.5">{isHistorical ? "Reason" : "Expires"}</th>
               {showActions && (
                 <th scope="col" className="px-3.5 py-2.5 text-right">
@@ -170,6 +181,8 @@ function ApprovalTable({ title, rows, badgeColor, showActions, isHistorical }: A
             {rows.map(({ approval, action }) => (
               <tr
                 key={approval.id}
+                data-kbd-row
+                tabIndex={-1}
                 className={`transition-colors duration-150 ${isHistorical
                     ? "bg-surface/50 text-text-secondary hover:bg-surface-raised/40"
                     : "bg-surface hover:bg-surface-raised/60"
@@ -221,7 +234,7 @@ function ApprovalTable({ title, rows, badgeColor, showActions, isHistorical }: A
                       {approval.decided_at ? (
                         <span className="flex flex-col">
                           <span className="font-mono text-2xs text-text-tertiary">
-                            {formatExpiry(approval.decided_at)}
+                            {formatTimestamp(approval.decided_at)}
                           </span>
                           {approval.approved_by && <span>{approval.approved_by}</span>}
                         </span>
@@ -241,7 +254,7 @@ function ApprovalTable({ title, rows, badgeColor, showActions, isHistorical }: A
                   <>
                     <td className="px-3.5 py-2.5 whitespace-nowrap text-text-secondary">{action?.requested_by ?? "—"}</td>
                     <td className="px-3.5 py-2.5 font-mono text-2xs whitespace-nowrap text-text-tertiary">
-                      {approval.expires_at ? formatExpiry(approval.expires_at) : "—"}
+                      {approval.expires_at ? formatTimestamp(approval.expires_at) : "—"}
                     </td>
                   </>
                 )}

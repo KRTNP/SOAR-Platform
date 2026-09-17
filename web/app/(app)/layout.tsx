@@ -3,6 +3,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { getMetrics, listApprovals } from "@/lib/api-client/client";
 import { auth } from "@/lib/auth";
 import { signOutAction } from "../actions";
+import { KeyboardShortcuts } from "@/components/KeyboardShortcuts";
 
 // Every route in this group requires a session — proxy.ts already redirects
 // an unauthenticated request to /login before it gets here, but this is the
@@ -46,6 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         onSignOut={signOutAction}
       />
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto px-4 pt-5 pb-8 md:px-8 md:pt-6">{children}</div>
+      <KeyboardShortcuts />
     </div>
   );
 }

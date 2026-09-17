@@ -118,7 +118,7 @@ export default async function QueuePage() {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1 border-b border-border pb-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Case Queue</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Case queue</h1>
         <p className="text-xs text-text-tertiary">
           {/* The API caps this list; printing the counts bare would present a
               truncation as a total, in a console whose value is that its
@@ -224,7 +224,7 @@ export default async function QueuePage() {
 
               <div className="flex flex-col divide-y divide-border overflow-hidden rounded-md border border-border/80 bg-surface/50">
                 {resolvedCases.map((item) => (
-                  <div key={item.id} className="transition-colors duration-150 hover:bg-surface-raised/40">
+                  <div key={item.id} data-kbd-row tabIndex={-1} className="transition-colors duration-150 hover:bg-surface-raised/40">
                     <CaseCard item={item} />
                   </div>
                 ))}
