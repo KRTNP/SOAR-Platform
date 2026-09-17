@@ -8,7 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Implementation is authorized and underway; **live integration is not**. Keep the lab/dry-run boundary, `safety.default_mode: dry_run`, and the human approval gates for containment, isolation, blocking, disabling, and deletion. Do not point this code at a production or third-party security system, and do not start services, without the user saying so.
 - Before specialized work, use the matching skill discovered under `.claude/skills/` and follow its `SKILL.md` instructions. This directory is a symlink to the canonical `.agents/skills/` set; do not install duplicate copies.
-- For frontend work, use the project-scoped design skills; for Go/backend/API work, use the matching Go, backend, and API skills.
+- For frontend work, the design authority is the `impeccable` plugin plus the project's UX skills — `ux-usability-foundations`, `accessibility-inclusive-design`, `ui-visual-composition`, `ux-writing-content-design`, `information-architecture-navigation`, `web-design-guidelines`. Reach for those named skills rather than letting `impeccable` crowd them out; several UI rounds ran without them and the accessibility and usability findings arrived late as a result. (The project-scoped `frontend-design` skill was removed — it duplicated the user-level plugin of the same name and gave conflicting typography advice. The Figma skills were removed too: they need a Figma MCP server this project does not configure.)
+- For Go/backend/API work, use the matching Go, backend, and API skills.
 - Before editing, identify the authoritative document, schema, or ADR affected by the change.
 - Before claiming completion, run the relevant validation scripts and report exact results.
 - Ask before destructive commands, broad installs, production actions, or changes outside `soar-platform/`.

@@ -28,5 +28,10 @@ deploy/compose/grafana/provisioning.local/
 # are kept.
 .impeccable/hook.cache.json
 
+# Upstream ATT&CK bundle fetched on demand by .agents/skills/mitre-attack
+# (~45 MB, redistributable, refreshed by re-running the curl in its SKILL.md
+# rather than by a commit).
+.agents/skills/mitre-attack/enterprise-attack.json
+
 # OS/editor cruft
 .DS_Store

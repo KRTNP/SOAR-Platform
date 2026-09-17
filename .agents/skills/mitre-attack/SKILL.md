@@ -1,6 +1,6 @@
 ---
 name: mitre-attack
-description: MITRE ATT&CK local dataset reference. Query techniques, groups, software, and mitigations from the local enterprise-attack.json.
+description: "Query MITRE ATT&CK techniques, groups, software, and mitigations. Requires a one-time ~45 MB download of enterprise-attack.json, which is NOT bundled — see the Dataset section before the first query."
 user-invocable: false
 metadata:
   version: 1.0.0
@@ -9,23 +9,34 @@ metadata:
 # MITRE ATT&CK Local Reference
 
 ## Dataset
-Local file: `mitre-attack/enterprise-attack.json` (~45 MB STIX 2.1 bundle).
 
-**First use — if the file is missing**, run the bundled download script before any query:
-
-```bash
-./scripts/download-mitre.sh
-```
-
-The script is idempotent (skips if the file is already present) and supports `--force` for refresh. If `scripts/download-mitre.sh` is not present in the install (e.g. for plugin-only deployments), fall back to:
+**The dataset is not bundled with this skill.** This install contains `SKILL.md`
+only — there is no `enterprise-attack.json` and no `scripts/download-mitre.sh`
+(the script an earlier version of this file told you to run first). Every query
+below fails until you fetch the bundle once:
 
 ```bash
-mkdir -p mitre-attack
+# from the repository root
 curl -fsSL https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json \
-  -o mitre-attack/enterprise-attack.json
+  -o .agents/skills/mitre-attack/enterprise-attack.json
 ```
 
-This yields a STIX 2.1 bundle containing all Enterprise ATT&CK objects.
+That is a ~45 MB STIX 2.1 bundle containing every Enterprise ATT&CK object. It
+is listed in `.gitignore`: it is a redistributable upstream artifact that would
+otherwise add 45 MB to every clone, and it is refreshed by re-running the
+command above rather than by a commit.
+
+Check before querying, and say the dataset is missing rather than answering
+from recollection — ATT&CK technique IDs and their mappings are exactly the
+kind of detail that is easy to state confidently and get wrong:
+
+```bash
+test -f .agents/skills/mitre-attack/enterprise-attack.json && echo present || echo MISSING
+```
+
+The query examples below use the path `mitre-attack/enterprise-attack.json`,
+which assumes the skills directory is the working directory. From the
+repository root, prefix them with `.agents/skills/`.
 
 ## Querying the Dataset
 
