@@ -36,8 +36,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
                 {/* Back Link */}
                 <Link
                     href="/"
-                    aria-label="Back to Alert Queue"
-                    className="group -ml-1 inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-1 text-[12px] font-medium text-text-tertiary transition-colors hover:bg-surface-raised hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    aria-label="Back to case queue"
+                    className="group -ml-1 inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-text-tertiary transition-colors hover:bg-surface-raised hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
                     <svg
                         viewBox="0 0 24 24"
@@ -51,7 +51,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
                     >
                         <polyline points="15 18 9 12 15 6" />
                     </svg>
-                    Alert Queue
+                    Case Queue
                 </Link>
 
                 {/* Case Identity + Primary Actions — one row on desktop so
@@ -61,13 +61,13 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="flex flex-col gap-1.5">
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded bg-surface-raised px-2 py-0.5 font-mono text-[12px] font-medium text-text-secondary border border-border-strong/40">
+                            <span className="rounded bg-surface-raised px-2 py-0.5 font-mono text-xs font-medium text-text-secondary border border-border-strong/40">
                                 {caseItem.id}
                             </span>
                             <SeverityBadge severity={caseItem.severity} size="lg" />
                         </div>
 
-                        <h1 className="text-xl font-semibold tracking-tight text-text-primary sm:text-2xl">
+                        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
                             {caseItem.title}
                         </h1>
 
@@ -81,7 +81,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
 
                             <div className="flex items-center gap-1">
                                 <span className="text-text-tertiary">Opened:</span>
-                                <time dateTime={caseItem.opened_at} className="font-mono text-[11.5px] text-text-secondary">
+                                <time dateTime={caseItem.opened_at} className="font-mono text-2xs text-text-secondary">
                                     {new Date(caseItem.opened_at).toLocaleString()}
                                 </time>
                             </div>
@@ -91,7 +91,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
                                     <span aria-hidden="true" className="text-text-tertiary/50">•</span>
                                     <div className="flex items-center gap-1">
                                         <span className="text-text-tertiary">Updated:</span>
-                                        <time dateTime={caseItem.updated_at} className="font-mono text-[11.5px] text-text-secondary">
+                                        <time dateTime={caseItem.updated_at} className="font-mono text-2xs text-text-secondary">
                                             {new Date(caseItem.updated_at).toLocaleString()}
                                         </time>
                                     </div>
@@ -114,13 +114,13 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
                             aria-labelledby="summary-heading"
                             className="rounded-lg border border-border bg-surface p-5 shadow-xs"
                         >
-                            <h2 id="summary-heading" className="mb-3 text-[13px] font-semibold text-text-primary">
+                            <h2 id="summary-heading" className="mb-3 text-lg font-semibold tracking-tight text-text-primary">
                                 Executive Summary
                             </h2>
 
                             {caseItem.hypothesis && (
-                                <div className="mb-4 rounded-md border-l-2 border-accent bg-surface-raised/60 p-3 text-[13px] text-text-secondary">
-                                    <p className="font-medium text-text-primary mb-1 text-[11px] uppercase tracking-wider">
+                                <div className="mb-4 rounded-md border border-border-strong/50 bg-surface-raised/60 p-3 text-sm text-text-secondary">
+                                    <p className="mb-1 text-2xs font-medium tracking-wider text-accent uppercase">
                                         Working Hypothesis
                                     </p>
                                     <p className="italic leading-relaxed">&ldquo;{caseItem.hypothesis}&rdquo;</p>
@@ -130,10 +130,10 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
                             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                                 {(caseItem.facts?.length ?? 0) > 0 && (
                                     <div className="flex flex-col gap-1.5">
-                                        <h3 className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase">
+                                        <h3 className="text-2xs font-semibold tracking-wider text-text-tertiary uppercase">
                                             Confirmed Facts ({caseItem.facts!.length})
                                         </h3>
-                                        <ul className="flex flex-col gap-1.5 text-[12.5px] text-text-secondary">
+                                        <ul className="flex flex-col gap-1.5 text-xs text-text-secondary">
                                             {caseItem.facts!.map((fact, idx) => (
                                                 <li key={idx} className="flex items-start gap-2">
                                                     <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" />
@@ -146,10 +146,10 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
 
                                 {(caseItem.limitations?.length ?? 0) > 0 && (
                                     <div className="flex flex-col gap-1.5">
-                                        <h3 className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase">
+                                        <h3 className="text-2xs font-semibold tracking-wider text-text-tertiary uppercase">
                                             Investigation Limitations
                                         </h3>
-                                        <ul className="flex flex-col gap-1.5 text-[12.5px] text-text-tertiary">
+                                        <ul className="flex flex-col gap-1.5 text-xs text-text-tertiary">
                                             {caseItem.limitations!.map((limitation, idx) => (
                                                 <li key={idx} className="flex items-start gap-2">
                                                     <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-border-strong" aria-hidden="true" />
@@ -169,14 +169,28 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
                         className="rounded-lg border border-border bg-surface p-5 shadow-xs"
                     >
                         <div className="mb-3.5 flex items-center justify-between">
-                            <h2 id="timeline-heading" className="text-[13px] font-semibold text-text-primary">
+                            <h2 id="timeline-heading" className="text-lg font-semibold tracking-tight text-text-primary">
                                 Activity Timeline
                             </h2>
-                            <span className="rounded-full bg-surface-raised px-2 py-0.5 text-[11px] text-text-tertiary">
+                            <span className="rounded-full bg-surface-raised px-2 py-0.5 text-2xs text-text-tertiary">
                                 {timeline.items.length} events
                             </span>
                         </div>
                         <Timeline entries={timeline.items} />
+
+                        {/* services/api writes a timeline entry for
+                            block_requested but not for the approve, execute or
+                            release that follow it, so this list stops short of
+                            the containment outcome. Naming the gap and pointing
+                            at the record that does hold it, the same way the
+                            metrics page names the KPIs it cannot compute. */}
+                        <p className="mt-3.5 border-t border-border pt-3 text-2xs leading-relaxed text-text-tertiary">
+                            Approval, execution and release decisions are not written to this timeline — they live in the{" "}
+                            <Link href="/audit" className="text-accent hover:underline">
+                                audit log
+                            </Link>
+                            , with actor, policy version and integrity status.
+                        </p>
                     </section>
 
                     {/* Evidence Section */}
@@ -186,29 +200,58 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
                             className="rounded-lg border border-border bg-surface p-5 shadow-xs"
                         >
                             <div className="mb-3.5 flex items-center justify-between">
-                                <h2 id="evidence-heading" className="text-[13px] font-semibold text-text-primary">
+                                <h2 id="evidence-heading" className="text-lg font-semibold tracking-tight text-text-primary">
                                     Artifact Evidence
                                 </h2>
-                                <span className="rounded-full bg-surface-raised px-2 py-0.5 text-[11px] text-text-tertiary">
+                                <span className="rounded-full bg-surface-raised px-2 py-0.5 text-2xs text-text-tertiary">
                                     {evidence.items.length} artifacts
                                 </span>
                             </div>
 
                             <div className="flex flex-col divide-y divide-border/70">
                                 {evidence.items.map((item) => (
-                                    <article key={item.id} className="flex flex-col gap-2 py-3.5 first:pt-0 last:pb-0">
+                                    <article
+                                        key={item.id}
+                                        /* A failed hash re-check is the one thing in this list that
+                                           must not read like the rows around it. */
+                                        className={`flex flex-col gap-2 py-3.5 first:pt-0 last:pb-0 ${
+                                            item.integrity_status === "mismatch"
+                                                ? "-mx-2 rounded-md border border-danger/50 bg-danger/[0.07] px-2"
+                                                : ""
+                                        }`}
+                                    >
                                         <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <div className="flex items-center gap-2 text-[13px] font-medium text-text-primary">
+                                            <div className="flex items-center gap-2 text-sm font-medium text-text-primary">
                                                 <span>{item.artifact_type}</span>
-                                                <span className="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-[11px] text-text-tertiary">
+                                                <span className="rounded bg-surface-raised px-1.5 py-0.5 font-mono text-2xs text-text-tertiary">
                                                     {item.source}
                                                 </span>
                                             </div>
                                             <IntegrityBadge status={item.integrity_status} />
                                         </div>
 
+                                        {item.integrity_status === "mismatch" && (
+                                            <p className="text-xs font-medium text-danger">
+                                                The recorded hash no longer matches this artifact&apos;s content. Treat
+                                                it as compromised evidence until reconciled.
+                                            </p>
+                                        )}
+
+                                        {/* The digest is a reference string, not something to read
+                                            at a glance — the status above is the finding. Kept one
+                                            disclosure away so it is copyable when cross-checking
+                                            against the DFIR workspace. */}
+                                        <details className="group">
+                                            <summary className="w-fit cursor-pointer list-none text-2xs text-text-tertiary hover:text-text-secondary">
+                                                SHA-256 <span className="group-open:hidden">…</span>
+                                            </summary>
+                                            <code className="mt-1 block font-mono text-2xs break-all text-text-secondary">
+                                                {item.sha256}
+                                            </code>
+                                        </details>
+
                                         {/* Formatted Tag Metadata */}
-                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-text-tertiary">
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-2xs text-text-tertiary">
                                             {item.tool_name && (
                                                 <span>
                                                     Tool: <strong className="font-normal text-text-secondary">{item.tool_name}{item.tool_version && ` v${item.tool_version}`}</strong>
@@ -225,13 +268,13 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
                                         </div>
 
                                         {item.purpose && (
-                                            <p className="rounded bg-surface-raised/40 px-2.5 py-1.5 text-[12px] italic text-text-secondary">
+                                            <p className="rounded bg-surface-raised/40 px-2.5 py-1.5 text-xs italic text-text-secondary">
                                                 &ldquo;{item.purpose}&rdquo;
                                             </p>
                                         )}
 
                                         {(item.limitations?.length ?? 0) > 0 && (
-                                            <p className="text-[11.5px] text-text-tertiary">
+                                            <p className="text-2xs text-text-tertiary">
                                                 <span className="font-medium text-text-secondary">Limitations:</span>{" "}
                                                 {item.limitations!.join("; ")}
                                             </p>
@@ -258,10 +301,10 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
                         right now (a short-timeline case previously left this
                         whole column as one form-shaped box regardless). */}
                     <div className="rounded-lg border border-border bg-surface p-4 shadow-xs">
-                        <h2 className="mb-3 text-[11px] font-semibold tracking-wider text-text-tertiary uppercase">
+                        <h2 className="mb-3 text-2xs font-semibold tracking-wider text-text-tertiary uppercase">
                             Case Overview
                         </h2>
-                        <dl className="flex flex-col divide-y divide-border/60 text-[12.5px]">
+                        <dl className="flex flex-col divide-y divide-border/60 text-xs">
                             <div className="flex items-center justify-between py-1.5 first:pt-0">
                                 <dt className="text-text-tertiary">Category</dt>
                                 <dd className="font-medium text-text-primary capitalize">{caseItem.category}</dd>
@@ -273,7 +316,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
                             {caseItem.correlation_key && (
                                 <div className="flex items-center justify-between gap-2 py-1.5">
                                     <dt className="shrink-0 text-text-tertiary">Correlation</dt>
-                                    <dd className="truncate font-mono text-[11px] text-text-secondary" title={caseItem.correlation_key}>
+                                    <dd className="truncate font-mono text-2xs text-text-secondary" title={caseItem.correlation_key}>
                                         {caseItem.correlation_key}
                                     </dd>
                                 </div>
@@ -308,10 +351,10 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
                             className="rounded-lg border border-border bg-surface p-4 shadow-xs"
                         >
                             <div className="mb-3 flex items-center justify-between">
-                                <h2 id="observables-heading" className="text-[12px] font-semibold tracking-wider text-text-tertiary uppercase">
+                                <h2 id="observables-heading" className="text-xs font-semibold tracking-wider text-text-tertiary uppercase">
                                     Observables
                                 </h2>
-                                <span className="rounded-full bg-surface-raised px-1.5 py-0.2 font-mono text-[10.5px] text-text-tertiary">
+                                <span className="rounded-full bg-surface-raised px-1.5 py-px font-mono text-2xs text-text-tertiary">
                                     {caseItem.observables!.length}
                                 </span>
                             </div>
@@ -322,10 +365,12 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
                                         key={idx}
                                         className="flex items-center justify-between gap-2 rounded-md border border-border/80 bg-surface-raised/50 p-1.5 px-2 transition-colors hover:bg-surface-raised"
                                     >
-                                        <code className="truncate font-mono text-[11.5px] text-text-secondary" title={obs.value}>
+                                        <code className="truncate font-mono text-2xs text-text-secondary" title={obs.value}>
                                             {obs.value}
                                         </code>
-                                        {obs.verdict && <VerdictBadge verdict={obs.verdict} />}
+                                        {/* Every verdict here comes from adr/0010's seeded
+                                            mock provider; there is no live TI connector yet. */}
+                                        {obs.verdict && <VerdictBadge verdict={obs.verdict} mocked />}
                                     </div>
                                 ))}
                             </div>

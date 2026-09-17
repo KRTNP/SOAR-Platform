@@ -8,7 +8,11 @@ import re
 import sys
 
 root = pathlib.Path(sys.argv[1])
-pattern = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+# Two destination forms. The bare form stops at the first ")", which cannot
+# express a path containing parentheses — and Next.js route groups
+# (web/app/(app)/...) are exactly that. CommonMark's angle-bracket form
+# <dest> is how such a destination is written, so both are accepted here.
+pattern = re.compile(r"\[[^\]]+\]\(\s*(?:<([^>]*)>|([^)\s]*))\s*\)")
 failed = False
 count = 0
 for source in sorted(root.rglob("*.md")):
@@ -22,8 +26,8 @@ for source in sorted(root.rglob("*.md")):
     # upstream-relative links this repo has no reason to satisfy.
     if "node_modules" in relative_source.parts or ".next" in relative_source.parts:
         continue
-    for raw_target in pattern.findall(source.read_text(encoding="utf-8")):
-        target = raw_target.split("#", 1)[0].strip()
+    for bracketed, bare in pattern.findall(source.read_text(encoding="utf-8")):
+        target = (bracketed or bare).split("#", 1)[0].strip()
         if not target or target.startswith(("http://", "https://", "mailto:")):
             continue
         count += 1

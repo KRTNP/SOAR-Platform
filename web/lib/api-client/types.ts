@@ -46,6 +46,10 @@ export interface Case {
 
 export type ActionStatus = "pending_approval" | "approved" | "rejected" | "expired" | "executed" | "released";
 
+// api/openapi.yaml's Action.mode. dry_run is the default adr/0003 requires;
+// execute is the only value that reaches a real target system.
+export type ActionMode = "dry_run" | "execute";
+
 export interface PendingAction {
   id: string;
   approval_id?: string;
@@ -53,7 +57,7 @@ export interface PendingAction {
   intent: string;
   target: { type: string; value: string };
   risk: "low" | "medium" | "high" | "critical";
-  mode: "dry_run" | "execute";
+  mode: ActionMode;
   status: ActionStatus;
   requested_by: string;
   idempotency_key: string;
@@ -135,6 +139,35 @@ export interface Problem {
   request_id: string;
   retryable: boolean;
   detail?: string;
+}
+
+// api/openapi.yaml's StatusResponse — the shape POST /v1/actions/preview
+// returns. Deliberately thin: a status word and a human-readable message,
+// not a structured diff. The UI must render the message as prose rather
+// than parse facts out of it.
+// Mirrors services/api/events.Summary (GET /v1/events) — deliberately not the
+// full observable graph, only what identifies and classifies an event. This is
+// the evidence that ingestion happened at all, which is a different question
+// from whether a case was opened.
+export interface EventSummary {
+  id: string;
+  source: string;
+  source_event_id?: string;
+  event_class: string;
+  severity: string;
+  confidence: number;
+  observed_at: string;
+  received_at: string;
+}
+
+export interface EventPage {
+  items: EventSummary[];
+  next_cursor?: string;
+}
+
+export interface StatusResponse {
+  status: string;
+  message?: string;
 }
 
 export interface ReleaseAccepted {

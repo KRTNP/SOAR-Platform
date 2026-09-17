@@ -26,6 +26,23 @@
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
+
+  /* The five-step scale from design-tokens.css, exposed as text-2xs …
+     text-2xl so components never reach for an arbitrary px value again. */
+  --text-2xs: var(--text-2xs);
+  --text-2xs--line-height: var(--text-2xs--line-height);
+  --text-xs: var(--text-xs);
+  --text-xs--line-height: var(--text-xs--line-height);
+  --text-sm: var(--text-sm);
+  --text-sm--line-height: var(--text-sm--line-height);
+  --text-lg: var(--text-lg);
+  --text-lg--line-height: var(--text-lg--line-height);
+  --text-2xl: var(--text-2xl);
+  --text-2xl--line-height: var(--text-2xl--line-height);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
 }
 
 body {
@@ -52,5 +69,20 @@ body {
   .animate-pulse {
     animation: none;
     opacity: 0.6;
+  }
+
+  /* The pulse guard was written first and the rest of the motion in this app
+     arrived later: spinners on every submit, and the fade-in on inline
+     errors. Reduced motion has to mean all of it, not the one animation that
+     existed when the rule was written. A spinner still needs to read as
+     "working", so it keeps a slow rotation rather than freezing. */
+  .animate-spin {
+    animation-duration: 2s;
+  }
+
+  .animate-in,
+  .fade-in,
+  [class*="slide-in-"] {
+    animation: none;
   }
 }

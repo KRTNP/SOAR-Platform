@@ -24,6 +24,6 @@ is the current default policy — see [ADR-0016](../../adr/0016-response-authori
 for what it covers, what it does not (no enforcement — no identity/authz
 system exists yet to check a caller's role against it), and the one place it
 is actually wired into `services/api` today (`request_block`'s audit reason).
-The [approvals queue](../../web/app/approvals) reads the resulting approvals
+The [approvals queue](<../../web/app/(app)/approvals>) reads the resulting approvals
 across every case.
 

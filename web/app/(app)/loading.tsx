@@ -4,9 +4,9 @@ function SkeletonRow() {
 
 export default function QueueLoading() {
   return (
-    <div className="flex flex-col gap-[22px]">
+    <div className="flex flex-col gap-5">
       <div className="h-6 w-40 animate-pulse rounded bg-surface-hover" />
-      <div className="flex flex-col gap-[18px]">
+      <div className="flex flex-col gap-4">
         {[3, 2].map((rows, i) => (
           <div key={i} className="flex flex-col gap-2">
             <div className="h-3 w-24 animate-pulse rounded bg-surface-hover" />

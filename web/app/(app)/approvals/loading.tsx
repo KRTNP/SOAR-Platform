@@ -37,15 +37,15 @@ function SkeletonRow() {
         {/* Metadata (Requester & Expiration) */}
         <div className="flex items-center gap-2 pt-0.5">
           <SkeletonPulse className="h-3 w-20" />
-          <span className="text-[10px] text-border">•</span>
+          <span className="text-2xs text-border">•</span>
           <SkeletonPulse className="h-3 w-24" />
         </div>
       </div>
 
       {/* Right: action buttons (approve / reject) */}
       <div className="flex items-center gap-1.5 pt-2 sm:pt-0">
-        <SkeletonPulse className="h-7 w-16 rounded-[4px]" />
-        <SkeletonPulse className="h-7 w-16 rounded-[4px]" />
+        <SkeletonPulse className="h-7 w-16 rounded-sm" />
+        <SkeletonPulse className="h-7 w-16 rounded-sm" />
       </div>
     </div>
   );

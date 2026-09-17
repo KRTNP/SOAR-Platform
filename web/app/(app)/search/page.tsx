@@ -28,9 +28,9 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   }
 
   return (
-    <div className="flex flex-col gap-[22px]">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Search</h1>
+    <div className="flex flex-col gap-5">
+      <header className="flex flex-col gap-1 border-b border-border pb-4">
+        <h1 className="text-2xl font-semibold tracking-tight">Search</h1>
         <p className="text-xs text-text-tertiary">
           Cross-entity search over the OpenSearch derived projection (adr/0022) &mdash; cases and events, never the sole
           source of truth for anything shown here
@@ -44,11 +44,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           defaultValue={query}
           placeholder="Search cases and events…"
           aria-label="Search query"
-          className="flex-1 rounded-[4px] border border-border-strong bg-surface-raised px-2.5 py-1.5 text-[13px] text-text-primary placeholder:text-text-tertiary"
+          className="flex-1 rounded-sm border border-border-strong bg-surface-raised px-2.5 py-1.5 text-sm text-text-primary placeholder:text-text-tertiary"
         />
         <button
           type="submit"
-          className="rounded-[4px] bg-accent px-3 py-1.5 text-[13px] font-medium text-bg"
+          className="rounded-sm bg-accent px-3 py-1.5 text-sm font-medium text-bg"
         >
           Search
         </button>
@@ -85,18 +85,18 @@ function SearchResultRow({ result }: { result: SearchResult }) {
   return (
     <li className="rounded-md border border-border bg-surface p-3.5">
       <div className="flex items-center gap-2">
-        <span className="rounded-[4px] border border-border-strong px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-text-tertiary uppercase">
+        <span className="rounded-sm border border-border-strong px-1.5 py-0.5 font-mono text-2xs tracking-wider text-text-tertiary uppercase">
           {isCase ? "case" : "event"}
         </span>
         {caseId ? (
-          <Link href={`/cases/${encodeURIComponent(caseId)}`} className="text-[13px] font-medium text-accent hover:underline">
+          <Link href={`/cases/${encodeURIComponent(caseId)}`} className="text-sm font-medium text-accent hover:underline">
             {title}
           </Link>
         ) : (
-          <span className="text-[13px] font-medium text-text-primary">{title}</span>
+          <span className="text-sm font-medium text-text-primary">{title}</span>
         )}
       </div>
-      <p className="mt-1 font-mono text-[11px] text-text-tertiary">
+      <p className="mt-1 font-mono text-2xs text-text-tertiary">
         {result.id}
         {severity && <> &middot; {severity}</>}
         {status && <> &middot; {status}</>}

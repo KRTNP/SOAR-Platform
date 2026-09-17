@@ -51,7 +51,7 @@ export default async function LoginPage({
             <h1 className="text-base font-semibold tracking-tight">
               SOAR <span className="font-normal text-text-tertiary">/ lab</span>
             </h1>
-            <p className="text-[13px] text-text-tertiary">Sign in with your lab Keycloak account to continue.</p>
+            <p className="text-sm text-text-tertiary">Sign in with your lab Keycloak account to continue.</p>
           </div>
         </div>
 
@@ -63,13 +63,13 @@ export default async function LoginPage({
         >
           <button
             type="submit"
-            className="w-full rounded-[4px] bg-accent px-4 py-2.5 text-[13px] font-medium text-bg transition-opacity hover:opacity-90"
+            className="w-full rounded-sm bg-accent px-4 py-2.5 text-sm font-medium text-bg transition-opacity hover:opacity-90"
           >
             Sign in with Keycloak
           </button>
         </form>
 
-        <p className="text-center font-mono text-[10.5px] tracking-wide text-text-tertiary uppercase">
+        <p className="text-center font-mono text-2xs tracking-wide text-text-tertiary uppercase">
           Lab environment &middot; identity provided by Keycloak
         </p>
       </div>

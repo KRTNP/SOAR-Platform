@@ -4,10 +4,10 @@ function Tile() {
 
 export default function MetricsLoading() {
   return (
-    <div className="flex flex-col gap-[22px]">
+    <div className="flex flex-col gap-5">
       <div className="h-6 w-28 animate-pulse rounded bg-surface-hover" />
       <div className="h-[74px] animate-pulse rounded-md border border-border bg-surface-hover" />
-      <div className="grid grid-cols-1 gap-[18px] sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Tile key={i} />
         ))}

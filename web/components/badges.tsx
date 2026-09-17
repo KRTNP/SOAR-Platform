@@ -1,4 +1,4 @@
-import type { ApprovalStatus, CaseObservableVerdict, CaseStatus, IntegrityStatus, Severity } from "@/lib/api-client/types";
+import type { ActionMode, ApprovalStatus, CaseObservableVerdict, CaseStatus, IntegrityStatus, Severity } from "@/lib/api-client/types";
 
 // Tailwind's JIT scanner needs literal class strings, not interpolated ones,
 // so severity/status -> class is a lookup table rather than a template.
@@ -13,8 +13,8 @@ const SEVERITY_CLASSES: Record<Severity, string> = {
 export function SeverityBadge({ severity, size = "sm" }: { severity: Severity; size?: "sm" | "lg" }) {
   return (
     <span
-      className={`inline-block rounded-[3px] border font-medium whitespace-nowrap ${SEVERITY_CLASSES[severity]} ${
-        size === "lg" ? "px-2.5 py-1 text-xs tracking-wide" : "px-2 py-[3px] text-[11px]"
+      className={`inline-block rounded-sm border font-medium whitespace-nowrap ${SEVERITY_CLASSES[severity]} ${
+        size === "lg" ? "px-2.5 py-1 text-xs tracking-wide" : "px-2 py-0.5 text-2xs"
       }`}
     >
       {size === "lg" ? severity.toUpperCase() : severity}
@@ -32,7 +32,7 @@ const STATUS_CLASSES: Partial<Record<CaseStatus, string>> = {
 export function StatusBadge({ status }: { status: CaseStatus }) {
   const cls = STATUS_CLASSES[status] ?? "text-text-secondary border-border-strong";
   return (
-    <span className={`inline-block rounded-[3px] border px-2 py-[3px] text-[11px] font-medium whitespace-nowrap capitalize ${cls}`}>
+    <span className={`inline-block rounded-sm border px-2 py-0.5 text-2xs font-medium whitespace-nowrap capitalize ${cls}`}>
       {status}
     </span>
   );
@@ -49,10 +49,33 @@ const VERDICT_CLASSES: Record<CaseObservableVerdict, string> = {
   unknown: "text-text-tertiary border-border-strong",
 };
 
-export function VerdictBadge({ verdict }: { verdict: CaseObservableVerdict }) {
+// A value produced by a deliberately mocked connector (adr/0010's seeded
+// enrichment table, its local-only ticketing) rendered identically to real
+// intelligence is a correctness hazard on a screen used to decide whether to
+// block an address. Provisional data gets a provisional treatment: a dashed
+// edge and the word itself, so the difference survives a glance.
+export function MockMarker({ title }: { title: string }) {
   return (
-    <span className={`inline-block rounded-[3px] border px-2 py-[3px] text-[11px] font-medium whitespace-nowrap capitalize ${VERDICT_CLASSES[verdict]}`}>
-      {verdict}
+    <span
+      title={title}
+      className="inline-block rounded-sm border border-dashed border-border-strong px-1.5 py-0.5 font-mono text-2xs tracking-wide text-text-tertiary lowercase"
+    >
+      mock
+    </span>
+  );
+}
+
+export function VerdictBadge({ verdict, mocked = false }: { verdict: CaseObservableVerdict; mocked?: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span
+        className={`inline-block rounded-sm border px-2 py-0.5 text-2xs font-medium whitespace-nowrap capitalize ${
+          mocked ? "border-dashed" : ""
+        } ${VERDICT_CLASSES[verdict]}`}
+      >
+        {verdict}
+      </span>
+      {mocked && <MockMarker title="Seeded mock threat-intel provider (adr/0010) — not live intelligence" />}
     </span>
   );
 }
@@ -68,7 +91,7 @@ const INTEGRITY_CLASSES: Record<IntegrityStatus, string> = {
 
 export function IntegrityBadge({ status }: { status: IntegrityStatus }) {
   return (
-    <span className={`inline-block rounded-[3px] border px-2 py-[3px] text-[11px] font-medium whitespace-nowrap capitalize ${INTEGRITY_CLASSES[status]}`}>
+    <span className={`inline-block rounded-sm border px-2 py-0.5 text-2xs font-medium whitespace-nowrap capitalize ${INTEGRITY_CLASSES[status]}`}>
       {status}
     </span>
   );
@@ -88,12 +111,12 @@ export function IntegrityBadge({ status }: { status: IntegrityStatus }) {
 export function DecisionBadge({ decision }: { decision: string }) {
   if (decision === "denied") {
     return (
-      <span className="inline-block rounded-[3px] border border-danger/40 bg-danger/[0.08] px-2 py-[3px] text-[11px] font-medium whitespace-nowrap text-danger capitalize">
+      <span className="inline-block rounded-sm border border-danger/40 bg-danger/[0.08] px-2 py-0.5 text-2xs font-medium whitespace-nowrap text-danger capitalize">
         {decision}
       </span>
     );
   }
-  return <span className="text-[11px] whitespace-nowrap text-text-tertiary capitalize">{decision}</span>;
+  return <span className="text-2xs whitespace-nowrap text-text-tertiary capitalize">{decision}</span>;
 }
 
 // "pending" is genuinely actionable (it's why the row is in the Pending
@@ -106,7 +129,7 @@ export function DecisionBadge({ decision }: { decision: string }) {
 export function ApprovalStatusBadge({ status }: { status: ApprovalStatus }) {
   if (status === "approved") {
     return (
-      <span className="inline-flex items-center gap-1 text-[11px] text-text-tertiary capitalize">
+      <span className="inline-flex items-center gap-1 text-2xs text-text-tertiary capitalize">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 text-safe">
           <polyline points="5 12.5 9.5 17 19 6.5" />
         </svg>
@@ -115,12 +138,49 @@ export function ApprovalStatusBadge({ status }: { status: ApprovalStatus }) {
     );
   }
   if (status === "expired") {
-    return <span className="text-[11px] whitespace-nowrap text-text-tertiary capitalize">{status}</span>;
+    return <span className="text-2xs whitespace-nowrap text-text-tertiary capitalize">{status}</span>;
   }
   const cls = status === "rejected" ? "text-danger border-danger/40 bg-danger/[0.08]" : "text-warn border-warn/40";
   return (
-    <span className={`inline-block rounded-[3px] border px-2 py-[3px] text-[11px] font-medium whitespace-nowrap capitalize ${cls}`}>
+    <span className={`inline-block rounded-sm border px-2 py-0.5 text-2xs font-medium whitespace-nowrap capitalize ${cls}`}>
       {status}
+    </span>
+  );
+}
+
+// Action.mode, the field that decides whether approving this writes to a
+// real firewall or simulates it. adr/0003 makes dry_run the default, so
+// dry_run is the expected value and stays quiet; "execute" is the one an
+// operator must never miss and is the only mode that earns a filled pill.
+//
+// This is deliberately louder than the other badges in this file: every
+// other badge describes something that already happened, while this one
+// describes what is about to happen to a live system.
+export function ModeBadge({ mode, size = "sm" }: { mode: ActionMode; size?: "sm" | "lg" }) {
+  const dims = size === "lg" ? "px-2.5 py-1 text-xs" : "px-2 py-0.5 text-2xs";
+  if (mode === "execute") {
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-sm border border-danger bg-danger/15 font-semibold tracking-wide whitespace-nowrap text-danger uppercase ${dims}`}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
+          <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" />
+          <path d="M12 8.5v4" />
+          <path d="M12 16v.01" />
+        </svg>
+        execute
+      </span>
+    );
+  }
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-sm border border-border-strong font-medium whitespace-nowrap text-text-secondary ${dims}`}
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
+        <rect x="5" y="10" width="14" height="9" rx="1.5" />
+        <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+      </svg>
+      dry run
     </span>
   );
 }
@@ -136,13 +196,13 @@ export function ApprovalStatusBadge({ status }: { status: ApprovalStatus }) {
 export function VerifiedBadge({ verified }: { verified: boolean }) {
   if (!verified) {
     return (
-      <span className="inline-block rounded-[3px] border border-danger/40 bg-danger/[0.08] px-2 py-[3px] text-[11px] font-medium whitespace-nowrap text-danger">
+      <span className="inline-block rounded-sm border border-danger/40 bg-danger/[0.08] px-2 py-0.5 text-2xs font-medium whitespace-nowrap text-danger">
         tampered
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 text-[11px] text-text-tertiary" title="Hash recomputed and matched on read">
+    <span className="inline-flex items-center gap-1 text-2xs text-text-tertiary" title="Hash recomputed and matched on read">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 text-safe">
         <polyline points="5 12.5 9.5 17 19 6.5" />
       </svg>

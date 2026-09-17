@@ -13,7 +13,7 @@ function NavIcon({ children }: { children: ReactNode }) {
       strokeWidth={1.6}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="h-[17px] w-[17px] shrink-0 text-text-tertiary group-aria-[current=page]:text-accent"
+      className="h-4 w-4 shrink-0 text-text-tertiary group-aria-[current=page]:text-accent"
     >
       {children}
     </svg>
@@ -89,23 +89,40 @@ const NAV_ITEMS = [
 // dropped rather than shrunk, per gridgeist's "recompose, don't shrink"
 // rule) so the app is usable on a phone instead of rendering a squeezed
 // 236px column beside the content. md and up keeps the original side rail.
+
+// Three states, not two. "Dry-run" and "unknown" used to collapse into the
+// same reassuring badge via `?? true`, so an unreachable backend rendered a
+// confident claim that responses were simulated — the single fact this
+// console may never guess, because it is what an operator checks before
+// authorizing a write to a real firewall.
+type ConnectorState = "live" | "dry_run" | "unknown";
+
+function connectorState(version: string | undefined, reachable: boolean): ConnectorState {
+  if (!reachable || version === undefined) return "unknown";
+  return version.includes("mock") ? "dry_run" : "live";
+}
+
 export function Sidebar({
   connectorTarget,
   connectorVersion,
+  connectorReachable = true,
+  pendingApprovals,
   userEmail,
   onSignOut,
 }: {
   connectorTarget?: string;
   connectorVersion?: string;
+  connectorReachable?: boolean;
+  pendingApprovals?: number;
   userEmail?: string;
   onSignOut?: () => Promise<void>;
 }) {
   const pathname = usePathname();
-  const isMockConnector = connectorVersion?.includes("mock") ?? true;
+  const state = connectorState(connectorVersion, connectorReachable);
 
   return (
-    <aside className="flex w-full shrink-0 flex-row items-center gap-3 border-b border-border bg-surface p-[10px_16px] md:w-[236px] md:flex-col md:items-stretch md:gap-0 md:border-r md:border-b-0 md:p-[22px_16px]">
-      <div className="flex items-center gap-2.5 px-0 md:mb-[22px] md:px-2 md:pt-1">
+    <aside className="flex w-full shrink-0 flex-row items-center gap-3 border-b border-border bg-surface px-4 py-2.5 md:w-[236px] md:flex-col md:items-stretch md:gap-0 md:border-r md:border-b-0 md:px-4 md:py-5">
+      <div className="flex items-center gap-2.5 px-0 md:mb-5 md:px-2 md:pt-1">
         <svg
           viewBox="0 0 24 24"
           fill="none"
@@ -125,31 +142,65 @@ export function Sidebar({
       <nav className="flex flex-1 flex-row gap-0.5 md:flex-col">
         {NAV_ITEMS.map((item) => {
           const current = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+          const waiting = item.href === "/approvals" && pendingApprovals !== undefined && pendingApprovals > 0;
           return (
             <Link
               key={item.href}
               href={item.href}
               aria-current={current ? "page" : undefined}
-              className={`group flex items-center gap-3 rounded-[4px] px-2.5 py-2.5 text-[13px] font-medium ${
+              className={`group relative flex items-center gap-3 rounded-sm px-2.5 py-2.5 text-sm font-medium ${
                 current ? "bg-surface-raised text-text-primary" : "text-text-secondary"
               }`}
             >
               <NavIcon>{item.icon}</NavIcon>
-              <span className="hidden md:inline">{item.label}</span>
+              {/* The label is the accessible name on every breakpoint; below
+                  md it is visually hidden rather than removed, so the compact
+                  top bar is still six named links instead of six mystery
+                  icons to a screen reader. */}
+              <span className="sr-only md:not-sr-only md:inline">{item.label}</span>
+              {waiting && (
+                <span
+                  className="ml-auto inline-flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-warn px-1.5 font-mono text-2xs font-semibold text-bg max-md:absolute max-md:top-0.5 max-md:right-0 max-md:ml-0"
+                  aria-label={`${pendingApprovals} awaiting your decision`}
+                >
+                  {pendingApprovals}
+                </span>
+              )}
             </Link>
           );
         })}
       </nav>
 
+      {/* Below md the full status block is dropped for space — but "are my
+          actions real?" is not secondary information when the approve path is
+          still reachable on this breakpoint. The two states that change what a
+          tap means keep a compact marker; dry-run, the safe default, does not
+          need one. */}
+      {state !== "dry_run" && (
+        <span
+          className={`ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-2 py-1 text-2xs font-medium md:hidden ${
+            state === "live" ? "border-danger/40 bg-danger/[0.07] text-danger" : "border-warn/40 bg-warn/[0.07] text-warn"
+          }`}
+        >
+          <span
+            aria-hidden="true"
+            className={`h-1.5 w-1.5 rounded-full ${state === "live" ? "bg-danger" : "bg-warn"}`}
+          />
+          {state === "live" ? "Live" : "Unknown"}
+        </span>
+      )}
+
       <div className="hidden flex-col gap-3 border-t border-border pt-3.5 md:flex">
         {/* One status line, not two near-duplicate badges: mock vs. live is
             a single fact (dry-run vs. real effects on a named target), so
-            it gets one visual treatment instead of two stacked pills that
-            used to repeat the same "is this real" signal in slightly
-            different words. */}
+            it gets one visual treatment instead of two stacked pills. */}
         <div
-          className={`flex items-start gap-2 rounded-[4px] border px-2.5 py-2 text-[11.5px] ${
-            isMockConnector ? "border-border-strong text-text-secondary" : "border-danger/30 bg-danger/[0.07] text-danger"
+          className={`flex items-start gap-2 rounded-sm border px-2.5 py-2 text-2xs ${
+            state === "live"
+              ? "border-danger/30 bg-danger/[0.07] text-danger"
+              : state === "dry_run"
+                ? "border-border-strong text-text-secondary"
+                : "border-warn/40 bg-warn/[0.07] text-warn"
           }`}
         >
           <svg
@@ -160,46 +211,59 @@ export function Sidebar({
             strokeLinecap="round"
             strokeLinejoin="round"
             className="mt-0.5 h-3 w-3 shrink-0"
+            aria-hidden="true"
           >
-            {isMockConnector ? (
+            {state === "dry_run" ? (
               <>
                 <rect x="5" y="10" width="14" height="9" rx="1.5" />
                 <path d="M8 10V7a4 4 0 0 1 8 0v3" />
               </>
-            ) : (
+            ) : state === "live" ? (
               <>
                 <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" />
                 <path d="M12 8v5" />
                 <path d="M12 16.5v.01" />
               </>
+            ) : (
+              <>
+                <circle cx="12" cy="12" r="8.5" />
+                <path d="M12 8.5v4" />
+                <path d="M12 15.5v.01" />
+              </>
             )}
           </svg>
           <div className="flex min-w-0 flex-col">
-            <span className="font-medium">{isMockConnector ? "Dry-run mode" : "Live — real effects"}</span>
-            {connectorTarget && <span className="truncate text-text-tertiary">{connectorTarget}</span>}
+            <span className="font-medium">
+              {state === "live" ? "Live — real effects" : state === "dry_run" ? "Dry-run mode" : "Connector state unknown"}
+            </span>
+            {state === "unknown" ? (
+              <span className="text-warn/80">Metrics unreachable — verify before approving</span>
+            ) : (
+              connectorTarget && <span className="truncate text-text-tertiary">{connectorTarget}</span>
+            )}
           </div>
         </div>
 
         {onSignOut ? (
           <form action={onSignOut} className="flex items-center justify-between gap-2 border-t border-border pt-3">
             <div className="flex min-w-0 items-center gap-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-raised font-mono text-[10px] font-medium text-text-secondary">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-raised font-mono text-2xs font-medium text-text-secondary">
                 {(userEmail ?? "L")[0].toUpperCase()}
               </span>
               <div className="flex min-w-0 flex-col leading-tight">
-                <span className="truncate text-[11.5px] text-text-secondary">{userEmail ?? "lab"}</span>
-                <span className="font-mono text-[10px] tracking-wider text-text-tertiary uppercase">tenant &middot; lab</span>
+                <span className="truncate text-2xs text-text-secondary">{userEmail ?? "lab"}</span>
+                <span className="font-mono text-2xs tracking-wider text-text-tertiary uppercase">tenant &middot; lab</span>
               </div>
             </div>
             <button
               type="submit"
-              className="shrink-0 rounded-[4px] px-1.5 py-1 text-[11px] font-medium text-text-tertiary hover:bg-surface-raised hover:text-text-primary"
+              className="shrink-0 rounded-sm px-1.5 py-1 text-2xs font-medium text-text-tertiary hover:bg-surface-raised hover:text-text-primary"
             >
               Sign out
             </button>
           </form>
         ) : (
-          <span className="font-mono text-[10.5px] tracking-wider text-text-tertiary uppercase">tenant &middot; lab</span>
+          <span className="font-mono text-2xs tracking-wider text-text-tertiary uppercase">tenant &middot; lab</span>
         )}
       </div>
     </aside>

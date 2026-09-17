@@ -19,11 +19,11 @@ export function CaseListGroup({ cases }: { cases: Case[] }) {
   })).filter((g) => g.items.length > 0);
 
   return (
-    <div className="flex flex-col gap-[18px]">
+    <div className="flex flex-col gap-4">
       {groups.map((group) => (
         <div key={group.severity}>
-          <div className="mb-2 flex items-center gap-2 pl-0.5 text-[11.5px] font-semibold tracking-wider text-text-tertiary uppercase">
-            <span className={`h-[7px] w-[7px] rounded-full ${DOT_CLASSES[group.severity]}`} />
+          <div className="mb-2 flex items-center gap-2 pl-0.5 text-2xs font-semibold tracking-wider text-text-tertiary uppercase">
+            <span className={`h-2 w-2 rounded-full ${DOT_CLASSES[group.severity]}`} />
             {group.severity}
             <span className="font-mono font-normal text-text-tertiary">{group.items.length}</span>
           </div>

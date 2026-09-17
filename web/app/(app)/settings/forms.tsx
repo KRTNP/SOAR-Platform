@@ -4,9 +4,9 @@ import { useState, useTransition } from "react";
 import { createTenantAction, addAllowlistEntryAction, addCriticalTargetAction } from "./actions";
 
 const inputClass =
-  "rounded-[4px] border border-border-strong bg-surface-raised px-2.5 py-1.5 text-[13px] text-text-primary placeholder:text-text-tertiary";
+  "rounded-sm border border-border-strong bg-surface-raised px-2.5 py-1.5 text-sm text-text-primary placeholder:text-text-tertiary";
 const buttonClass =
-  "rounded-[4px] bg-accent px-3 py-1.5 text-[13px] font-medium text-bg whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-40";
+  "rounded-sm bg-accent px-3 py-1.5 text-sm font-medium text-bg whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-40";
 
 // The only one of the three forms with special behavior: the create
 // response's api_key is never shown again after this — the list below only
@@ -24,7 +24,11 @@ export function TenantForm() {
     setError(null);
     startTransition(async () => {
       try {
-        const tenant = await createTenantAction(name.trim());
+        const { tenant, error: problem } = await createTenantAction(name.trim());
+        if (problem || !tenant) {
+          setError(problem ?? "Could not create tenant. Try again.");
+          return;
+        }
         setCreatedKey({ name: tenant.name, apiKey: tenant.api_key ?? "" });
         setName("");
       } catch {
@@ -36,11 +40,11 @@ export function TenantForm() {
   return (
     <div className="flex flex-col gap-2">
       {createdKey && (
-        <div className="rounded-md border border-warn/30 bg-warn/[0.08] p-3 text-[12.5px]">
+        <div className="rounded-md border border-warn/30 bg-warn/[0.08] p-3 text-xs">
           <p className="font-medium text-text-primary">
             API key for &ldquo;{createdKey.name}&rdquo; &mdash; copy it now, it will not be shown again:
           </p>
-          <p className="mt-1 break-all rounded-[4px] bg-surface-raised px-2 py-1 font-mono text-[12px] text-accent">
+          <p className="mt-1 break-all rounded-sm bg-surface-raised px-2 py-1 font-mono text-xs text-accent">
             {createdKey.apiKey}
           </p>
         </div>
@@ -57,7 +61,7 @@ export function TenantForm() {
           {isPending ? "Creating…" : "Create tenant"}
         </button>
       </div>
-      {error && <p className="text-[12px] text-danger">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );
 }
@@ -74,7 +78,11 @@ export function AllowlistForm() {
     setError(null);
     startTransition(async () => {
       try {
-        await addAllowlistEntryAction(value.trim(), reason.trim(), expiresAt);
+        const { error: problem } = await addAllowlistEntryAction(value.trim(), reason.trim(), expiresAt);
+        if (problem) {
+          setError(problem);
+          return;
+        }
         setValue("");
         setReason("");
         setExpiresAt("");
@@ -114,8 +122,8 @@ export function AllowlistForm() {
           {isPending ? "Adding…" : "Add trusted source"}
         </button>
       </div>
-      {dirty && !expiresAt && <p className="text-[11px] text-text-tertiary">No expiry set — this entry never expires.</p>}
-      {error && <p className="text-[12px] text-danger">{error}</p>}
+      {dirty && !expiresAt && <p className="text-2xs text-text-tertiary">No expiry set — this entry never expires.</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );
 }
@@ -131,7 +139,11 @@ export function CriticalTargetForm() {
     setError(null);
     startTransition(async () => {
       try {
-        await addCriticalTargetAction(value.trim(), reason.trim());
+        const { error: problem } = await addCriticalTargetAction(value.trim(), reason.trim());
+        if (problem) {
+          setError(problem);
+          return;
+        }
         setValue("");
         setReason("");
       } catch {
@@ -161,7 +173,7 @@ export function CriticalTargetForm() {
           {isPending ? "Adding…" : "Add critical target"}
         </button>
       </div>
-      {error && <p className="text-[12px] text-danger">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
     </div>
   );
 }

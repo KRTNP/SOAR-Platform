@@ -20,9 +20,12 @@ import type {
   TenantPage,
   TrustedSourcePage,
   CriticalTargetPage,
+  StatusResponse,
+  EventPage,
 } from "./types";
 
 const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8080";
+const REQUEST_TIMEOUT_MS = 8000;
 
 /** Thrown when the API responds with an application/problem+json body. */
 export class ApiProblemError extends Error {
@@ -45,11 +48,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (session?.accessToken) {
     (headers as Record<string, string>)["Authorization"] = `Bearer ${session.accessToken}`;
   }
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers,
-    cache: "no-store",
-  });
+  // Without a deadline, an unreachable API leaves the awaited server render
+  // hanging forever: no loading.tsx can help, because the request that would
+  // finish it never settles. A bounded failure becomes an error boundary the
+  // operator can read and retry.
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers,
+      cache: "no-store",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      throw new Error(`API request timed out after ${REQUEST_TIMEOUT_MS}ms: ${path}`);
+    }
+    throw err;
+  }
 
   if (!res.ok) {
     const contentType = res.headers.get("content-type") ?? "";
@@ -71,6 +87,14 @@ export function listCases(params?: { cursor?: string; limit?: number }): Promise
   if (params?.limit) query.set("limit", String(params.limit));
   const qs = query.toString();
   return request<CasePage>(`/v1/cases${qs ? `?${qs}` : ""}`);
+}
+
+// GET /v1/events — ingested events newest first, independent of whether any
+// of them correlated into a case. An event that arrived and did not produce a
+// case is invisible everywhere else in this console, which used to send the
+// operator back to Wazuh to answer "did the pipeline even see it?".
+export function listEvents(limit = 25): Promise<EventPage> {
+  return request<EventPage>(`/v1/events?limit=${limit}`);
 }
 
 export function getCase(caseId: string): Promise<Case> {
@@ -131,6 +155,21 @@ export function executeAction(actionId: string): Promise<unknown> {
   });
 }
 
+// POST /v1/actions/preview — a dry-run description of what executing this
+// intent against this target would do. With the real OPNsense connector
+// wired (adr/0013) it also reports whether the target is already blocked, so
+// the approver can see that a block would have no additional effect before
+// authorizing it. The mock connector returns the generic message instead.
+// Only block_network_indicator has a preview in this milestone; anything
+// else is rejected as unsupported_intent by services/api/actions.Preview.
+export function previewAction(intent: string, target: string): Promise<StatusResponse> {
+  return request<StatusResponse>(`/v1/actions/preview`, {
+    method: "POST",
+    headers: { "Idempotency-Key": crypto.randomUUID() },
+    body: JSON.stringify({ intent, target }),
+  });
+}
+
 // GET /v1/actions/{actionId} — used by the approvals queue page to resolve
 // an Approval's intent/target/risk/case, which the Approval schema itself
 // deliberately does not carry (see the Approval type's comment).
@@ -162,9 +201,8 @@ export function releaseAction(actionId: string): Promise<ReleaseAccepted> {
   });
 }
 
-// GET /v1/audit — restricted audit records, newest first. No auth/RBAC
-// exists yet (see adr/0011), so this is not actually access-restricted in
-// this lab build, only in the design intent it implements.
+// GET /v1/audit — restricted audit records, newest first. Access is gated by
+// the caller's Keycloak role since adr/0024.
 export function getAudit(): Promise<AuditPage> {
   return request<AuditPage>(`/v1/audit`);
 }

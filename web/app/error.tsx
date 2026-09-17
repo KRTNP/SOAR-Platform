@@ -17,7 +17,7 @@ export default function RootError({ reset }: { error: Error; reset: () => void }
       <ProblemBanner fallbackTitle="Something went wrong loading this page" />
       <button
         onClick={reset}
-        className="w-fit rounded-[4px] border border-border-strong px-3 py-1.5 text-[13px] text-text-secondary hover:bg-surface-hover"
+        className="w-fit rounded-sm border border-border-strong px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-hover"
       >
         Try again
       </button>

@@ -23,5 +23,10 @@ deploy/compose/docker-compose.override.yml
 deploy/compose/prometheus/prometheus.local.yml
 deploy/compose/grafana/provisioning.local/
 
+# Impeccable's detector cache, rewritten on every UI edit. The critique
+# snapshots next to it (.impeccable/critique/) are design-review history and
+# are kept.
+.impeccable/hook.cache.json
+
 # OS/editor cruft
 .DS_Store

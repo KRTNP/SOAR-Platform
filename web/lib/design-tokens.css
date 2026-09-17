@@ -1,8 +1,8 @@
 /*
- * Single source of truth for the SOAR console's visual tokens — ported 1:1
- * from the "Calm command center" mockup (published as an Artifact earlier in
- * this project). Components read only these custom properties, never a raw
- * oklch value, so the palette can be re-tuned in one place.
+ * Single source of truth for the SOAR console's visual tokens — ported from
+ * the "Calm command center" mockup. Components read only these custom
+ * properties, never a raw oklch value, so the palette can be re-tuned in
+ * one place.
  */
 :root {
   --color-bg: oklch(15% 0.018 255);
@@ -13,9 +13,23 @@
   --color-border: oklch(34% 0.02 255 / 0.55);
   --color-border-strong: oklch(42% 0.022 255);
 
+  /*
+   * Three text steps, each verified against all four surfaces above.
+   * Tertiary used to sit at 50%, which computes to 2.5–3.3:1 — below the
+   * 4.5:1 floor while carrying every page description, all table metadata
+   * and the audit log's Reason column. It now clears AA on bg, surface,
+   * surface-raised and surface-hover alike, and secondary moved up with it
+   * so the three steps stay legible as a hierarchy rather than collapsing
+   * into one grey.
+   *
+   * Measured contrast (bg / surface / raised / hover):
+   *   primary    17.0 / 15.7 / 14.0 / 12.8
+   *   secondary  10.5 /  9.7 /  8.7 /  7.9
+   *   tertiary    6.3 /  5.8 /  5.2 /  4.8
+   */
   --color-text-primary: oklch(95% 0.008 255);
-  --color-text-secondary: oklch(72% 0.015 255);
-  --color-text-tertiary: oklch(50% 0.015 255);
+  --color-text-secondary: oklch(80% 0.015 255);
+  --color-text-tertiary: oklch(66% 0.015 255);
 
   --color-accent: oklch(78% 0.12 200);
   --color-safe: oklch(72% 0.15 150);
@@ -26,10 +40,42 @@
   --severity-high: oklch(70% 0.16 55);
   --severity-medium: oklch(78% 0.14 85);
   --severity-low: oklch(68% 0.04 255);
-  --severity-informational: oklch(55% 0.015 255);
+  /* 62% cleared AA on bg and surface but fell to 4.46:1 on surface-raised
+     and 4.07:1 on surface-hover. No current call site puts an informational
+     badge on those surfaces, but the token should not be the thing that
+     makes a future one fail. 66% clears all four. */
+  --severity-informational: oklch(66% 0.015 255);
+
+  /*
+   * Type scale. The console previously carried eight sizes between 10px and
+   * 13.5px — 11 vs 11.5 is not a hierarchy, it is the residue of nudging,
+   * and it is why every screen read as one flat texture. Five steps, each
+   * with a job:
+   *
+   *   2xs  badges, table metadata, timestamps, unit labels
+   *   xs   secondary body, dense table cells
+   *   sm   primary body, controls, card titles
+   *   lg   section headings
+   *   2xl  page title (one per screen)
+   *
+   * These override Tailwind's defaults for xs/sm/lg/2xl on purpose, so the
+   * existing utility classes snap onto the scale instead of coexisting with
+   * it.
+   */
+  --text-2xs: 11px;
+  --text-2xs--line-height: 1.45;
+  --text-xs: 12.5px;
+  --text-xs--line-height: 1.5;
+  --text-sm: 14px;
+  --text-sm--line-height: 1.55;
+  --text-lg: 17px;
+  --text-lg--line-height: 1.4;
+  --text-2xl: 22px;
+  --text-2xl--line-height: 1.25;
 
   --radius-sm: 4px;
-  --radius-md: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
 
   --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;

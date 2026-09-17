@@ -2,15 +2,14 @@
 
 import { useState, useTransition } from "react";
 import type { Case, CaseStatus, RedactionProfile } from "@/lib/api-client/types";
-import { StatusBadge } from "@/components/badges";
+import { MockMarker, ModeBadge, StatusBadge } from "@/components/badges";
 import { Modal } from "@/components/Modal";
+import { ApprovalRowActions } from "@/app/(app)/approvals/approval-actions";
 import {
   transitionCaseAction,
   closeCaseAction,
   openTicketAction,
   requestBlockAction,
-  approveActionAction,
-  rejectActionAction,
   releaseActionAction,
   exportCaseAction,
 } from "./actions";
@@ -53,7 +52,7 @@ function ActionSpinner({ className = "h-3.5 w-3.5" }: { className?: string }) {
 function SectionLabel({ children, badge }: { children: React.ReactNode; badge?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between pb-1">
-      <span className="text-[11px] font-semibold tracking-wider text-text-tertiary uppercase">{children}</span>
+      <span className="text-2xs font-semibold tracking-wider text-text-tertiary uppercase">{children}</span>
       {badge}
     </div>
   );
@@ -62,7 +61,7 @@ function SectionLabel({ children, badge }: { children: React.ReactNode; badge?: 
 function InlineError({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <p role="alert" aria-live="polite" className="text-[11px] font-medium text-danger animate-in fade-in duration-150">
+    <p role="alert" className="text-2xs font-medium text-danger animate-in fade-in duration-150">
       {message}
     </p>
   );
@@ -76,6 +75,8 @@ function InlineError({ message }: { message: string | null }) {
 
 export function CaseHeaderActions({ caseItem }: { caseItem: Case }) {
   const [status, setStatus] = useState<CaseStatus>(caseItem.status);
+  const [staged, setStaged] = useState<CaseStatus | null>(null);
+  const [statusReason, setStatusReason] = useState("");
   const [isStatusPending, startStatusTransition] = useTransition();
   const [statusError, setStatusError] = useState<string | null>(null);
   const [isTicketPending, startTicketTransition] = useTransition();
@@ -85,13 +86,27 @@ export function CaseHeaderActions({ caseItem }: { caseItem: Case }) {
 
   const closed = caseItem.status === "closed";
 
-  function handleStatusChange(next: CaseStatus) {
+  // Staged, not committed on change. A native <select> fires change on an
+  // arrow key or a scroll wheel passing over it, so committing there meant a
+  // stray gesture could move a contained case back to investigating and write
+  // that to the audit log with an empty reason. The transition now needs a
+  // second, deliberate act.
+  function applyStatus() {
+    if (staged === null || staged === status) return;
+    const next = staged;
     const previous = status;
     setStatus(next);
     setStatusError(null);
     startStatusTransition(async () => {
       try {
-        await transitionCaseAction(caseItem.id, next, "");
+        const result = await transitionCaseAction(caseItem.id, next, statusReason.trim());
+        if (result.error) {
+          setStatus(previous);
+          setStatusError(result.error);
+          return;
+        }
+        setStaged(null);
+        setStatusReason("");
       } catch {
         setStatus(previous);
         setStatusError("Could not update status.");
@@ -103,7 +118,8 @@ export function CaseHeaderActions({ caseItem }: { caseItem: Case }) {
     setTicketError(null);
     startTicketTransition(async () => {
       try {
-        await openTicketAction(caseItem.id);
+        const result = await openTicketAction(caseItem.id);
+        if (result.error) setTicketError(result.error);
       } catch {
         setTicketError("Could not create ticket.");
       }
@@ -116,32 +132,67 @@ export function CaseHeaderActions({ caseItem }: { caseItem: Case }) {
         {closed ? (
           <StatusBadge status="closed" />
         ) : (
-          <select
-            value={status}
-            onChange={(e) => handleStatusChange(e.target.value as CaseStatus)}
-            disabled={isStatusPending}
-            aria-label="Case status"
-            className="h-8 rounded-[4px] border border-border-strong bg-surface-raised px-2.5 text-[12.5px] font-medium text-text-primary capitalize transition-colors focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent disabled:opacity-60"
-          >
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            <select
+              value={staged ?? status}
+              onChange={(e) => setStaged(e.target.value as CaseStatus)}
+              disabled={isStatusPending}
+              aria-label="Case status"
+              className="h-8 rounded-sm border border-border-strong bg-surface-raised px-2.5 text-xs font-medium text-text-primary capitalize transition-colors focus:border-accent focus:ring-1 focus:ring-accent focus:outline-none disabled:opacity-60"
+            >
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+
+            {staged !== null && staged !== status && (
+              <>
+                <input
+                  value={statusReason}
+                  onChange={(e) => setStatusReason(e.target.value)}
+                  placeholder="Reason (optional)"
+                  aria-label="Reason for status change"
+                  disabled={isStatusPending}
+                  className="h-8 w-40 rounded-sm border border-border-strong bg-surface px-2.5 text-xs text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={applyStatus}
+                  disabled={isStatusPending}
+                  className="inline-flex h-8 items-center rounded-sm bg-accent px-2.5 text-xs font-semibold text-bg hover:opacity-90 disabled:opacity-40"
+                >
+                  {isStatusPending ? <ActionSpinner className="h-3 w-3" /> : `Set ${staged}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStaged(null);
+                    setStatusReason("");
+                  }}
+                  disabled={isStatusPending}
+                  className="inline-flex h-8 items-center rounded-sm border border-border-strong px-2 text-xs text-text-tertiary hover:text-text-primary disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
         )}
 
         {caseItem.ticket_ref ? (
-          <span className="inline-flex h-8 items-center gap-1.5 rounded-[4px] border border-border-strong bg-surface-raised px-2.5 font-mono text-[12px] text-text-secondary">
+          <span className="inline-flex h-8 items-center gap-1.5 rounded-sm border border-dashed border-border-strong bg-surface-raised px-2.5 font-mono text-xs text-text-secondary">
             {caseItem.ticket_ref}
             <span className="text-text-tertiary capitalize">({caseItem.ticket_status})</span>
+            <MockMarker title="Local mock ticket (adr/0010) — never reaches an external tracker" />
           </span>
         ) : (
           <button
             type="button"
             onClick={handleCreateTicket}
             disabled={isTicketPending}
-            className="inline-flex h-8 items-center rounded-[4px] border border-border-strong bg-surface-raised px-3 text-[12.5px] font-medium text-text-primary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
+            className="inline-flex h-8 items-center rounded-sm border border-border-strong bg-surface-raised px-3 text-xs font-medium text-text-primary transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isTicketPending ? "Creating…" : "Create ticket"}
           </button>
@@ -150,7 +201,7 @@ export function CaseHeaderActions({ caseItem }: { caseItem: Case }) {
         <button
           type="button"
           onClick={() => setExportOpen(true)}
-          className="inline-flex h-8 items-center rounded-[4px] border border-border-strong bg-surface-raised px-3 text-[12.5px] font-medium text-text-primary transition-colors hover:bg-surface-hover"
+          className="inline-flex h-8 items-center rounded-sm border border-border-strong bg-surface-raised px-3 text-xs font-medium text-text-primary transition-colors hover:bg-surface-hover"
         >
           Export
         </button>
@@ -159,7 +210,7 @@ export function CaseHeaderActions({ caseItem }: { caseItem: Case }) {
           <button
             type="button"
             onClick={() => setCloseOpen(true)}
-            className="inline-flex h-8 items-center rounded-[4px] border border-danger/40 bg-surface-raised px-3 text-[12.5px] font-medium text-danger transition-colors hover:bg-danger hover:text-bg"
+            className="inline-flex h-8 items-center rounded-sm border border-danger/40 bg-surface-raised px-3 text-xs font-medium text-danger transition-colors hover:bg-danger hover:text-bg"
           >
             Close case
           </button>
@@ -183,8 +234,9 @@ function CloseCaseModal({ caseItem, onClose }: { caseItem: Case; onClose: () => 
     setError(null);
     startTransition(async () => {
       try {
-        await closeCaseAction(caseItem.id, reason.trim());
-        onClose();
+        const result = await closeCaseAction(caseItem.id, reason.trim());
+        if (result.error) setError(result.error);
+        else onClose();
       } catch {
         setError("Could not close case. Try again.");
       }
@@ -192,19 +244,20 @@ function CloseCaseModal({ caseItem, onClose }: { caseItem: Case; onClose: () => 
   }
 
   return (
-    <Modal title="Close case" onClose={onClose}>
-      <p className="mb-3 text-[12px] leading-relaxed text-text-secondary">
+    <Modal title="Close case" onClose={onClose} dismissible={!isPending}>
+      <p className="mb-3 text-xs leading-relaxed text-text-secondary">
         This is a terminal state and cannot be undone. Enter a reason to continue.
       </p>
       <input
         autoFocus
+        data-autofocus
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && submit()}
         placeholder="Closure reason (required)"
         aria-label="Closure reason"
         disabled={isPending}
-        className="h-8 w-full rounded-[4px] border border-border-strong bg-surface-raised px-2.5 text-[12.5px] text-text-primary placeholder:text-text-tertiary focus:border-danger focus:outline-none focus:ring-1 focus:ring-danger"
+        className="h-8 w-full rounded-sm border border-border-strong bg-surface-raised px-2.5 text-xs text-text-primary placeholder:text-text-tertiary focus:border-danger focus:outline-none focus:ring-1 focus:ring-danger"
       />
       <InlineError message={error} />
       <div className="mt-3 flex justify-end gap-2">
@@ -212,7 +265,7 @@ function CloseCaseModal({ caseItem, onClose }: { caseItem: Case; onClose: () => 
           type="button"
           onClick={onClose}
           disabled={isPending}
-          className="h-8 rounded-[4px] px-3 text-[12.5px] text-text-tertiary hover:text-text-primary"
+          className="h-8 rounded-sm px-3 text-xs text-text-tertiary hover:text-text-primary"
         >
           Cancel
         </button>
@@ -220,7 +273,7 @@ function CloseCaseModal({ caseItem, onClose }: { caseItem: Case; onClose: () => 
           type="button"
           onClick={submit}
           disabled={!reason.trim() || isPending}
-          className="inline-flex h-8 items-center gap-1.5 rounded-[4px] bg-danger px-3 text-[12.5px] font-medium text-bg transition-all hover:bg-danger/90 disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex h-8 items-center gap-1.5 rounded-sm bg-danger px-3 text-xs font-medium text-bg transition-all hover:bg-danger/90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {isPending ? <ActionSpinner className="h-3 w-3" /> : "Confirm close"}
         </button>
@@ -243,7 +296,11 @@ function ExportModal({ caseItem, onClose }: { caseItem: Case; onClose: () => voi
     setError(null);
     startTransition(async () => {
       try {
-        const accepted = await exportCaseAction(caseItem.id, profile, purpose);
+        const { result: accepted, error: problem } = await exportCaseAction(caseItem.id, profile, purpose);
+        if (problem || !accepted) {
+          setError(problem ?? "Could not export manifest. Try again.");
+          return;
+        }
         setResult({ exportId: accepted.export_id, sha256: accepted.manifest_sha256, manifest: accepted.manifest });
       } catch {
         setError("Could not export manifest. Try again.");
@@ -252,7 +309,7 @@ function ExportModal({ caseItem, onClose }: { caseItem: Case; onClose: () => voi
   }
 
   return (
-    <Modal title="Export case manifest" onClose={onClose}>
+    <Modal title="Export case manifest" onClose={onClose} dismissible={!isPending}>
       {!result ? (
         <div className="flex flex-col gap-2">
           <select
@@ -260,7 +317,7 @@ function ExportModal({ caseItem, onClose }: { caseItem: Case; onClose: () => voi
             onChange={(e) => setProfile(e.target.value as RedactionProfile)}
             aria-label="Redaction profile"
             disabled={isPending}
-            className="h-8 rounded-[4px] border border-border-strong bg-surface-raised px-2 text-[12.5px] text-text-primary capitalize focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+            className="h-8 rounded-sm border border-border-strong bg-surface-raised px-2 text-xs text-text-primary capitalize focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
           >
             {REDACTION_PROFILES.map((p) => (
               <option key={p} value={p}>
@@ -275,14 +332,14 @@ function ExportModal({ caseItem, onClose }: { caseItem: Case; onClose: () => voi
             placeholder="Export purpose (optional)"
             aria-label="Export purpose"
             disabled={isPending}
-            className="h-8 rounded-[4px] border border-border-strong bg-surface-raised px-2.5 text-[12px] text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+            className="h-8 rounded-sm border border-border-strong bg-surface-raised px-2.5 text-xs text-text-primary placeholder:text-text-tertiary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
           />
           <InlineError message={error} />
           <div className="mt-1 flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="h-8 rounded-[4px] px-3 text-[12.5px] text-text-tertiary hover:text-text-primary"
+              className="h-8 rounded-sm px-3 text-xs text-text-tertiary hover:text-text-primary"
             >
               Cancel
             </button>
@@ -290,20 +347,20 @@ function ExportModal({ caseItem, onClose }: { caseItem: Case; onClose: () => voi
               type="button"
               onClick={submit}
               disabled={isPending}
-              className="inline-flex h-8 items-center gap-1.5 rounded-[4px] bg-accent px-3 text-[12.5px] font-medium text-bg transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex h-8 items-center gap-1.5 rounded-sm bg-accent px-3 text-xs font-medium text-bg transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isPending ? <ActionSpinner className="h-3 w-3" /> : "Generate manifest"}
             </button>
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-2 text-[12px]">
+        <div className="flex flex-col gap-2 text-xs">
           <div className="flex items-center justify-between">
-            <span className="font-mono text-[11.5px] text-text-secondary">{result.exportId}</span>
-            <span className="rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent">Ready</span>
+            <span className="font-mono text-2xs text-text-secondary">{result.exportId}</span>
+            <span className="rounded bg-accent/15 px-1.5 py-0.5 text-2xs font-medium text-accent">Ready</span>
           </div>
           {result.sha256 && (
-            <p className="truncate font-mono text-[10.5px] text-text-tertiary" title={result.sha256}>
+            <p className="truncate font-mono text-2xs text-text-tertiary" title={result.sha256}>
               sha256:{result.sha256}
             </p>
           )}
@@ -312,12 +369,12 @@ function ExportModal({ caseItem, onClose }: { caseItem: Case; onClose: () => voi
               <button
                 type="button"
                 onClick={() => setShowManifest((v) => !v)}
-                className="w-fit text-[11px] font-medium text-accent hover:underline"
+                className="w-fit text-2xs font-medium text-accent hover:underline"
               >
                 {showManifest ? "▲ Hide manifest" : "▼ View manifest JSON"}
               </button>
               {showManifest && (
-                <pre className="max-h-52 overflow-auto rounded border border-border-strong/40 bg-surface-raised p-2 font-mono text-[10px] text-text-secondary">
+                <pre className="max-h-52 overflow-auto rounded border border-border-strong/40 bg-surface-raised p-2 font-mono text-2xs text-text-secondary">
                   {JSON.stringify(result.manifest, null, 2)}
                 </pre>
               )}
@@ -326,7 +383,7 @@ function ExportModal({ caseItem, onClose }: { caseItem: Case; onClose: () => voi
           <button
             type="button"
             onClick={onClose}
-            className="mt-2 h-8 self-end rounded-[4px] border border-border-strong px-3 text-[12.5px] text-text-primary hover:bg-surface-hover"
+            className="mt-2 h-8 self-end rounded-sm border border-border-strong px-3 text-xs text-text-primary hover:bg-surface-hover"
           >
             Done
           </button>
@@ -343,8 +400,7 @@ function ExportModal({ caseItem, onClose }: { caseItem: Case; onClose: () => voi
 
 export function ActionControl({ caseItem }: { caseItem: Case }) {
   const [isPending, startTransition] = useTransition();
-  const [reason, setReason] = useState("");
-  const [isRejecting, setIsRejecting] = useState(false);
+  const [confirmingRelease, setConfirmingRelease] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const action = caseItem.pending_action;
@@ -353,35 +409,10 @@ export function ActionControl({ caseItem }: { caseItem: Case }) {
     setError(null);
     startTransition(async () => {
       try {
-        await requestBlockAction(caseItem.id, targetValue);
+        const result = await requestBlockAction(caseItem.id, targetValue);
+        if (result.error) setError(result.error);
       } catch {
         setError("Could not request block. Try again.");
-      }
-    });
-  }
-
-  function submitApprove() {
-    if (!action?.approval_id || isPending) return;
-    setError(null);
-    startTransition(async () => {
-      try {
-        await approveActionAction(action.approval_id!, action.id, caseItem.id);
-      } catch {
-        setError("Could not approve action. Try again.");
-      }
-    });
-  }
-
-  function submitReject() {
-    if (!action?.approval_id || !reason.trim() || isPending) return;
-    setError(null);
-    startTransition(async () => {
-      try {
-        await rejectActionAction(action.approval_id!, reason.trim(), caseItem.id);
-        setReason("");
-        setIsRejecting(false);
-      } catch {
-        setError("Could not reject action. Try again.");
       }
     });
   }
@@ -391,7 +422,9 @@ export function ActionControl({ caseItem }: { caseItem: Case }) {
     setError(null);
     startTransition(async () => {
       try {
-        await releaseActionAction(action.id, caseItem.id);
+        const result = await releaseActionAction(action.id, caseItem.id);
+        if (result.error) setError(result.error);
+        else setConfirmingRelease(false);
       } catch {
         setError("Could not release block. Try again.");
       }
@@ -405,6 +438,13 @@ export function ActionControl({ caseItem }: { caseItem: Case }) {
     return (
       <div className="rounded-lg border border-border bg-surface p-4 shadow-xs">
         <SectionLabel>Network Containment</SectionLabel>
+        {/* No confirmation here on purpose: this only opens an approval
+            request, it does not touch the firewall. The gate that matters
+            lives on the approval itself. Saying so keeps the ceremony
+            where the consequence actually is. */}
+        <p className="pb-2 text-2xs text-text-tertiary">
+          Opens an approval request — nothing reaches the firewall until it is approved.
+        </p>
         <div className="flex flex-col gap-1.5">
           {targets.map((o) => (
             <button
@@ -412,10 +452,10 @@ export function ActionControl({ caseItem }: { caseItem: Case }) {
               type="button"
               onClick={() => submitRequest(o.value)}
               disabled={isPending}
-              className="inline-flex h-8 items-center justify-between rounded-[4px] border border-border-strong bg-surface-raised px-2.5 text-[12px] font-medium text-text-primary transition-colors hover:border-warn hover:text-warn focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warn disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex h-8 items-center justify-between rounded-sm border border-border-strong bg-surface-raised px-2.5 text-xs font-medium text-text-primary transition-colors hover:border-warn hover:text-warn disabled:cursor-not-allowed disabled:opacity-40"
             >
               <code className="font-mono">{o.value}</code>
-              <span className="text-[11px] font-normal">{isPending ? "Requesting…" : "Request Block →"}</span>
+              <span className="text-2xs font-normal">{isPending ? "Requesting…" : "Request block"}</span>
             </button>
           ))}
         </div>
@@ -428,7 +468,7 @@ export function ActionControl({ caseItem }: { caseItem: Case }) {
     <div className="flex flex-col gap-2.5 rounded-lg border border-border bg-surface p-4 shadow-xs">
       <SectionLabel
         badge={
-          <span className="rounded-full bg-surface-raised px-2 py-0.5 text-[10.5px] font-medium text-text-secondary">
+          <span className="rounded-full bg-surface-raised px-2 py-0.5 text-2xs font-medium text-text-secondary">
             {ACTION_STATUS_LABEL[action.status] ?? action.status}
           </span>
         }
@@ -436,82 +476,81 @@ export function ActionControl({ caseItem }: { caseItem: Case }) {
         Network Block
       </SectionLabel>
 
-      <div className="rounded bg-surface-raised p-2 border border-border-strong/40 text-[12px]">
-        <code className="font-mono font-medium text-text-primary">{action.target.value}</code>
-        {action.reason && <p className="mt-1 text-[11px] text-text-tertiary">{action.reason}</p>}
+      <div className="rounded border border-border-strong/40 bg-surface-raised p-2 text-xs">
+        <div className="flex items-center justify-between gap-2">
+          <code className="truncate font-mono font-medium text-text-primary">{action.target.value}</code>
+          <ModeBadge mode={action.mode} />
+        </div>
+        {action.reason && <p className="mt-1 text-2xs text-text-tertiary">{action.reason}</p>}
       </div>
 
-      {action.status === "pending_approval" && (
-        <div className="flex flex-col gap-2 border-t border-border/60 pt-2">
-          {!isRejecting ? (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={submitApprove}
-                disabled={isPending}
-                className="inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-[4px] bg-accent text-[12.5px] font-medium text-bg transition-all hover:opacity-90 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {isPending ? <ActionSpinner /> : "Approve"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsRejecting(true)}
-                disabled={isPending}
-                className="inline-flex h-8 flex-1 items-center justify-center rounded-[4px] border border-danger text-[12.5px] font-medium text-danger transition-colors hover:bg-danger/10 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Reject…
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1.5 animate-in fade-in duration-150">
-              <input
-                autoFocus
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") submitReject();
-                  if (e.key === "Escape") setIsRejecting(false);
-                }}
-                placeholder="Rejection reason (required)"
-                aria-label="Rejection reason"
-                disabled={isPending}
-                className="h-8 rounded-[4px] border border-border-strong bg-surface px-2.5 text-[12px] text-text-primary placeholder:text-text-tertiary focus:border-danger focus:outline-none focus:ring-1 focus:ring-danger"
-              />
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={submitReject}
-                  disabled={!reason.trim() || isPending}
-                  className="inline-flex h-7 flex-1 items-center justify-center rounded-[4px] bg-danger text-[12px] font-medium text-bg hover:bg-danger/90 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {isPending ? <ActionSpinner className="h-3 w-3" /> : "Confirm Reject"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsRejecting(false)}
-                  disabled={isPending}
-                  className="inline-flex h-7 px-2.5 items-center justify-center rounded-[4px] border border-border-strong bg-surface text-[12px] text-text-tertiary hover:text-text-primary"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
+      {/* The same control the Approvals queue uses, rather than a second
+          approve/reject built to different proportions — one decision,
+          one interface, wherever it is reached from. */}
+      {action.status === "pending_approval" && action.approval_id && (
+        <div className="border-t border-border/60 pt-2.5">
+          <ApprovalRowActions
+            approvalId={action.approval_id}
+            action={action}
+            expiresAt={action.expires_at}
+            size="md"
+          />
         </div>
       )}
 
       {action.status === "executed" && (
         <button
           type="button"
-          onClick={submitRelease}
+          onClick={() => setConfirmingRelease(true)}
           disabled={isPending}
-          className="inline-flex h-8 items-center justify-center gap-1.5 rounded-[4px] border border-warn text-[12.5px] font-medium text-warn transition-all hover:bg-warn/10 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-warn disabled:cursor-not-allowed disabled:opacity-40"
+          aria-haspopup="dialog"
+          className="inline-flex h-8 items-center justify-center gap-1.5 rounded-sm border border-warn text-xs font-medium text-warn transition-all hover:bg-warn/10 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {isPending ? <ActionSpinner /> : "Release Block Now"}
+          {isPending ? <ActionSpinner /> : "Release block now"}
         </button>
       )}
 
-      <InlineError message={error} />
+      {confirmingRelease && (
+        <Modal title="Release this block?" onClose={() => setConfirmingRelease(false)} tone="danger" dismissible={!isPending}>
+          <div className="flex flex-col gap-3">
+            <p className="text-xs leading-relaxed text-text-secondary">
+              Removes the block on{" "}
+              <code className="rounded bg-surface-raised px-1 py-0.5 font-mono text-2xs text-text-primary">
+                {action.target.value}
+              </code>{" "}
+              from the live firewall immediately. Traffic from this address is no longer contained.
+            </p>
+            <p className="text-2xs text-text-tertiary">
+              This block would otherwise release on its own when its TTL elapses.
+            </p>
+            {error && (
+              <p role="alert" className="rounded-md border border-danger/40 bg-danger/[0.08] px-2.5 py-2 text-xs font-medium text-danger">
+                {error}
+              </p>
+            )}
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmingRelease(false)}
+                disabled={isPending}
+                className="inline-flex h-9 items-center rounded-sm border border-border-strong bg-surface-raised px-3.5 text-xs font-medium text-text-secondary hover:text-text-primary disabled:opacity-40"
+              >
+                Keep blocked
+              </button>
+              <button
+                type="button"
+                onClick={submitRelease}
+                disabled={isPending}
+                className="inline-flex h-9 min-w-[110px] items-center justify-center rounded-sm bg-warn px-3.5 text-xs font-semibold text-bg hover:opacity-90 disabled:opacity-40"
+              >
+                {isPending ? <ActionSpinner /> : "Release now"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {!confirmingRelease && <InlineError message={error} />}
     </div>
   );
 }

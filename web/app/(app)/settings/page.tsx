@@ -4,6 +4,7 @@ import { ProblemBanner } from "@/components/ProblemBanner";
 import { EmptyState } from "@/components/EmptyState";
 import { TenantForm, AllowlistForm, CriticalTargetForm } from "./forms";
 import { DeleteButton } from "./delete-button";
+import { truncateCaseId } from "@/app/(app)/approvals/format";
 import { deleteTenantAction, deleteAllowlistEntryAction, deleteCriticalTargetAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -35,17 +36,17 @@ export default async function SettingsPage() {
   ]);
 
   return (
-    <div className="flex flex-col gap-[28px]">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+    <div className="flex flex-col gap-7">
+      <header className="flex flex-col gap-1 border-b border-border pb-4">
+        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="text-xs text-text-tertiary">
-          Tenants (adr/0022), the SSH brute-force allowlist (adr/0018), and critical targets (adr/0019) &mdash; no
-          auth/RBAC gate yet
+          Tenants (adr/0022), the SSH brute-force allowlist (adr/0018), and critical targets (adr/0019). Every change
+          here is gated by your Keycloak role and recorded in the audit log (adr/0024).
         </p>
       </header>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-[13px] font-semibold tracking-wide text-text-secondary uppercase">Tenants</h2>
+        <h2 className="text-sm font-semibold tracking-wide text-text-secondary uppercase">Tenants</h2>
         <TenantForm />
         {tenants.problem && <ProblemBanner problem={tenants.problem} fallbackTitle="Could not load tenants" />}
         {tenants.items && tenants.items.length === 0 && (
@@ -53,25 +54,33 @@ export default async function SettingsPage() {
         )}
         {tenants.items && tenants.items.length > 0 && (
           <div className="overflow-x-auto rounded-md border border-border">
-            <table className="w-full min-w-[480px] border-collapse text-[12.5px]">
+            <table className="w-full min-w-[480px] border-collapse text-xs">
               <thead>
-                <tr className="border-b border-border bg-surface text-left text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">
-                  <th className="px-3 py-2.5 font-semibold">ID</th>
-                  <th className="px-3 py-2.5 font-semibold">Name</th>
-                  <th className="px-3 py-2.5 font-semibold">Created</th>
-                  <th className="px-3 py-2.5 font-semibold" />
+                <tr className="border-b border-border bg-surface text-left text-2xs font-semibold tracking-wider text-text-tertiary uppercase">
+                  <th scope="col" className="px-3 py-2.5 font-semibold">ID</th>
+                  <th scope="col" className="px-3 py-2.5 font-semibold">Name</th>
+                  <th scope="col" className="px-3 py-2.5 font-semibold">Created</th>
+                  <th scope="col" className="px-3 py-2.5 font-semibold" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {tenants.items.map((t) => (
                   <tr key={t.id} className="bg-surface hover:bg-surface-hover">
+                    {/* Tail, not head: ids are "tenant-" + ULID, so the first
+                        18 characters are a prefix two tenants created in the
+                        same period both share. */}
                     <td className="px-3 py-2.5 font-mono text-text-tertiary" title={t.id}>
-                      {t.id.slice(0, 18)}…
+                      {truncateCaseId(t.id)}
                     </td>
                     <td className="px-3 py-2.5 text-text-primary">{t.name}</td>
                     <td className="px-3 py-2.5 font-mono text-text-tertiary whitespace-nowrap">{fmtDate(t.created_at)}</td>
                     <td className="px-3 py-2.5 text-right">
-                      <DeleteButton label={t.name} onDelete={deleteTenantAction.bind(null, t.id)} />
+                      <DeleteButton
+                        label={t.name}
+                        onDelete={deleteTenantAction.bind(null, t.id)}
+                        consequence={`Deleting this tenant invalidates its API key. Any ingester still sending events with it will start failing, and the cases, evidence and audit records keyed to it are no longer reachable through this console.`}
+                        confirmText={t.name}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -82,7 +91,7 @@ export default async function SettingsPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-[13px] font-semibold tracking-wide text-text-secondary uppercase">
+        <h2 className="text-sm font-semibold tracking-wide text-text-secondary uppercase">
           Allowlist &middot; trusted sources
         </h2>
         <AllowlistForm />
@@ -92,15 +101,15 @@ export default async function SettingsPage() {
         )}
         {allowlist.items && allowlist.items.length > 0 && (
           <div className="overflow-x-auto rounded-md border border-border">
-            <table className="w-full min-w-[600px] border-collapse text-[12.5px]">
+            <table className="w-full min-w-[600px] border-collapse text-xs">
               <thead>
-                <tr className="border-b border-border bg-surface text-left text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">
-                  <th className="px-3 py-2.5 font-semibold">Value</th>
-                  <th className="px-3 py-2.5 font-semibold">Reason</th>
-                  <th className="px-3 py-2.5 font-semibold">Added by</th>
-                  <th className="px-3 py-2.5 font-semibold">Created</th>
-                  <th className="px-3 py-2.5 font-semibold">Expires</th>
-                  <th className="px-3 py-2.5 font-semibold" />
+                <tr className="border-b border-border bg-surface text-left text-2xs font-semibold tracking-wider text-text-tertiary uppercase">
+                  <th scope="col" className="px-3 py-2.5 font-semibold">Value</th>
+                  <th scope="col" className="px-3 py-2.5 font-semibold">Reason</th>
+                  <th scope="col" className="px-3 py-2.5 font-semibold">Added by</th>
+                  <th scope="col" className="px-3 py-2.5 font-semibold">Created</th>
+                  <th scope="col" className="px-3 py-2.5 font-semibold">Expires</th>
+                  <th scope="col" className="px-3 py-2.5 font-semibold" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -125,7 +134,7 @@ export default async function SettingsPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-[13px] font-semibold tracking-wide text-text-secondary uppercase">Critical targets</h2>
+        <h2 className="text-sm font-semibold tracking-wide text-text-secondary uppercase">Critical targets</h2>
         <CriticalTargetForm />
         {criticalTargets.problem && (
           <ProblemBanner problem={criticalTargets.problem} fallbackTitle="Could not load critical targets" />
@@ -135,14 +144,14 @@ export default async function SettingsPage() {
         )}
         {criticalTargets.items && criticalTargets.items.length > 0 && (
           <div className="overflow-x-auto rounded-md border border-border">
-            <table className="w-full min-w-[520px] border-collapse text-[12.5px]">
+            <table className="w-full min-w-[520px] border-collapse text-xs">
               <thead>
-                <tr className="border-b border-border bg-surface text-left text-[10.5px] font-semibold tracking-wider text-text-tertiary uppercase">
-                  <th className="px-3 py-2.5 font-semibold">Value</th>
-                  <th className="px-3 py-2.5 font-semibold">Reason</th>
-                  <th className="px-3 py-2.5 font-semibold">Added by</th>
-                  <th className="px-3 py-2.5 font-semibold">Created</th>
-                  <th className="px-3 py-2.5 font-semibold" />
+                <tr className="border-b border-border bg-surface text-left text-2xs font-semibold tracking-wider text-text-tertiary uppercase">
+                  <th scope="col" className="px-3 py-2.5 font-semibold">Value</th>
+                  <th scope="col" className="px-3 py-2.5 font-semibold">Reason</th>
+                  <th scope="col" className="px-3 py-2.5 font-semibold">Added by</th>
+                  <th scope="col" className="px-3 py-2.5 font-semibold">Created</th>
+                  <th scope="col" className="px-3 py-2.5 font-semibold" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
