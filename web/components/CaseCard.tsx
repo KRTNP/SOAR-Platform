@@ -4,6 +4,7 @@ import { StatusBadge } from "./badges";
 import { RelativeTime } from "./RelativeTime";
 import { NewMarker } from "./NewSinceLastVisit";
 import { ChevronRight } from "lucide-react";
+import { truncateCaseId } from "@/app/(app)/approvals/format";
 
 function ConfidenceMeter({ confidence }: { confidence: number }) {
   const pct = Math.round(confidence * 100);
@@ -62,7 +63,13 @@ export function CaseCard({ item }: { item: Case }) {
         </div>
         <ConfidenceMeter confidence={item.confidence} />
         <span className="truncate text-right font-mono text-2xs text-text-tertiary">
-          <RelativeTime iso={item.opened_at} /> <span className="text-text-tertiary/50">&middot;</span> {item.id}
+          {/* truncateCaseId, not CSS `truncate`: a ULID's leading characters
+              are a shared timestamp prefix, so clipping from the right — which
+              is what the CSS was doing here — leaves a column of near-identical
+              strings for anything opened in the same period. The approvals
+              table already keeps the tail; this now matches it. */}
+          <RelativeTime iso={item.opened_at} /> <span className="text-text-tertiary/50">&middot;</span>{" "}
+          <span title={item.id}>{truncateCaseId(item.id)}</span>
         </span>
         <ChevronRight className="h-3.5 w-3.5 text-text-tertiary" aria-hidden="true" />
       </div>

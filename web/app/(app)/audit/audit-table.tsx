@@ -147,7 +147,7 @@ export function AuditTable({ records }: { records: AuditRecord[] }) {
             Scroll sideways for decision, actor, case, connector, and reason
           </p>
           <div className="overflow-x-auto rounded-md border border-border">
-            <table className="w-full min-w-[880px] border-collapse text-xs">
+            <table className="w-full min-w-[720px] border-collapse text-xs">
               <thead>
                 <tr className="border-b border-border bg-surface text-left text-2xs font-semibold tracking-wider text-text-tertiary uppercase">
                   <th scope="col" className="px-2.5 py-2.5 font-semibold">Timestamp</th>
@@ -184,15 +184,20 @@ export function AuditTable({ records }: { records: AuditRecord[] }) {
                         was fetched and typed but rendered nowhere. It sits
                         with the decision it explains rather than taking an
                         eighth column. */}
-                    <td className="px-2.5 py-2.5 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
+                    {/* Wraps rather than nowrap: at 1440px the six nowrap
+                        columns together pushed the Reason column off the
+                        right edge, and the reason is the point of an audit
+                        row. Decision and policy are two facts, so they are
+                        allowed to sit on two lines when space is tight. */}
+                    <td className="px-2.5 py-2.5">
+                      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                         <DecisionBadge decision={r.decision} />
                         <span className="font-mono text-2xs text-text-tertiary" title="Policy version in force">
                           {r.policy_version}
                         </span>
                       </div>
                     </td>
-                    <td className="px-2.5 py-2.5 whitespace-nowrap text-text-secondary">
+                    <td className="px-2.5 py-2.5 text-text-secondary">
                       {r.actor} <span className="text-text-tertiary">({r.actor_type})</span>
                     </td>
                     <td className="px-2.5 py-2.5 whitespace-nowrap">
