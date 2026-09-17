@@ -1,4 +1,5 @@
 import type { ActionMode, ApprovalStatus, CaseObservableVerdict, CaseStatus, IntegrityStatus, Severity } from "@/lib/api-client/types";
+import { Check, Lock, ShieldAlert } from "lucide-react";
 
 // Tailwind's JIT scanner needs literal class strings, not interpolated ones,
 // so severity/status -> class is a lookup table rather than a template.
@@ -130,9 +131,7 @@ export function ApprovalStatusBadge({ status }: { status: ApprovalStatus }) {
   if (status === "approved") {
     return (
       <span className="inline-flex items-center gap-1 text-2xs text-text-tertiary capitalize">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 text-safe">
-          <polyline points="5 12.5 9.5 17 19 6.5" />
-        </svg>
+        <Check className="h-3 w-3 text-safe" aria-hidden="true" />
         {status}
       </span>
     );
@@ -163,11 +162,7 @@ export function ModeBadge({ mode, size = "sm" }: { mode: ActionMode; size?: "sm"
       <span
         className={`inline-flex items-center gap-1.5 rounded-sm border border-danger bg-danger/15 font-semibold tracking-wide whitespace-nowrap text-danger uppercase ${dims}`}
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
-          <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" />
-          <path d="M12 8.5v4" />
-          <path d="M12 16v.01" />
-        </svg>
+        <ShieldAlert className="h-3 w-3" aria-hidden="true" />
         execute
       </span>
     );
@@ -176,10 +171,7 @@ export function ModeBadge({ mode, size = "sm" }: { mode: ActionMode; size?: "sm"
     <span
       className={`inline-flex items-center gap-1.5 rounded-sm border border-border-strong font-medium whitespace-nowrap text-text-secondary ${dims}`}
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3" aria-hidden="true">
-        <rect x="5" y="10" width="14" height="9" rx="1.5" />
-        <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-      </svg>
+      <Lock className="h-3 w-3" aria-hidden="true" />
       dry run
     </span>
   );
@@ -203,9 +195,7 @@ export function VerifiedBadge({ verified }: { verified: boolean }) {
   }
   return (
     <span className="inline-flex items-center gap-1 text-2xs text-text-tertiary" title="Hash recomputed and matched on read">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3 text-safe">
-        <polyline points="5 12.5 9.5 17 19 6.5" />
-      </svg>
+      <Check className="h-3 w-3 text-safe" aria-hidden="true" />
       verified
     </span>
   );

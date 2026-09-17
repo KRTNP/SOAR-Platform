@@ -4,6 +4,7 @@ import { SeverityBadge, VerdictBadge, IntegrityBadge } from "@/components/badges
 import { Timeline } from "@/components/Timeline";
 import { ProblemBanner } from "@/components/ProblemBanner";
 import { CaseHeaderActions, ActionControl } from "./status-control";
+import { ChevronLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -39,18 +40,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ cas
                     aria-label="Back to case queue"
                     className="group -ml-1 inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-text-tertiary transition-colors hover:bg-surface-raised hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5"
-                        aria-hidden="true"
-                    >
-                        <polyline points="15 18 9 12 15 6" />
-                    </svg>
+                    <ChevronLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" aria-hidden="true" />
                     Case Queue
                 </Link>
 

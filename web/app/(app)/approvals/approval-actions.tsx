@@ -9,6 +9,7 @@ import {
 } from "@/app/(app)/cases/[caseId]/actions";
 import { ApproveDialog } from "@/components/ApproveDialog";
 import type { PendingAction } from "@/lib/api-client/types";
+import { Check } from "lucide-react";
 
 interface ApprovalRowActionsProps {
   approvalId: string;
@@ -155,18 +156,7 @@ export function ApprovalRowActions({ approvalId, action, expiresAt, size = "sm" 
 
       {rejected ? (
         <span className="inline-flex items-center gap-1.5 text-xs font-medium text-text-secondary" role="status">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-3.5 w-3.5 text-safe"
-            aria-hidden="true"
-          >
-            <polyline points="5 12.5 9.5 17 19 6.5" />
-          </svg>
+          <Check className="h-3.5 w-3.5 text-safe" aria-hidden="true" />
           Rejection recorded
         </span>
       ) : rejecting ? (

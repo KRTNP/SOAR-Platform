@@ -5,6 +5,7 @@ import type { Approval, PendingAction } from "@/lib/api-client/types";
 import { ApprovalStatusBadge, ModeBadge, SeverityBadge } from "@/components/badges";
 import { ApprovalRowActions } from "./approval-actions";
 import { formatExpiry, truncateCaseId } from "./format";
+import { ArrowUpRight } from "lucide-react";
 
 interface ApprovalCardProps {
   approval: Approval;
@@ -33,10 +34,7 @@ export function ApprovalCard({ approval, action, showActions }: ApprovalCardProp
             className="inline-flex items-center gap-1 rounded-sm border border-border-strong/60 bg-surface-raised px-2 py-1 font-mono text-2xs font-medium text-accent transition-all duration-150 hover:border-accent/60 hover:bg-surface-raised/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <span>{truncateCaseId(action.case_id)}</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-2.5 w-2.5 opacity-70" aria-hidden="true">
-              <path d="M8 16L16 8" />
-              <path d="M9 8h7v7" />
-            </svg>
+            <ArrowUpRight className="h-3 w-3 opacity-70" aria-hidden="true" />
           </Link>
         )}
       </div>

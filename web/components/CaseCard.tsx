@@ -3,6 +3,7 @@ import type { Case } from "@/lib/api-client/types";
 import { StatusBadge } from "./badges";
 import { RelativeTime } from "./RelativeTime";
 import { NewMarker } from "./NewSinceLastVisit";
+import { ChevronRight } from "lucide-react";
 
 function ConfidenceMeter({ confidence }: { confidence: number }) {
   const pct = Math.round(confidence * 100);
@@ -63,18 +64,7 @@ export function CaseCard({ item }: { item: Case }) {
         <span className="truncate text-right font-mono text-2xs text-text-tertiary">
           <RelativeTime iso={item.opened_at} /> <span className="text-text-tertiary/50">&middot;</span> {item.id}
         </span>
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.8}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-3.5 w-3.5 text-text-tertiary"
-          aria-hidden="true"
-        >
-          <polyline points="9 6 15 12 9 18" />
-        </svg>
+        <ChevronRight className="h-3.5 w-3.5 text-text-tertiary" aria-hidden="true" />
       </div>
     </Link>
   );

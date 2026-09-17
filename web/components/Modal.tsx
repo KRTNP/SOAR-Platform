@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
+import { X } from "lucide-react";
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -127,18 +128,7 @@ export function Modal({
             aria-label="Close dialog"
             className="shrink-0 rounded p-1 text-text-tertiary hover:bg-surface-raised hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-30"
           >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.8}
-              strokeLinecap="round"
-              className="h-3.5 w-3.5"
-              aria-hidden="true"
-            >
-              <line x1="6" y1="6" x2="18" y2="18" />
-              <line x1="18" y1="6" x2="6" y2="18" />
-            </svg>
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         </div>
         {children}

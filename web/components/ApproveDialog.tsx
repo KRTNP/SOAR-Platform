@@ -6,6 +6,7 @@ import { Modal } from "@/components/Modal";
 import { ModeBadge, SeverityBadge } from "@/components/badges";
 import { previewActionAction } from "@/app/(app)/cases/[caseId]/actions";
 import type { PendingAction } from "@/lib/api-client/types";
+import { Check } from "lucide-react";
 
 // Rendered on the client only, after mount: computing "in 12m" during a
 // server render is what makes a timestamp wrong the moment it arrives and
@@ -189,18 +190,7 @@ export function ApproveDialog({
         <div className="flex flex-col gap-3.5">
           <div className="flex flex-col gap-2 rounded-md border border-safe/40 bg-safe/[0.07] p-3">
             <div className="flex items-center gap-2">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2.2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-4 w-4 shrink-0 text-safe"
-                aria-hidden="true"
-              >
-                <polyline points="5 12.5 9.5 17 19 6.5" />
-              </svg>
+              <Check className="h-4 w-4 shrink-0 text-safe" aria-hidden="true" />
               <span className="min-w-0 truncate text-sm font-semibold text-safe">
                 {action.intent.replaceAll("_", " ")} &middot; {action.target.value}
               </span>

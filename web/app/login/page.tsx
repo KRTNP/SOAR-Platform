@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/lib/auth";
+import { Shield } from "lucide-react";
 
 // callbackUrl (set by proxy.ts's redirect to /login, see auth.ts's
 // authorized callback) is normally an absolute same-origin URL like
@@ -36,17 +37,11 @@ export default async function LoginPage({
     <div className="flex flex-1 flex-col items-center justify-center px-4 py-24">
       <div className="flex w-full max-w-[380px] flex-col gap-6 rounded-lg border border-border bg-surface p-8 shadow-xl">
         <div className="flex flex-col items-center gap-3 text-center">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-9 w-9 text-accent"
-          >
-            <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3z" />
-          </svg>
+          {/* The only strokeWidth override in the app. lucide's default of 2 is
+              drawn for a 24px box; at 36px it renders a 3px stroke that reads
+              as a heavy graphic rather than a mark. Every other icon takes the
+              default, which is what keeps the set at one visual weight. */}
+          <Shield className="h-9 w-9 text-accent" strokeWidth={1.5} aria-hidden="true" />
           <div className="flex flex-col gap-1">
             <h1 className="text-base font-semibold tracking-tight">
               SOAR <span className="font-normal text-text-tertiary">/ lab</span>
