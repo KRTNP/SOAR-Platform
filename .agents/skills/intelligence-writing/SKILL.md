@@ -36,10 +36,10 @@ Use active voice. Name the actor.
 | **Assumption** | "assuming", "if", "given that" | "Assuming the registration pattern continues, we expect additional infrastructure in Q2." |
 
 ### 4. Use Mandated Language
-- Confidence levels: per the confidence-levels skill
-- Likelihood language: per the likelihood-language skill
-- Source assessment: per the source-assessment skill
-- TLP: per the tlp-guide skill
+- Confidence levels: per the `confidence-levels` skill — note its Scale section, this project stores confidence as a 0-1 float
+- Source assessment: **not** the NATO Admiralty scale here. This project classifies sources with its own evidence classes (Normative / Practitioner / Research / Local / Inference) registered in `docs/00-context/source-catalog.md`; use those and cite the `SRC-*` ID
+- TLP: per the `tlp-guide` skill
+- Likelihood language: no skill ships for this — state likelihood in plain words and don't imply a scale that isn't defined
 
 ### 5. Be Specific
 - ❌ "Recently, a sophisticated threat actor..."

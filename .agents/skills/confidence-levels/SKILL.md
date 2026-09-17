@@ -1,6 +1,6 @@
 ---
 name: confidence-levels
-description: Use when assigning a confidence level to an analytical judgment, the user asks "how confident are we?" / "what is the confidence on X?", or the orchestrator's tradecraft pipeline calls for a confidence level before publishing. Provides the MISP 0-100 scale and qualitative-band mapping.
+description: Use when assigning a confidence level to an analytical judgment, or the user asks "how confident are we?" / "what is the confidence on X?". Provides the MISP 0-100 scale and qualitative-band mapping — but this project's schemas store confidence as a 0-1 float, so divide by 100 before emitting. See Scale in this project.
 user-invocable: true
 metadata:
   version: 1.0.0
@@ -8,7 +8,24 @@ metadata:
 
 # Confidence Levels
 
-Every analytical judgment produced by this platform MUST carry a confidence level. Confidence reflects the quality and quantity of evidence supporting the judgment, NOT the probability that the event will occur (that's likelihood — see likelihood-language skill).
+Every analytical judgment produced by this platform MUST carry a confidence level. Confidence reflects the quality and quantity of evidence supporting the judgment, NOT the probability that the event will occur (that's likelihood).
+
+## Scale in this project
+
+`schemas/observable.schema.json`, `event.schema.json`, `alert.schema.json`, and
+`case.schema.json` all define `confidence` as `{"type": "number", "minimum": 0,
+"maximum": 1}`. The bands below are the MISP 0-100 scale — use them to *reason*
+about which band a judgment falls in, then emit the schema's scale:
+
+| Band | This skill | Emit in a schema `confidence` |
+|---|---|---|
+| Very High | 90-100 | 0.90-1.0 |
+| High | 75-89 | 0.75-0.89 |
+| Moderate | 50-74 | 0.50-0.74 |
+| Low | 25-49 | 0.25-0.49 |
+| Very Low | 0-24 | 0.0-0.24 |
+
+Writing `85` into a schema `confidence` field fails validation — the maximum is 1.
 
 ## Primary Scale: Named Bands
 

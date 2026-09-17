@@ -1,6 +1,6 @@
 ---
 name: sigma-writing
-description: Use when the user asks for a SIGMA detection rule, "write a SIGMA rule for X", or `/hash-investigation` / `/malware-analysis` surfaces behaviour worth a vendor-agnostic detection. Format spec + writing guide.
+description: Use when the user asks for a SIGMA detection rule, "write a SIGMA rule for X", or an investigation surfaces behaviour worth a vendor-agnostic detection. Format spec + writing guide. Sigma is referenced by `playbooks/credential-stuffing.yaml` and `docs/03-domain-model/event-model.md`.
 user-invocable: true
 metadata:
   version: 1.0.0

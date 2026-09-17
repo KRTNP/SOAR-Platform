@@ -206,7 +206,7 @@ These are the canonical marking-definition object IDs. Reference them from `obje
 
 ### MISP-compatible bundles — reference TLPs, don't inline them
 
-For bundles that will be imported into MISP via `/lookup-misp` `upload-stix`, **only reference TLP marking-definition UUIDs** in `object_marking_refs`. Don't include a `{"type": "marking-definition", ...}` object in the bundle's `objects` array.
+For bundles that will be imported into MISP, **only reference TLP marking-definition UUIDs** in `object_marking_refs`. Don't include a `{"type": "marking-definition", ...}` object in the bundle's `objects` array.
 
 The inline shape that older STIX 2.0 examples show — `definition_type: "tlp"` with `definition: {"tlp": "clear"}` — fails MISP's STIX 2 importer with `"Does not match any TLP Marking definition!"`. MISP resolves the canonical UUIDs from its own catalog; supplying an inline copy triggers the spec-conformance check and the whole bundle is rejected.
 
@@ -242,7 +242,7 @@ If you need a self-contained bundle for non-MISP consumers (offline ingest, arch
 
 If you need TLP applied inside MISP after import, do it via a `tag-event` call rather than a STIX marking — see `tools/integrations/misp.md`.
 
-**OpenCTI is not affected** — it is STIX 2.1-native and imports bundles as-is via `/lookup-opencti` `upload-stix`, inline TLP marking-definitions included. Only MISP-bound bundles need the reference-only treatment above.
+**OpenCTI is not affected** — it is STIX 2.1-native and imports bundles as-is, inline TLP marking-definitions included. Only MISP-bound bundles need the reference-only treatment above.
 
 ## Output Location
 

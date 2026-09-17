@@ -1,6 +1,6 @@
 ---
 name: yara-writing
-description: Use when the user asks for a YARA rule, "write YARA for this sample/family", or `/hash-investigation` / `/malware-analysis` surfaces a sample worth a static-content rule. Pattern-matching rules for identifying malicious files.
+description: Use when the user asks for a YARA rule or "write YARA for this sample/family". Pattern-matching rules for identifying malicious files. No sample corpus or malware-intel lookup is available in this project, so rules cannot be corpus-validated here — see the Validation section.
 user-invocable: true
 metadata:
   version: 1.1.0
@@ -157,17 +157,16 @@ Write YARA rules to: `data/detection-rules/yara/<malware-name>.yar`
 
 ## Validation against a real corpus
 
-Before deploying a rule beyond your test set, validate it against a broader sample collection. When ReversingLabs Spectra Analyze is available:
+Before deploying a rule beyond your test set, validate it against a broader
+sample collection to confirm it is not firing on goodware and that it catches the
+whole dropper-payload chain rather than one layer.
 
-- `/lookup-reversinglabs yara-matches <ruleset_name>` — for a rule you have already deployed to RL, list the samples it has matched in the continuous-scanning corpus. Useful to confirm the rule isn't firing on goodware and to discover new variants caught by the same logic.
-- `/lookup-reversinglabs search 'threatname:<family> classification:malicious' --max-results 100` — before writing a family rule, retrieve a candidate sample set to test against. Then pull each sample's hashes for inclusion in your test suite.
-- `/lookup-reversinglabs containers <hash>` and `extracted <hash>` — find parents/children of a known sample to ensure the rule fires across the dropper-payload chain, not just on one layer.
-
-Without RL access, fall back to retro-hunting via `/lookup-virustotal` (premium) and `/lookup-otx` pulse traversal.
+**This project has no corpus and no malware-intel lookups.** The `lookup-*` skills
+that earlier versions of this file pointed at (ReversingLabs, VirusTotal, OTX)
+were removed on 2026-09-17: they shipped no working CLI and no credentials were
+configured. Say a rule is unvalidated rather than implying corpus testing that did
+not happen.
 
 ## Related skills
 
-- `/hash-investigation`, `/malware-analysis` — produce the structural and behavioural intel that informs the rule
-- `/lookup-reversinglabs` — corpus validation, family pivots, parent/child relationships
-- `/lookup-virustotal`, `/lookup-otx` — community detection signals and pulse-driven sample collection
-- `/sigma-writing` — behavioural-detection counterpart for log telemetry
+- `sigma-writing` — behavioural-detection counterpart for log telemetry
