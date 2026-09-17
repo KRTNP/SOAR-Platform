@@ -10,7 +10,10 @@ for diagram in "$root_dir"/docs/diagrams/*.mmd; do
     flowchart\ *|sequenceDiagram|stateDiagram-v2) ;;
     *) printf 'invalid Mermaid directive: %s\n' "$diagram" >&2; exit 1 ;;
   esac
-  if rg -n '(^|[[:space:]])(TODO|TBD)([[:space:]]|$)' "$diagram" >/dev/null; then
+  # grep, not rg. `rg` is not installed on a stock CI runner, and because this
+  # test sits inside an `if`, a missing binary is not caught by `set -e` — the
+  # check silently passed and the script still printed "validated N sources".
+  if grep -Eq '(^|[[:space:]])(TODO|TBD)([[:space:]]|$)' "$diagram"; then
     printf 'placeholder found in diagram: %s\n' "$diagram" >&2
     exit 1
   fi

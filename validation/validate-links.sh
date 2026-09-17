@@ -32,6 +32,14 @@ for source in sorted(root.rglob("*.md")):
             continue
         count += 1
         path = pathlib.Path(target) if target.startswith("/") else source.parent / target
+        # A link that climbs out of the repository resolves only on a machine
+        # that happens to have the sibling checkout. It passed here and broke
+        # in CI, which is the wrong order to find out — so escaping the root
+        # is an error even when the target exists locally.
+        if not path.resolve().is_relative_to(root.resolve()):
+            print(f"{relative_source}: link escapes the repository: {target}", file=sys.stderr)
+            failed = True
+            continue
         if not path.exists():
             print(f"{source.relative_to(root)}: missing link target: {target}", file=sys.stderr)
             failed = True

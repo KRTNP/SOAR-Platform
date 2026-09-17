@@ -11,5 +11,5 @@ workflow ต้อง:
 5. สร้าง timeline/correlation task
 6. ส่งผลกลับเป็น evidence reference ไม่ใช่คัดลอกข้อมูลลับลง chat
 
-สอดคล้องกับ [DFIR playbook rules](../../../dfir/playbooks/README.md) และ [DFIR AGENTS](../../../dfir/AGENTS.md)
+สอดคล้องกับกฎของ workspace `dfir/` ซึ่งอยู่นอก repository นี้ — `dfir/playbooks/README.md` และ `dfir/AGENTS.md`
 

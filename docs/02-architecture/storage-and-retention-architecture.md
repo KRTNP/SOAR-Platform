@@ -11,7 +11,7 @@ The filesystem paths below are relative to the `soar-platform/` project root.
 | Search index | observable และ execution lookup | derived, rebuildable |
 | Secret manager | credentials | no plaintext application access |
 
-ห้ามใช้ search index เป็น source of truth ของ evidence หรือ approval และห้ามให้ evidence store อยู่ใน network zone เดียวกับ untrusted file parser. ใน lab ให้ใช้ `../dfir/` boundary ตาม [DFIR workspace instructions](../../../dfir/AGENTS.md); object storage เป็น production option ไม่ใช่ lab requirement
+ห้ามใช้ search index เป็น source of truth ของ evidence หรือ approval และห้ามให้ evidence store อยู่ใน network zone เดียวกับ untrusted file parser. ใน lab ให้ใช้ `../dfir/` boundary ตาม `dfir/AGENTS.md` ของ workspace `dfir/` ซึ่งอยู่นอก repository นี้; object storage เป็น production option ไม่ใช่ lab requirement
 
 ## Retention flow
 

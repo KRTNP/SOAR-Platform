@@ -16,4 +16,4 @@ evidence แบ่งเป็น raw reference, derived artifact, analyst obser
 - tool name/version และ command reference
 - analyst, purpose และ limitations
 
-สำหรับ workspace `dfir/` ให้เก็บ original ใน `../dfir/evidence/<case>/` แบบ read-only, derived output ใน `../dfir/cases/<case>/work/` และ delivery output ใน `../dfir/exports/<case>/` ตาม [DFIR README](../../../dfir/README.md)
+สำหรับ workspace `dfir/` ให้เก็บ original ใน `../dfir/evidence/<case>/` แบบ read-only, derived output ใน `../dfir/cases/<case>/work/` และ delivery output ใน `../dfir/exports/<case>/` ตาม `dfir/README.md` ของ workspace `dfir/` ซึ่งอยู่นอก repository นี้
