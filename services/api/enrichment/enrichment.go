@@ -6,6 +6,7 @@ package enrichment
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -134,7 +135,7 @@ func (c *Connector) lookupAndRecord(ctx context.Context, observableID int64, obs
 	case err == nil:
 		confidence = verdictConfidence(verdict)
 		rawRef = fmt.Sprintf("db://ioc_indicators/%d", indicatorID)
-	case err == pgx.ErrNoRows:
+	case errors.Is(err, pgx.ErrNoRows):
 		verdict = "unknown"
 		rawRef = "mock://no-match"
 	default:

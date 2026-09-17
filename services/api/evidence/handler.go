@@ -158,9 +158,13 @@ func ToAPI(ev Evidence) genapi.Evidence {
 	return out
 }
 
-// RedactedManifestEntry is what cases.BuildManifest embeds per evidence item;
-// exported so the cases package can build the redacted view without
-// duplicating field names.
+// ToRedactedMap renders one evidence item as the entry cases.BuildManifest
+// embeds per item. It is exported so the cases package can build the redacted
+// export view without duplicating these field names, and `full` selects
+// between the redacted set and the complete one.
+//
+// (The previous comment here named a RedactedManifestEntry type that no longer
+// exists anywhere in the module, so this function was in effect undocumented.)
 func ToRedactedMap(ev Evidence, full bool) map[string]any {
 	m := map[string]any{
 		"id":               ev.ID,

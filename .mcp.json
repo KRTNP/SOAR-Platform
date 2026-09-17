@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@1.9.0",
+        "--executablePath",
+        "${CHROME_PATH:-/home/krtn/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome}",
+        "--isolated",
+        "--headless",
+        "--viewport",
+        "1440x900",
+        "--allowedUrlPattern",
+        "http://localhost:*/*",
+        "--allowedUrlPattern",
+        "http://127.0.0.1:*/*",
+        "--performanceCrux",
+        "false",
+        "--usageStatistics",
+        "false"
+      ]
+    }
+  }
+}

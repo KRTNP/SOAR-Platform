@@ -10,6 +10,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -174,7 +175,7 @@ func run(logger *slog.Logger) error {
 	var result error
 	select {
 	case err := <-errCh:
-		if err != nil && err != http.ErrServerClosed {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			result = err
 		}
 	case <-ctx.Done():

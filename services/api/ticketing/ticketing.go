@@ -8,6 +8,7 @@ package ticketing
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -148,7 +149,7 @@ func lookup(ctx context.Context, q querier, tenantID, caseID string) (*Ticket, e
 		`select external_ref, status, closure_reason from tickets where tenant_id = $1 and case_id = $2`,
 		tenantID, caseID,
 	).Scan(&t.ExternalRef, &t.Status, &t.ClosureReason)
-	if err == pgx.ErrNoRows {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {

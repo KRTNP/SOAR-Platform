@@ -216,7 +216,7 @@ func TestAuth_ApproveRequiresTheRolePolicyNames(t *testing.T) {
 	casesResp := bearerRequest(t, http.MethodGet, srv.URL+"/v1/cases", "", analystToken)
 	var page struct {
 		Items []struct {
-			Id string `json:"id"`
+			ID string `json:"id"`
 		} `json:"items"`
 	}
 	_ = json.NewDecoder(casesResp.Body).Decode(&page)
@@ -224,7 +224,7 @@ func TestAuth_ApproveRequiresTheRolePolicyNames(t *testing.T) {
 	if len(page.Items) == 0 {
 		t.Fatal("expected at least one case after ingestion")
 	}
-	caseID := page.Items[0].Id
+	caseID := page.Items[0].ID
 
 	blockResp := bearerRequest(t, http.MethodPatch, srv.URL+"/v1/cases/"+caseID,
 		`{"operation":"request_block","target_value":"198.51.100.10"}`, analystToken)
@@ -236,7 +236,7 @@ func TestAuth_ApproveRequiresTheRolePolicyNames(t *testing.T) {
 	approvalsResp := bearerRequest(t, http.MethodGet, srv.URL+"/v1/approvals", "", analystToken)
 	var approvalsPage struct {
 		Items []struct {
-			Id string `json:"id"`
+			ID string `json:"id"`
 		} `json:"items"`
 	}
 	_ = json.NewDecoder(approvalsResp.Body).Decode(&approvalsPage)
@@ -244,7 +244,7 @@ func TestAuth_ApproveRequiresTheRolePolicyNames(t *testing.T) {
 	if len(approvalsPage.Items) == 0 {
 		t.Fatal("expected a pending approval after request_block")
 	}
-	approvalID := approvalsPage.Items[0].Id
+	approvalID := approvalsPage.Items[0].ID
 
 	// An analyst-only token cannot approve a block_network_indicator (needs
 	// incident-commander) — the enforcement adr/0024 adds on top of

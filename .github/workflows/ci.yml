@@ -1,0 +1,134 @@
+name: CI
+
+# Four independent jobs rather than one script, so a red badge says *what*
+# broke without opening the log: a playbook that no longer declares
+# `safety.default_mode: dry_run` is a different kind of problem from a
+# TypeScript error, and neither should hide the other.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A force-push or a quick follow-up commit makes the older run irrelevant.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # The documentation-first half of the repo. These are the checks that
+  # mechanically enforce the lab boundary described in
+  # adr/0003-human-in-the-loop.md — in particular validate-playbooks.sh
+  # refusing any playbook whose default mode is not dry_run.
+  validate:
+    name: Docs, schemas, playbooks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # validate-playbooks.sh imports yaml; every other validator is stdlib.
+      - name: Install PyYAML
+        run: pip install --disable-pip-version-check pyyaml
+
+      # Catches a syntax error in a validator itself, which would otherwise
+      # make the validator "pass" by never running its body.
+      - name: Shell syntax
+        run: bash -n validation/*.sh
+
+      - name: Validate repository content
+        run: make validate
+
+  go:
+    name: Go API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          # Tracks the module rather than pinning a version here, so bumping
+          # go.mod is the single place that decides the toolchain.
+          go-version-file: services/api/go.mod
+          cache-dependency-path: services/api/go.sum
+
+      - name: gofmt
+        working-directory: services/api
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt'd:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      # -tags=integration so the testcontainers suite is type-checked here
+      # too; without the tag those files are invisible and a compile error in
+      # them only surfaces in the slower integration job.
+      - name: go vet
+        working-directory: services/api
+        run: go vet -tags=integration ./...
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.12.2
+          working-directory: services/api
+
+      - name: Unit tests
+        working-directory: services/api
+        run: go test -race ./...
+
+  # Separate from the unit job on purpose. These start a real PostgreSQL via
+  # testcontainers, so they are slower and have a failure mode (image pull,
+  # socket) that has nothing to do with the code. Kept as its own job so that
+  # class of flake never masks a genuine unit-test failure.
+  go-integration:
+    name: Go integration (PostgreSQL)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/api/go.mod
+          cache-dependency-path: services/api/go.sum
+
+      - name: Integration tests
+        working-directory: services/api
+        run: go test -tags=integration -timeout 15m ./integration/...
+
+  web:
+    name: Operator console
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # eslint.config.mjs runs the full 33-rule jsx-a11y set on top of
+      # next/core-web-vitals.
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build

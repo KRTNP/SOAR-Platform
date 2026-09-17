@@ -285,7 +285,7 @@ func Get(ctx context.Context, tx pgx.Tx, tenantID, id string) (*Evidence, error)
 
 	var rawPayload []byte
 	err = tx.QueryRow(ctx, `select raw_payload from events where tenant_id = $1 and id = $2`, tenantID, *ev.SourceEventID).Scan(&rawPayload)
-	if err == pgx.ErrNoRows {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return ev, nil
 	}
 	if err != nil {
@@ -338,7 +338,7 @@ func selectOne(ctx context.Context, q querier, tenantID, id string) (*Evidence, 
 		&ev.ToolName, &ev.ToolVersion, &ev.CommandRef, &ev.Analyst, &ev.Purpose, &ev.Limitations, &ev.DerivedFrom,
 		&ev.Sensitivity, &ev.RetentionClass, &ev.IntegrityStatus,
 	)
-	if err == pgx.ErrNoRows {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
 	if err != nil {

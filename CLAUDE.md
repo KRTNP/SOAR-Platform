@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Claude-specific workflow
 
-- Treat this repository as a lab design baseline until the user explicitly authorizes implementation or live integration.
+- Implementation is authorized and underway; **live integration is not**. Keep the lab/dry-run boundary, `safety.default_mode: dry_run`, and the human approval gates for containment, isolation, blocking, disabling, and deletion. Do not point this code at a production or third-party security system, and do not start services, without the user saying so.
 - Before specialized work, use the matching skill discovered under `.claude/skills/` and follow its `SKILL.md` instructions. This directory is a symlink to the canonical `.agents/skills/` set; do not install duplicate copies.
 - For frontend work, use the project-scoped design skills; for Go/backend/API work, use the matching Go, backend, and API skills.
 - Before editing, identify the authoritative document, schema, or ADR affected by the change.
@@ -15,7 +15,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository nature
 
-There is no application code yet — `adr/0001-documentation-first.md` and `adr/0005-selected-software-stack.md` mark implementation as not started. Every change here is to a document, schema, example, playbook, or ADR, and "correctness" means internal consistency across those artifacts, not passing a build. Run `bash -n validation/*.sh` plus the smallest relevant validator from `AGENTS.md`'s Development Workflow before handoff; there is no separate build/lint/test toolchain to invoke.
+Implementation has started. The tree is now mixed: design artifacts (`docs/`, `adr/`, `schemas/`, `examples/`, `playbooks/`) *and* real application code. `adr/0001-documentation-first.md` still governs the **order** — design the contract before writing the code — but it no longer describes the contents, and "correctness" is now both internal consistency across documents *and* a passing build.
+
+- **`services/api/`** — Go module `soar-platform/services/api` (`go 1.25`, Gin), ~70 source files across ~30 packages with ~24 `*_test.go`. Unit tests: `make test`. The `integration/` package sits behind the `integration` build tag and starts PostgreSQL with `testcontainers-go`, so it needs a reachable Docker/Podman socket: `make test-integration`. Because of the tag, a plain `go test ./...` runs unit tests only.
+- **`web/`** — Next.js 16 (App Router, Turbopack) / React 19 / Tailwind v4 operator console. From `web/`: `npx tsc --noEmit`, `npm run lint`, `npm run build`. Read `web/AGENTS.md` first — this Next.js version's APIs differ from training data, and the guides under `web/node_modules/next/dist/docs/` are authoritative over recollection.
+- **Docs, schemas, playbooks** — still validated by content rather than compilation: `make validate` runs all five `validation/*.sh`, plus `bash -n validation/*.sh` for the scripts themselves.
+- **`deploy/compose/docker-compose.core.yml`** — the lab stack, driven by `make db-up` / `make migrate` (Atlas). Starting services still requires the user's authorization per `AGENTS.md`.
+- **CI** — `.github/workflows/ci.yml` runs the validators, `golangci-lint`, Go unit tests, the tagged integration tests, and the `web` typecheck/lint/build on every push and PR. Run the matching command locally before handoff rather than discovering it there.
+
+Before claiming completion, run the checks that match what actually changed and report exact results.
+
+## Verifying the console in a browser
+
+`.mcp.json` configures the `chrome-devtools` MCP server, because until it existed every UI claim in this repo was backed by typecheck, lint and source reading rather than by a rendered page — which is how a focus trap that steals focus from the input it was meant to serve survived several review rounds. Use it to *look* before reporting a UI change as done.
+
+It needs the app running (`make api`, `make web`), which still requires the user's authorization.
+
+Four settings in that file are deliberate and should not be dropped:
+
+- `--isolated` — a throwaway user-data-dir, so an agent-driven browser never touches the operator's real Chrome profile, cookies, or sessions.
+- `--allowedUrlPattern` limited to `localhost`/`127.0.0.1` — the browser cannot navigate off the lab, so neither a mistake nor a malicious string rendered in a case can send lab data outward. Requires Chrome 149+.
+- `--performanceCrux false` — otherwise URLs from performance traces are sent to Google's CrUX API.
+- `--usageStatistics false` — opt out of telemetry for a security-lab repository.
+
+`CHROME_PATH` overrides the browser binary; the default points at a Chrome for Testing build already on this machine, since there is no system-wide Chrome (only a flatpak, which Puppeteer cannot launch directly).
 
 ## Cross-file architecture
 
@@ -29,4 +52,4 @@ There is no application code yet — `adr/0001-documentation-first.md` and `adr/
 
 **Markdown links are validated repo-wide** by `validation/validate-links.sh`, except under `.agents/skills/` (vendored skill content with intentionally external-relative links) and any `node_modules/`/`.next/` (installed/build artifacts under `services/api` or `web`, never part of this repo's own content) — keep repository-relative links accurate when moving or renaming docs.
 
-**The selected (not-yet-built) stack** is Next.js/React/TypeScript (UI), Go/Gin (API and workers), Temporal (durable workflows), NATS JetStream (event transport), PostgreSQL via pgx/sqlc/Atlas (source of truth), OpenSearch (derived search), Keycloak (OIDC), Vault (secrets), and OpenTelemetry/Prometheus/Grafana/Loki (observability) — see `adr/0005-selected-software-stack.md`. Design docs that reference implementation details (e.g., `docs/02-architecture/software-development-blueprint.md`, `api/openapi.yaml`) should stay consistent with this decision unless a new ADR supersedes it.
+**The selected stack, and how much of it is actually wired.** `adr/0005-selected-software-stack.md` selects Next.js/React/TypeScript (UI), Go/Gin (API and workers), Temporal (durable workflows), NATS JetStream (event transport), PostgreSQL via pgx/sqlc/Atlas (source of truth), OpenSearch (derived search), Keycloak (OIDC), Vault (secrets), and OpenTelemetry/Prometheus/Grafana/Loki (observability). Present in `services/api/go.mod` today: Gin, pgx, Vault, Prometheus, OpenTelemetry, and `golang-jwt` for the Keycloak path (`adr/0024`); OpenSearch is reached over plain HTTP from `searchindex/` with no client library. **Temporal and NATS JetStream have no dependency yet** — treat durable workflow execution and event transport as designed but unbuilt, and do not write code that assumes either is running. Design docs that reference implementation details (e.g., `docs/02-architecture/software-development-blueprint.md`, `api/openapi.yaml`) should stay consistent with `adr/0005` unless a new ADR supersedes it.

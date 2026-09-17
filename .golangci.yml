@@ -1,0 +1,137 @@
+# golangci-lint configuration for services/api.
+#
+# The selection is deliberate rather than "everything on". This service's whole
+# value is that its record can be trusted: an approval that was recorded but
+# whose execution silently failed, a TTL rollback whose timer was dropped, or
+# an audit write whose error was discarded are all worse than a crash, because
+# they leave the console asserting something the lab is not doing. Every linter
+# below was chosen because it catches that class of defect mechanically instead
+# of relying on a reviewer noticing.
+#
+# Run from services/api: golangci-lint run ./...
+version: "2"
+
+run:
+  timeout: 5m
+  # The integration suite is behind this tag (testcontainers + PostgreSQL), so
+  # without it those files are invisible to the linter — which is exactly where
+  # a dropped error in test setup hides a false green.
+  build-tags:
+    - integration
+
+linters:
+  default: standard
+  enable:
+    # --- The trust-the-record set -------------------------------------------
+    # `return err == nil` style inversions, and returning nil after checking a
+    # non-nil error. Rare, silent, and catastrophic inside an approval gate.
+    - nilerr
+    # A context created and never passed on loses the request's deadline and
+    # cancellation, so a connector call can outlive the request that
+    # authorized it.
+    - contextcheck
+    # errors.Is/As instead of == and bare type assertions, so a wrapped
+    # Problem-style error is still recognised across a package boundary.
+    - errorlint
+    # http.Body / pgx rows left unclosed. A leaked connection under the
+    # scheduler's polling loop degrades slowly and presents as something else.
+    - bodyclose
+    - rowserrcheck
+    - sqlclosecheck
+    # Loop-variable capture in goroutines and other concurrency diagnostics —
+    # both the TTL scheduler and the Wazuh poller fan out.
+    - gocritic
+
+    # --- Correctness ---------------------------------------------------------
+    # Struct tags that silently disagree with the contract in api/openapi.yaml.
+    - musttag
+    # Duration arithmetic that silently multiplies or truncates wrongly, which
+    # is how a TTL expires at the wrong moment.
+    - durationcheck
+    # Assignments never read: usually a dropped branch.
+    - wastedassign
+    # Uses of a nil-able value after an error path already returned.
+    - nilnesserr
+
+    # --- Hygiene -------------------------------------------------------------
+    - misspell
+    - unconvert
+    - whitespace
+
+  settings:
+    errcheck:
+      # errcheck ships in the `standard` set; this tunes it.
+      #
+      # A single-value type assertion panics on the wrong type, so it stays on.
+      check-type-assertions: true
+      #
+      # check-blank stays OFF. Turning it on produced 25 findings, every one of
+      # them the deliberate `v, _ := params["tenant_id"].(string)` pattern that
+      # is immediately followed by an explicit `if tenantID == ""` guard (see
+      # network/, opnsense/, ticketing/, enrichment/ Invoke). The discarded
+      # bool is redundant there because the zero value is what gets validated;
+      # rewriting those into `if !ok` would be longer and no safer. A linter
+      # that demands 25 correct sites be made worse is a linter the team turns
+      # off wholesale, taking the real errcheck findings with it.
+      check-blank: false
+      exclude-functions:
+        # A deferred Rollback is the documented no-op after a successful
+        # Commit, not a swallowed failure.
+        - (github.com/jackc/pgx/v5.Tx).Rollback
+        # Closing a response body whose content has already been read (or
+        # deliberately discarded) has nothing actionable to report.
+        - (io.Closer).Close
+        - (io.ReadCloser).Close
+
+    gocritic:
+      # `diagnostic` only. The `performance` tag is almost entirely
+      # rangeValCopy/hugeParam on this codebase — "this 176-byte struct is
+      # copied per iteration" is a micro-optimization on a lab-scale service,
+      # not a defect, and 26 such findings would teach everyone to scroll past
+      # the linter that also reports the real ones.
+      enabled-tags:
+        - diagnostic
+      disabled-checks:
+        # Opinionated style rules that fight the existing codebase without
+        # catching defects.
+        - ifElseChain
+        - singleCaseSwitch
+
+    staticcheck:
+      checks:
+        - all
+        # ST1000 wants a package comment on every package. This codebase
+        # documents the interesting packages and leaves thin ones bare;
+        # enforcing it produces filler text, not understanding.
+        - -ST1000
+
+  exclusions:
+    rules:
+      # Tests deliberately ignore errors in setup they are about to assert on,
+      # and table-driven tests trip several performance diagnostics.
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gocritic
+          - musttag
+      # Generated API types are not ours to restyle.
+      - path: genapi/
+        linters:
+          - musttag
+          - staticcheck
+          - gocritic
+
+issues:
+  # Report every finding rather than capping per linter, otherwise a noisy
+  # linter can hide a serious one behind the cap.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - soar-platform/services/api

@@ -20,18 +20,36 @@
 
 Read `README.md` and the relevant design documents before changing contracts or playbooks. Preserve the lab/dry-run boundary and human approval gates for containment, isolation, blocking, disabling, deletion, or other high-impact actions. Keep provider-specific behavior inside connector or integration boundaries.
 
-Run validation from this directory:
+Validate the design artifacts (docs, schemas, examples, playbooks) from this directory:
 
 ```bash
-bash validation/validate-json.sh
-bash validation/validate-playbooks.sh
-bash validation/validate-diagrams.sh
-bash validation/validate-links.sh
-bash validation/validate-source-traceability.sh
-bash -n validation/*.sh
+make validate          # all five validators below
+bash -n validation/*.sh  # the validators' own shell syntax
 ```
 
-Run the smallest relevant check first, then the full set before handoff. If adding implementation later, add focused tests with the owning component and document the command here.
+`make validate` runs `validate-json.sh`, `validate-playbooks.sh`, `validate-diagrams.sh`, `validate-links.sh`, and `validate-source-traceability.sh`. They need `python3` with PyYAML.
+
+Check the Go API (`services/api/`):
+
+```bash
+cd services/api
+gofmt -l .                        # must print nothing
+go vet -tags=integration ./...
+golangci-lint run ./...           # config: .golangci.yml at the repo root
+make -C ../.. test                # unit tests; `go test -race ./...` locally
+make -C ../.. test-integration    # tagged; starts PostgreSQL via testcontainers, needs a Docker/Podman socket
+```
+
+Check the operator console (`web/`):
+
+```bash
+cd web
+npx tsc --noEmit
+npm run lint    # next/core-web-vitals + the full 33-rule jsx-a11y set
+npm run build
+```
+
+Run the smallest relevant check first, then everything that covers what you changed before handoff, and report exact results. `.github/workflows/ci.yml` runs all of the above on every push and pull request, so a check skipped locally surfaces there rather than being avoided. Add focused tests with the owning component and document any new command here.
 
 ## Style & Naming
 

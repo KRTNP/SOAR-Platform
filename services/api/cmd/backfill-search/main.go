@@ -28,20 +28,29 @@ import (
 	"soar-platform/services/api/secrets"
 )
 
+// main exists only to turn run's error into an exit code. The work lives in
+// run so that `defer pool.Close()` actually runs on the failure paths:
+// log.Fatalf calls os.Exit, which skips every pending defer, so a failed
+// backfill used to abandon the pool mid-flight instead of draining it.
 func main() {
-	ctx := context.Background()
+	if err := run(context.Background()); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run(ctx context.Context) error {
 	sp, err := secrets.New()
 	if err != nil {
-		log.Fatalf("selecting secrets backend: %v", err)
+		return fmt.Errorf("selecting secrets backend: %w", err)
 	}
 	dbURL, err := sp.Get(ctx, "DATABASE_URL")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
-		log.Fatalf("connecting to database: %v", err)
+		return fmt.Errorf("connecting to database: %w", err)
 	}
 	defer pool.Close()
 
@@ -49,14 +58,15 @@ func main() {
 
 	cases, err := backfillCases(ctx, pool, now)
 	if err != nil {
-		log.Fatalf("backfilling cases: %v", err)
+		return fmt.Errorf("backfilling cases: %w", err)
 	}
 	events, err := backfillEvents(ctx, pool, now)
 	if err != nil {
-		log.Fatalf("backfilling events: %v", err)
+		return fmt.Errorf("backfilling events: %w", err)
 	}
 
 	fmt.Printf("wrote %d case and %d event outbox rows\n", cases, events)
+	return nil
 }
 
 // alreadyProjected returns the entity ids that already have at least one
