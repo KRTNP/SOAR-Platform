@@ -35,7 +35,7 @@ into environment-specific constraints.
 | SRC-OIIRP | Research / Cardiff University, Computers & Security | 2024 publication record | Abstract and paper “Operations-informed incident response playbooks” | Playbooks should connect response process with an operational model and critical thresholds so actions can be evaluated against business impact. | operational context, response decision matrix, ransomware, approval | Conceptual contribution and ransomware demonstration; thresholds must come from the business. |
 | SRC-ICSECURE | Research / IC-SECURE | 2023 | “Intelligent System for Assisting Security Experts in Generating Playbooks for Automated Incident Response” | Treat playbook generation as expert-assisted investigative and response workflow design with structured actions/API modules. | playbook authoring, action catalog, AI safety, review workflow | Research prototype; generated steps require human review and provider validation. |
 | SRC-APIRO | Research / Sworna, Islam, Babar | 2022 | Abstract and evaluation in “APIRO: A Framework for Automated Security Tools API Recommendation” | Security-tool API discovery suffers from heterogeneous documentation and semantic variation; automated recommendation is feasible but must be evaluated against tools and tasks. | connector catalog, capability matrix, API contract, connector tests | 3 tools and augmented data; not evidence that recommendations are safe to execute. |
-| SRC-LOCAL-DFIR | Local operational guidance / KRTN DFIR workspace | Current repository | `../../dfir/AGENTS.md`; `../../dfir/playbooks/README.md`; Windows/Linux/Cloud/Network/Malware playbooks | Treat original evidence as read-only; write derived work to case work/exports; record hashes, custody, collector, timestamps, retention, collection order, prerequisites, validation, and stop conditions. | evidence model, custody, DFIR playbook, safe response, test boundaries | Local guidance is authoritative for this workspace, not a universal organizational policy. |
+| SRC-LOCAL-DFIR | Local operational guidance / KRTN DFIR workstation | Reviewed Aug 2026 | `AGENTS.md` and `playbooks/README.md` of the DFIR workstation, plus its Windows/Linux/Cloud/Network/Malware playbooks | Treat original evidence as read-only; write derived work to case work/exports; record hashes, custody, collector, timestamps, retention, collection order, prerequisites, validation, and stop conditions. | evidence model, custody, DFIR playbook, safe response, test boundaries | Local guidance is authoritative for this workspace, not a universal organizational policy. |
 
 ## Canonical URLs and local paths
 
@@ -60,7 +60,7 @@ path rather than a web citation.
 | SRC-OIIRP | [Operations-informed incident response playbooks](https://orca.cardiff.ac.uk/id/eprint/165303/) |
 | SRC-ICSECURE | [IC-SECURE](https://arxiv.org/abs/2311.03825) |
 | SRC-APIRO | [APIRO](https://arxiv.org/abs/2201.07959) |
-| SRC-LOCAL-DFIR | `../../dfir/AGENTS.md` and `../../dfir/playbooks/README.md` |
+| SRC-LOCAL-DFIR | No canonical URL — a local DFIR workstation outside this repository and not version-controlled. It holds case evidence, so it is cited by description and never linked or copied from. |
 
 ## Source-to-design rules
 
